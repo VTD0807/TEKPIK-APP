@@ -45,14 +45,9 @@ export async function middleware(request) {
         return NextResponse.redirect(loginUrl)
     }
 
-    if (isAuthRoute && user) {
-        return NextResponse.redirect(new URL('/', request.url))
-    }
-
     return supabaseResponse
 }
 
 export const config = {
-    // Only run on routes that actually need auth checks
-    matcher: ['/admin/:path*', '/login', '/register', '/wishlist', '/oauth/:path*'],
+    matcher: ['/admin/:path*', '/wishlist', '/oauth/:path*'],
 }

@@ -1,22 +1,20 @@
 -- ============================================================
--- TEKPIK — Promote a user to ADMIN
+-- TEKPIK — Promote users to ADMIN
+-- Run in: Supabase Dashboard → SQL Editor
 -- ============================================================
 
--- Step 1: Check if the user exists in auth.users
-select id, email from auth.users where email = 'varshith.code@gmail.com';
-
--- Step 2: If they exist in auth.users but NOT in public.users,
--- manually insert them (the trigger may have missed them)
-insert into public.users (id, name, email, image, role)
-select
+-- Upsert both admin accounts from auth.users into public.users with ADMIN role
+INSERT INTO public.users (id, name, email, image, role)
+SELECT
     id,
-    coalesce(raw_user_meta_data->>'full_name', split_part(email, '@', 1)),
+    coalesce(raw_user_meta_data->>'full_name', raw_user_meta_data->>'name', split_part(email, '@', 1)),
     email,
     coalesce(raw_user_meta_data->>'avatar_url', ''),
     'ADMIN'
-from auth.users
-where email = 'varshith.code@gmail.com'
-on conflict (id) do update set role = 'ADMIN';
+FROM auth.users
+WHERE email IN ('varshith.code@gmail.com', 'varshithpaladugu07@gmail.com')
+ON CONFLICT (id) DO UPDATE SET role = 'ADMIN';
 
--- Step 3: Verify
-select id, email, role from public.users where email = 'varshith.code@gmail.com';
+-- Verify
+SELECT id, email, role FROM public.users
+WHERE email IN ('varshith.code@gmail.com', 'varshithpaladugu07@gmail.com');

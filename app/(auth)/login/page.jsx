@@ -41,14 +41,22 @@ function LoginForm() {
         e.preventDefault()
         setLoading(true)
         setError('')
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) {
-            setError(error.message)
+        try {
+            const { error } = await supabase.auth.signInWithPassword({ email, password })
+            if (error) {
+                if (error.message.includes('Invalid login') || error.message.includes('Email not confirmed')) {
+                    setError('Invalid email or password. If you signed up with Google, use "Continue with Google" instead.')
+                } else {
+                    setError(error.message)
+                }
+            } else {
+                toast.success('Welcome back!')
+                window.location.href = redirect
+            }
+        } catch {
+            setError('Something went wrong. Please try again.')
+        } finally {
             setLoading(false)
-        } else {
-            toast.success('Welcome back!')
-            router.push(redirect)
-            router.refresh()
         }
     }
 
