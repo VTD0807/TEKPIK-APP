@@ -19,18 +19,15 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        // Get initial session
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            setUser(user ?? null)
+        // Use getSession (cached) instead of getUser (network call) for initial load
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null)
             setLoading(false)
         })
 
-        // Listen for all auth events
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             const u = session?.user ?? null
             setUser(u)
-
-            // On sign-in (including Google OAuth), upsert profile into public.users
             if (event === 'SIGNED_IN' && u) {
                 upsertUserProfile(u)
             }
