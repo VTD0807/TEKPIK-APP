@@ -1,12 +1,6 @@
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
-const GOOGLE_CLIENT_ID = (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '').trim()
-
-/**
- * GET /oauth/google?redirect=/
- * Redirects directly to Google — no Supabase in the URL.
- * Google will show "localhost:3000" not "supabase.co"
- */
 export async function GET(request, { params }) {
     const { provider } = await params
     const { searchParams, origin } = new URL(request.url)
@@ -16,17 +10,24 @@ export async function GET(request, { params }) {
         return NextResponse.json({ error: 'Only google supported' }, { status: 400 })
     }
 
-    const callbackUrl = `${origin}/oauth/callback`
+    const supabase = await createSupabaseServerClient()
 
-    // Build Google OAuth URL directly — bypasses Supabase entirely
-    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
-    googleAuthUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID)
-    googleAuthUrl.searchParams.set('redirect_uri', callbackUrl)
-    googleAuthUrl.searchParams.set('response_type', 'code')
-    googleAuthUrl.searchParams.set('scope', 'openid email profile')
-    googleAuthUrl.searchParams.set('access_type', 'offline')
-    googleAuthUrl.searchParams.set('prompt', 'consent')
-    googleAuthUrl.searchParams.set('state', encodeURIComponent(redirectAfter))
+    // Use Supabase OAuth but redirect back to OUR callback, not supabase.co
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: `${origin}/oauth/callback?next=${encodeURIComponent(redirectAfter)}`,
+            skipBrowserRedirect: true,
+            queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+            },
+        },
+    })
 
-    return NextResponse.redirect(googleAuthUrl.toString())
+    if (error || !data?.url) {
+        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error?.message || 'OAuth failed')}`)
+    }
+
+    return NextResponse.redirect(data.url)
 }
