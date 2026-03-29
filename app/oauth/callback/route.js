@@ -4,11 +4,6 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 const GOOGLE_CLIENT_ID = (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '').trim()
 const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || '').trim()
 
-/**
- * GET /oauth/callback?code=xxx&state=/
- * Exchanges Google code for tokens, upserts user in Supabase DB,
- * creates a Supabase session manually.
- */
 export async function GET(request) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
@@ -54,25 +49,79 @@ export async function GET(request) {
         return NextResponse.redirect(`${origin}/login?error=no_email_from_google`)
     }
 
-    // 3. Sign in or create user via Supabase Admin (uses service role)
-    //    We use signInWithIdToken so Supabase creates the session cookie
+    // 3. Try signInWithIdToken first (works if Google provider enabled in Supabase)
     const supabase = await createSupabaseServerClient()
+    let userId = null
 
-    const { data, error } = await supabase.auth.signInWithIdToken({
+    const { data: idTokenData, error: idTokenError } = await supabase.auth.signInWithIdToken({
         provider: 'google',
         token: tokens.id_token,
     })
 
-    if (error) {
-        console.error('[oauth/callback] signInWithIdToken error:', error.message)
-        // Fallback: upsert user directly and create magic link session
-        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
+    if (!idTokenError && idTokenData?.user) {
+        userId = idTokenData.user.id
+    } else {
+        // 4. Fallback: use admin to create/get user by email
+        console.log('[oauth/callback] signInWithIdToken failed, trying admin upsert:', idTokenError?.message)
+
+        // Use service role to create user if not exists
+        const { createClient } = await import('@supabase/supabase-js')
+        const adminClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+        )
+
+        // Check if user exists
+        const { data: existingUsers } = await adminClient.auth.admin.listUsers()
+        const existing = existingUsers?.users?.find(u => u.email === googleUser.email)
+
+        if (existing) {
+            userId = existing.id
+            // Generate a magic link to create a session
+            const { data: linkData } = await adminClient.auth.admin.generateLink({
+                type: 'magiclink',
+                email: googleUser.email,
+            })
+            if (linkData?.properties?.hashed_token) {
+                // Exchange the token for a session
+                const { data: sessionData } = await supabase.auth.verifyOtp({
+                    token_hash: linkData.properties.hashed_token,
+                    type: 'magiclink',
+                })
+                if (sessionData?.user) userId = sessionData.user.id
+            }
+        } else {
+            // Create new user
+            const { data: newUser } = await adminClient.auth.admin.createUser({
+                email: googleUser.email,
+                email_confirm: true,
+                user_metadata: {
+                    full_name: googleUser.name,
+                    avatar_url: googleUser.picture,
+                    provider: 'google',
+                },
+            })
+            if (newUser?.user) {
+                userId = newUser.user.id
+                const { data: linkData } = await adminClient.auth.admin.generateLink({
+                    type: 'magiclink',
+                    email: googleUser.email,
+                })
+                if (linkData?.properties?.hashed_token) {
+                    await supabase.auth.verifyOtp({
+                        token_hash: linkData.properties.hashed_token,
+                        type: 'magiclink',
+                    })
+                }
+            }
+        }
     }
 
-    // 4. Upsert into public.users
-    if (data.user) {
+    // 5. Upsert into public.users
+    if (userId) {
         await supabase.from('users').upsert({
-            id: data.user.id,
+            id: userId,
             name: googleUser.name || googleUser.email.split('@')[0],
             email: googleUser.email,
             image: googleUser.picture || '',
