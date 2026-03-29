@@ -1,14 +1,17 @@
 'use client'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-export default function OrdersAreaChart({ allOrders }) {
+export default function OrdersAreaChart({ allOrders, data }) {
+    const orders = allOrders || data || []
 
     // Group orders by date
-    const ordersPerDay = allOrders.reduce((acc, order) => {
+    const ordersPerDay = orders.reduce((acc, order) => {
         const date = new Date(order.createdAt).toISOString().split('T')[0] // format: YYYY-MM-DD
         acc[date] = (acc[date] || 0) + 1
         return acc
     }, {})
+
+    if (orders.length === 0) return <div className="h-[300px] flex items-center justify-center text-slate-300 text-sm">No data yet.</div>
 
     // Convert to array for Recharts
     const chartData = Object.entries(ordersPerDay).map(([date, count]) => ({

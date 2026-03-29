@@ -1,62 +1,126 @@
 'use client'
-import { dummyAdminDashboardData } from "@/assets/assets"
-import Loading from "@/components/Loading"
-import OrdersAreaChart from "@/components/OrdersAreaChart"
-import { CircleDollarSignIcon, ShoppingBasketIcon, StoreIcon, TagsIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState } from 'react'
+import Loading from '@/components/Loading'
+import OrdersAreaChart from '@/components/OrdersAreaChart'
+import { SparklesIcon, ShoppingBasketIcon, ClockIcon, HeartIcon, StarIcon, PlusIcon, CheckSquareIcon } from 'lucide-react'
+import Link from 'next/link'
 
 export default function AdminDashboard() {
-
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '$'
-
     const [loading, setLoading] = useState(true)
-    const [dashboardData, setDashboardData] = useState({
-        products: 0,
-        revenue: 0,
-        orders: 0,
-        stores: 0,
-        allOrders: [],
-    })
-
-    const dashboardCardsData = [
-        { title: 'Total Products', value: dashboardData.products, icon: ShoppingBasketIcon },
-        { title: 'Total Revenue', value: currency + dashboardData.revenue, icon: CircleDollarSignIcon },
-        { title: 'Total Orders', value: dashboardData.orders, icon: TagsIcon },
-        { title: 'Total Stores', value: dashboardData.stores, icon: StoreIcon },
-    ]
-
-    const fetchDashboardData = async () => {
-        setDashboardData(dummyAdminDashboardData)
-        setLoading(false)
-    }
+    const [data, setData] = useState(null)
 
     useEffect(() => {
-        fetchDashboardData()
+        fetch('/api/admin/analytics')
+            .then(r => r.json())
+            .then(d => {
+                setData({
+                    totalProducts: d.totalProducts,
+                    pendingReviews: d.pendingReviews,
+                    aiCoverage: d.aiCoverage,
+                    wishlistSaves: d.wishlistSaves,
+                    allOrders: [],
+                    recentActivity: [
+                        { type: 'review', text: 'New review submitted', time: 'just now' },
+                        { type: 'ai', text: 'AI analysis available', time: 'today' },
+                    ],
+                })
+                setLoading(false)
+            })
+            .catch(() => {
+                // fallback to zeros if DB not connected yet
+                setData({ totalProducts: 0, pendingReviews: 0, aiCoverage: { analysed: 0, total: 0 }, wishlistSaves: 0, allOrders: [], recentActivity: [] })
+                setLoading(false)
+            })
     }, [])
 
     if (loading) return <Loading />
 
-    return (
-        <div className="text-slate-500">
-            <h1 className="text-2xl">Admin <span className="text-slate-800 font-medium">Dashboard</span></h1>
+    const aiPct = Math.round((data.aiCoverage.analysed / data.aiCoverage.total) * 100)
 
-            {/* Cards */}
-            <div className="flex flex-wrap gap-5 my-10 mt-4">
-                {
-                    dashboardCardsData.map((card, index) => (
-                        <div key={index} className="flex items-center gap-10 border border-slate-200 p-3 px-6 rounded-lg">
-                            <div className="flex flex-col gap-3 text-xs">
-                                <p>{card.title}</p>
-                                <b className="text-2xl font-medium text-slate-700">{card.value}</b>
-                            </div>
-                            <card.icon size={50} className=" w-11 h-11 p-2.5 text-slate-400 bg-slate-100 rounded-full" />
+    const statCards = [
+        { title: 'Total Products', value: data.totalProducts, icon: ShoppingBasketIcon, sub: '+2 this week', color: 'text-indigo-600 bg-indigo-50' },
+        { title: 'Pending Reviews', value: data.pendingReviews, icon: ClockIcon, sub: data.pendingReviews > 0 ? 'Needs attention' : 'All clear', color: data.pendingReviews > 0 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50' },
+        { title: 'AI Coverage', value: `${data.aiCoverage.analysed}/${data.aiCoverage.total}`, icon: SparklesIcon, sub: `${aiPct}% analysed`, color: 'text-purple-600 bg-purple-50' },
+        { title: 'Wishlist Saves', value: data.wishlistSaves, icon: HeartIcon, sub: '+5 this week', color: 'text-red-500 bg-red-50' },
+    ]
+
+    const activityIcons = { review: StarIcon, product: ShoppingBasketIcon, ai: SparklesIcon, wishlist: HeartIcon }
+
+    return (
+        <div className="text-slate-600 space-y-8 pb-20">
+            <h1 className="text-2xl text-slate-500">Admin <span className="text-slate-800 font-medium">Dashboard</span></h1>
+
+            {/* Stat Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {statCards.map((card, i) => (
+                    <div key={i} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm space-y-2">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.color}`}>
+                            <card.icon size={18} />
                         </div>
-                    ))
-                }
+                        <p className="text-2xl font-bold text-slate-800">{card.value}</p>
+                        <p className="text-sm text-slate-500">{card.title}</p>
+                        <p className="text-xs text-slate-400">{card.sub}</p>
+                    </div>
+                ))}
             </div>
 
-            {/* Area Chart */}
-            <OrdersAreaChart allOrders={dashboardData.allOrders} />
+            {/* AI Coverage bar */}
+            <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><SparklesIcon size={14} className="text-purple-500" /> AI Analysis Coverage</p>
+                    <span className="text-sm text-slate-500">{aiPct}%</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2">
+                    <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${aiPct}%` }} />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">{data.aiCoverage.analysed} of {data.aiCoverage.total} products have AI analysis</p>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+                {/* Chart */}
+                <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                    <p className="text-sm font-medium text-slate-700 mb-4">Click Activity (last 30 days)</p>
+                    <OrdersAreaChart data={data.allOrders} />
+                </div>
+
+                {/* Activity Feed */}
+                <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                    <p className="text-sm font-medium text-slate-700 mb-4">Recent Activity</p>
+                    <ul className="space-y-3">
+                        {data.recentActivity.map((item, i) => {
+                            const Icon = activityIcons[item.type] || StarIcon
+                            return (
+                                <li key={i} className="flex items-start gap-3 text-sm">
+                                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                        <Icon size={13} className="text-slate-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-700">{item.text}</p>
+                                        <p className="text-xs text-slate-400">{item.time}</p>
+                                    </div>
+                                </li>
+                            )
+                        })}
+                    </ul>
+                </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                <p className="text-sm font-medium text-slate-700 mb-4">Quick Actions</p>
+                <div className="flex flex-wrap gap-3">
+                    <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-lg transition">
+                        <PlusIcon size={14} /> Add Product
+                    </Link>
+                    <Link href="/admin/reviews" className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg transition">
+                        <CheckSquareIcon size={14} /> Moderate Reviews
+                        {data.pendingReviews > 0 && <span className="bg-white text-amber-600 text-xs font-bold px-1.5 rounded-full">{data.pendingReviews}</span>}
+                    </Link>
+                    <Link href="/admin/ai-analysis" className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm rounded-lg transition">
+                        <SparklesIcon size={14} /> Run AI Analysis
+                    </Link>
+                </div>
+            </div>
         </div>
     )
 }

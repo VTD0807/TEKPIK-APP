@@ -1,3 +1,4 @@
+import tekpik_logo from "./FINAL-LOGO-TEKPIK.png"
 import gs_logo from "./gs_logo.jpg"
 import happy_store from "./happy_store.webp"
 import upload_area from "./upload_area.svg"
@@ -23,7 +24,7 @@ import profile_pic3 from "./profile_pic3.jpg"
 
 export const assets = {
     upload_area, hero_model_img,
-    hero_product_img1, hero_product_img2, gs_logo,
+    hero_product_img1, hero_product_img2, gs_logo, tekpik_logo,
     product_img1, product_img2, product_img3, product_img4, product_img5, product_img6,
     product_img7, product_img8, product_img9, product_img10, product_img11, product_img12,
 }

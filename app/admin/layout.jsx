@@ -1,17 +1,10 @@
 import AdminLayout from "@/components/admin/AdminLayout";
 
 export const metadata = {
-    title: "GoCart. - Admin",
-    description: "GoCart. - Admin",
+    title: "TEKPIK - Admin",
+    description: "TEKPIK Admin Panel",
 };
 
 export default function RootAdminLayout({ children }) {
-
-    return (
-        <>
-            <AdminLayout>
-                {children}
-            </AdminLayout>
-        </>
-    );
+    return <AdminLayout>{children}</AdminLayout>
 }

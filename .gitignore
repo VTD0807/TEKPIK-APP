@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# Google OAuth credentials (NEVER commit these)
+client_secret*.json
+*credentials*.json
+.env.local
+.env*.local
