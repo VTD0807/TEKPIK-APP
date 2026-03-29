@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-// GET /api/products?category=&search=&featured=&sort=&page=&limit=
+export const dynamic = 'force-dynamic'
+
 export async function GET(req) {
     const { searchParams } = new URL(req.url)
     const category = searchParams.get('category')
@@ -11,37 +12,25 @@ export async function GET(req) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
 
-    const where = {
-        isActive: true,
-        ...(category && { category: { slug: category } }),
-        ...(featured === 'true' && { isFeatured: true }),
-        ...(search && {
-            OR: [
-                { title: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
-                { brand: { contains: search, mode: 'insensitive' } },
-            ],
-        }),
-    }
+    const supabase = await createSupabaseServerClient()
 
-    const orderBy = sort === 'price_asc' ? { price: 'asc' }
-        : sort === 'price_desc' ? { price: 'desc' }
-        : { createdAt: 'desc' }
+    let query = supabase
+        .from('products')
+        .select('*, categories(name,slug,icon), ai_analysis(score,value_for_money)', { count: 'exact' })
+        .eq('is_active', true)
 
-    const [products, total] = await Promise.all([
-        prisma.product.findMany({
-            where,
-            orderBy,
-            skip: (page - 1) * limit,
-            take: limit,
-            include: {
-                category: true,
-                aiAnalysis: { select: { score: true, valueForMoney: true } },
-                _count: { select: { reviews: { where: { isApproved: true } } } },
-            },
-        }),
-        prisma.product.count({ where }),
-    ])
+    if (category) query = query.eq('categories.slug', category)
+    if (featured === 'true') query = query.eq('is_featured', true)
+    if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,brand.ilike.%${search}%`)
 
-    return NextResponse.json({ products, total, page, pages: Math.ceil(total / limit) })
+    if (sort === 'price_asc') query = query.order('price', { ascending: true })
+    else if (sort === 'price_desc') query = query.order('price', { ascending: false })
+    else query = query.order('created_at', { ascending: false })
+
+    query = query.range((page - 1) * limit, page * limit - 1)
+
+    const { data, count, error } = await query
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ products: data, total: count, page, pages: Math.ceil((count || 0) / limit) })
 }

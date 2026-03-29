@@ -1,39 +1,42 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-// GET /api/wishlist?userId=xxx
-export async function GET(req) {
-    const { searchParams } = new URL(req.url)
-    const userId = searchParams.get('userId')
-    if (!userId) return NextResponse.json({ wishlist: [] })
+export const dynamic = 'force-dynamic'
 
-    const wishlist = await prisma.wishlist.findMany({
-        where: { userId },
-        include: {
-            product: {
-                include: { aiAnalysis: { select: { score: true } } },
-            },
-        },
-        orderBy: { addedAt: 'desc' },
-    })
+export async function GET() {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ wishlist: [] })
 
-    return NextResponse.json({ wishlist: wishlist.map(w => w.product) })
+    const { data } = await supabase
+        .from('wishlists')
+        .select('product_id, products(*, ai_analysis(score))')
+        .eq('user_id', user.id)
+        .order('added_at', { ascending: false })
+
+    return NextResponse.json({ wishlist: data?.map(w => w.products) || [] })
 }
 
-// POST /api/wishlist  — toggle (add if not exists, remove if exists)
 export async function POST(req) {
-    const { userId, productId } = await req.json()
-    if (!userId || !productId) return NextResponse.json({ error: 'userId and productId required' }, { status: 400 })
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const existing = await prisma.wishlist.findUnique({
-        where: { userId_productId: { userId, productId } },
-    })
+    const { productId } = await req.json()
+    if (!productId) return NextResponse.json({ error: 'productId required' }, { status: 400 })
+
+    const { data: existing } = await supabase
+        .from('wishlists')
+        .select('product_id')
+        .eq('user_id', user.id)
+        .eq('product_id', productId)
+        .single()
 
     if (existing) {
-        await prisma.wishlist.delete({ where: { userId_productId: { userId, productId } } })
+        await supabase.from('wishlists').delete().eq('user_id', user.id).eq('product_id', productId)
         return NextResponse.json({ saved: false })
     } else {
-        await prisma.wishlist.create({ data: { userId, productId } })
+        await supabase.from('wishlists').insert({ user_id: user.id, product_id: productId })
         return NextResponse.json({ saved: true })
     }
 }

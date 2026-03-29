@@ -1,22 +1,19 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req, { params }) {
     const { id } = await params
+    const supabase = await createSupabaseServerClient()
 
-    const product = await prisma.product.findUnique({
-        where: { id },
-        include: {
-            category: true,
-            aiAnalysis: true,
-            reviews: {
-                where: { isApproved: true },
-                orderBy: { createdAt: 'desc' },
-            },
-        },
-    })
+    const { data, error } = await supabase
+        .from('products')
+        .select('*, categories(name,slug), ai_analysis(*), reviews(id,author_name,rating,title,body,pros,cons,is_verified,helpful,created_at)')
+        .eq('id', id)
+        .eq('reviews.is_approved', true)
+        .single()
 
-    if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    return NextResponse.json(product)
+    if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json(data)
 }

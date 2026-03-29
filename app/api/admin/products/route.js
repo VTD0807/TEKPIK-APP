@@ -1,27 +1,40 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-// GET /api/admin/products
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
-    const products = await prisma.product.findMany({
-        include: {
-            category: true,
-            aiAnalysis: { select: { score: true, generatedAt: true } },
-            _count: { select: { reviews: true, wishlists: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-    })
-    return NextResponse.json({ products })
+    const supabase = await createSupabaseServerClient()
+    const { data, error } = await supabase
+        .from('products')
+        .select('*, categories(name,slug), ai_analysis(score,generated_at)')
+        .order('created_at', { ascending: false })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ products: data })
 }
 
-// POST /api/admin/products
 export async function POST(req) {
+    const supabase = await createSupabaseServerClient()
     const body = await req.json()
-    const { title, description, price, originalPrice, discount, affiliateUrl, asin, brand, imageUrls, isFeatured, categoryId, tags, slug } = body
 
-    const product = await prisma.product.create({
-        data: { title, slug: slug || title.toLowerCase().replace(/\s+/g, '-'), description, price, originalPrice, discount: discount || 0, affiliateUrl, asin, brand: brand || '', imageUrls: imageUrls || [], isFeatured: isFeatured || false, categoryId, tags: tags || [] },
-    })
+    const { data, error } = await supabase.from('products').insert({
+        title: body.title,
+        slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        description: body.description || '',
+        price: parseFloat(body.price),
+        original_price: body.originalPrice ? parseFloat(body.originalPrice) : null,
+        discount: parseInt(body.discount) || 0,
+        affiliate_url: body.affiliateUrl,
+        asin: body.asin || null,
+        brand: body.brand || '',
+        image_urls: body.imageUrls || [],
+        is_featured: body.isFeatured || false,
+        is_active: body.isActive ?? true,
+        category_id: body.categoryId || null,
+        tags: body.tags || [],
+    }).select().single()
 
-    return NextResponse.json({ product }, { status: 201 })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ product: data }, { status: 201 })
 }

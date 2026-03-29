@@ -1,19 +1,32 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-// GET /api/admin/analytics
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
-    const [totalProducts, pendingReviews, totalWishlists, analysedProducts] = await Promise.all([
-        prisma.product.count({ where: { isActive: true } }),
-        prisma.review.count({ where: { isApproved: false } }),
-        prisma.wishlist.count(),
-        prisma.aiAnalysis.count(),
-    ])
+    try {
+        const supabase = await createSupabaseServerClient()
 
-    return NextResponse.json({
-        totalProducts,
-        pendingReviews,
-        wishlistSaves: totalWishlists,
-        aiCoverage: { analysed: analysedProducts, total: totalProducts },
-    })
+        const [
+            { count: totalProducts },
+            { count: pendingReviews },
+            { count: totalWishlists },
+            { count: analysedProducts },
+        ] = await Promise.all([
+            supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true),
+            supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('is_approved', false),
+            supabase.from('wishlists').select('*', { count: 'exact', head: true }),
+            supabase.from('ai_analysis').select('*', { count: 'exact', head: true }),
+        ])
+
+        return NextResponse.json({
+            totalProducts: totalProducts ?? 0,
+            pendingReviews: pendingReviews ?? 0,
+            wishlistSaves: totalWishlists ?? 0,
+            aiCoverage: { analysed: analysedProducts ?? 0, total: totalProducts ?? 0 },
+        })
+    } catch (err) {
+        console.error('[analytics]', err)
+        return NextResponse.json({ totalProducts: 0, pendingReviews: 0, wishlistSaves: 0, aiCoverage: { analysed: 0, total: 0 } })
+    }
 }

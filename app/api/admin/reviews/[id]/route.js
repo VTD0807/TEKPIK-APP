@@ -1,23 +1,29 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-// PATCH /api/admin/reviews/[id]  — approve / reject / verify
+export const dynamic = 'force-dynamic'
+
 export async function PATCH(req, { params }) {
     const { id } = await params
     const { action } = await req.json()
+    const supabase = await createSupabaseServerClient()
 
-    const data = action === 'approve' ? { isApproved: true }
-        : action === 'reject' ? { isApproved: false }
-        : action === 'verify' ? { isVerified: true }
-        : {}
+    const update = action === 'approve' ? { is_approved: true }
+        : action === 'reject' ? { is_approved: false }
+        : action === 'verify' ? { is_verified: true }
+        : null
 
-    const review = await prisma.review.update({ where: { id }, data })
-    return NextResponse.json({ review })
+    if (!update) return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+
+    const { data, error } = await supabase.from('reviews').update(update).eq('id', id).select().single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ review: data })
 }
 
-// DELETE /api/admin/reviews/[id]
 export async function DELETE(req, { params }) {
     const { id } = await params
-    await prisma.review.delete({ where: { id } })
+    const supabase = await createSupabaseServerClient()
+    const { error } = await supabase.from('reviews').delete().eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
 }

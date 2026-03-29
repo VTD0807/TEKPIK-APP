@@ -10,7 +10,6 @@ export async function GET(request) {
         const supabase = await createSupabaseServerClient()
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
-            console.error('OAuth callback error:', error.message)
             return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
         }
     }
