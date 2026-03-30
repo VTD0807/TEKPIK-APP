@@ -3,11 +3,10 @@ import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import toast from "react-hot-toast"
 import { DeleteIcon } from "lucide-react"
-import { couponDummyData } from "@/assets/assets"
-
 export default function AdminCoupons() {
 
     const [coupons, setCoupons] = useState([])
+    const [loading, setLoading] = useState(true)
 
     const [newCoupon, setNewCoupon] = useState({
         code: '',
@@ -19,8 +18,43 @@ export default function AdminCoupons() {
         expiresAt: new Date()
     })
 
-    const fetchCoupons = async () => {
-        setCoupons(couponDummyData)
+    useEffect(() => {
+        fetch('/api/admin/coupons')
+            .then(r => r.json())
+            .then(data => {
+                setCoupons(data || [])
+                setLoading(false)
+            })
+            .catch(() => setLoading(false))
+    }, [])
+
+    const handleAdd = async (e) => {
+        e.preventDefault()
+        try {
+            const res = await fetch('/api/admin/coupons', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCoupon)
+            })
+            if (!res.ok) throw new Error()
+            const added = await res.json()
+            setCoupons(prev => [...prev, added])
+            toast.success('Coupon created')
+        } catch {
+            toast.error('Failed to create coupon')
+        }
+    }
+
+    const handleDelete = async (id) => {
+        if (!confirm('Are you sure?')) return
+        try {
+            const res = await fetch(`/api/admin/coupons/${id}`, { method: 'DELETE' })
+            if (!res.ok) throw new Error()
+            setCoupons(prev => prev.filter(c => c.id !== id))
+            toast.success('Coupon deleted')
+        } catch {
+            toast.error('Delete failed')
+        }
     }
 
     const handleAddCoupon = async (e) => {

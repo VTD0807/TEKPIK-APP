@@ -1,29 +1,42 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import { ExternalLinkIcon, StarIcon } from 'lucide-react'
 import AiAnalysis from '@/components/ai/AiAnalysis'
 import ReviewList from '@/components/reviews/ReviewList'
 import AffiliateDisclosure from '@/components/AffiliateDisclosure'
 import WishlistButton from '@/components/WishlistButton'
-import Loading from '@/components/Loading'
+import ProductImageGallery from '@/components/ProductImageGallery'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { notFound } from 'next/navigation'
 
-export default function ProductPage() {
-    const { id } = useParams()
-    const [product, setProduct] = useState(null)
-    const [activeImg, setActiveImg] = useState(0)
-    const [loading, setLoading] = useState(true)
+export async function generateMetadata({ params }) {
+    const { id } = await params
+    const supabase = await createSupabaseServerClient()
+    const { data: product } = await supabase.from('products').select('title, description').eq('id', id).single()
 
-    useEffect(() => {
-        fetch(`/api/products/${id}`)
-            .then(r => r.json())
-            .then(data => { setProduct(data); setLoading(false) })
-            .catch(() => setLoading(false))
-    }, [id])
+    if (!product) return { title: 'Product Not Found' }
 
-    if (loading) return <Loading />
-    if (!product) return <div className="min-h-screen flex items-center justify-center text-slate-500">Product not found.</div>
+    return {
+        title: `${product.title} - TEKPIK`,
+        description: product.description?.slice(0, 160),
+        openGraph: {
+            title: product.title,
+            description: product.description?.slice(0, 160),
+        },
+    }
+}
+
+export default async function ProductPage({ params }) {
+    const { id } = await params
+    const supabase = await createSupabaseServerClient()
+
+    const { data: product, error } = await supabase
+        .from('products')
+        .select('*, categories(name,slug), ai_analysis(*), reviews(id,author_name,rating,title,body,pros,cons,is_verified,helpful,created_at)')
+        .eq('id', id)
+        .eq('reviews.is_approved', true)
+        .single()
+
+    if (error || !product) notFound()
 
     const images = product.imageUrls || product.images || []
     const rating = product.reviews?.length
@@ -36,21 +49,7 @@ export default function ProductPage() {
 
             {/* Product hero */}
             <div className="grid md:grid-cols-2 gap-10">
-                {/* Images */}
-                <div className="space-y-3">
-                    <div className="bg-[#F5F5F5] rounded-xl flex items-center justify-center h-80 overflow-hidden">
-                        <Image src={images[activeImg]} alt={product.title} width={400} height={400} className="max-h-72 w-auto object-contain" />
-                    </div>
-                    {images.length > 1 && (
-                        <div className="flex gap-2 flex-wrap">
-                            {images.map((img, i) => (
-                                <button key={i} onClick={() => setActiveImg(i)} className={`w-16 h-16 rounded-lg bg-[#F5F5F5] flex items-center justify-center border-2 transition ${activeImg === i ? 'border-indigo-400' : 'border-transparent'}`}>
-                                    <Image src={img} alt="" width={60} height={60} className="max-h-12 w-auto object-contain" />
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                <ProductImageGallery images={images} title={product.title} />
 
                 {/* Info */}
                 <div className="space-y-4">
@@ -99,7 +98,7 @@ export default function ProductPage() {
             </div>
 
             {/* AI Analysis */}
-            {product.aiAnalysis && <AiAnalysis analysis={product.aiAnalysis} />}
+            {product.ai_analysis && <AiAnalysis analysis={product.ai_analysis} />}
 
             {/* Reviews */}
             <ReviewList reviews={product.reviews || []} productId={product.id} />

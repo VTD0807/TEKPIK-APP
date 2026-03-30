@@ -1,38 +1,73 @@
 'use client'
-import { useState } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { PlusIcon, PencilIcon, TrashIcon, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const defaultCategories = [
-    { id: '1', name: 'Headphones', slug: 'headphones', icon: '🎧', products: 2 },
-    { id: '2', name: 'Speakers', slug: 'speakers', icon: '🔊', products: 1 },
-    { id: '3', name: 'Watch', slug: 'watch', icon: '⌚', products: 3 },
-    { id: '4', name: 'Earbuds', slug: 'earbuds', icon: '🎵', products: 1 },
-    { id: '5', name: 'Mouse', slug: 'mouse', icon: '🖱️', products: 1 },
-    { id: '6', name: 'Decoration', slug: 'decoration', icon: '🏮', products: 1 },
-]
-
 export default function AdminCategories() {
-    const [categories, setCategories] = useState(defaultCategories)
+    const [categories, setCategories] = useState([])
+    const [loading, setLoading] = useState(true)
     const [form, setForm] = useState({ name: '', slug: '', icon: '🛍️' })
     const [adding, setAdding] = useState(false)
 
-    const handleAdd = (e) => {
+    useEffect(() => {
+        let cancelled = false
+        const load = async () => {
+            try {
+                const res = await fetch('/api/admin/categories')
+                const data = await res.json().catch(() => null)
+                if (!res.ok) {
+                    throw new Error(data?.error || 'Failed to load categories')
+                }
+                const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : [])
+                if (!cancelled) setCategories(list)
+            } catch (err) {
+                if (!cancelled) {
+                    setCategories([])
+                    toast.error(err?.message || 'Failed to load categories')
+                }
+            } finally {
+                if (!cancelled) setLoading(false)
+            }
+        }
+        load()
+        return () => { cancelled = true }
+    }, [])
+
+    const handleAdd = async (e) => {
         e.preventDefault()
         if (!form.name || !form.slug) return toast.error('Name and slug are required')
-        const newCat = { id: Date.now().toString(), ...form, products: 0 }
-        setCategories(prev => [...prev, newCat])
-        setForm({ name: '', slug: '', icon: '🛍️' })
-        setAdding(false)
-        toast.success('Category added')
-        // TODO: POST /api/admin/categories
+        
+        const res = await fetch('/api/admin/categories', {
+            method: 'POST',
+            body: JSON.stringify(form)
+        })
+
+        if (res.ok) {
+            const newCat = await res.json()
+            setCategories(prev => [...prev, { ...newCat, products: 0 }])
+            setForm({ name: '', slug: '', icon: '🛍️' })
+            setAdding(false)
+            toast.success('Category added')
+        } else {
+            const data = await res.json().catch(() => null)
+            toast.error(data?.error || 'Failed to add category')
+        }
     }
 
-    const handleDelete = (id) => {
-        setCategories(prev => prev.filter(c => c.id !== id))
-        toast.success('Category deleted')
-        // TODO: DELETE /api/admin/categories/[id]
+    const handleDelete = async (id) => {
+        if (!confirm('Are you sure?')) return
+
+        const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
+        if (res.ok) {
+            setCategories(prev => prev.filter(c => c.id !== id))
+            toast.success('Category deleted')
+        } else {
+            const data = await res.json().catch(() => null)
+            toast.error(data?.error || 'Failed to delete category')
+        }
     }
+
+    if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-500" /></div>
 
     return (
         <div className="text-slate-500 mb-28 space-y-5">
@@ -73,7 +108,7 @@ export default function AdminCategories() {
                         </tr>
                     </thead>
                     <tbody>
-                        {categories.map(cat => (
+                        {(Array.isArray(categories) ? categories : []).map(cat => (
                             <tr key={cat.id} className="border-t border-slate-100 hover:bg-slate-50">
                                 <td className="px-4 py-3 text-xl">{cat.icon}</td>
                                 <td className="px-4 py-3 font-medium text-slate-700">{cat.name}</td>

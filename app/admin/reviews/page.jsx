@@ -3,8 +3,6 @@ import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
 import { CheckIcon, XIcon, BadgeCheckIcon, TrashIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { dummyRatingsData } from '@/assets/assets'
-
 const TABS = ['All', 'Pending', 'Approved', 'Rejected']
 
 export default function AdminReviews() {
@@ -30,13 +28,47 @@ export default function AdminReviews() {
         : tab === 'Approved' ? reviews.filter(r => r.isApproved)
         : []
 
-    const action = (id, type) => {
-        // TODO: PATCH /api/admin/reviews/[id]
-        toast.success(`Review ${type}`)
-        setReviews(prev => prev.map(r => r.id === id
-            ? { ...r, isApproved: type === 'approved', isVerified: type === 'verified' ? true : r.isVerified }
-            : r
-        ))
+    const action = async (id, type) => {
+        const update = type === 'approved' ? { is_approved: true }
+            : type === 'rejected' ? { is_approved: false }
+            : type === 'verified' ? { is_verified: true }
+            : null
+
+        if (!update) return
+
+        try {
+            const res = await fetch(`/api/admin/reviews/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(update)
+            })
+
+            if (!res.ok) throw new Error()
+
+            toast.success(`Review ${type}`)
+            setReviews(prev => prev.map(r => r.id === id
+                ? { 
+                    ...r, 
+                    isApproved: type === 'approved' ? true : type === 'rejected' ? false : r.isApproved, 
+                    isVerified: type === 'verified' ? true : r.isVerified 
+                  }
+                : r
+            ))
+        } catch {
+            toast.error('Action failed')
+        }
+    }
+
+    const handleDelete = async (id) => {
+        if (!confirm('Are you sure you want to delete this review?')) return
+        try {
+            const res = await fetch(`/api/admin/reviews/${id}`, { method: 'DELETE' })
+            if (!res.ok) throw new Error()
+            toast.success('Review deleted')
+            setReviews(prev => prev.filter(r => r.id !== id))
+        } catch {
+            toast.error('Delete failed')
+        }
     }
 
     if (loading) return <Loading />
@@ -68,7 +100,7 @@ export default function AdminReviews() {
                                     <button onClick={() => action(r.id, 'approved')} className="p-1.5 text-green-500 hover:bg-green-50 rounded transition" title="Approve"><CheckIcon size={15} /></button>
                                     <button onClick={() => action(r.id, 'verified')} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded transition" title="Verify"><BadgeCheckIcon size={15} /></button>
                                     <button onClick={() => action(r.id, 'rejected')} className="p-1.5 text-red-400 hover:bg-red-50 rounded transition" title="Reject"><XIcon size={15} /></button>
-                                    <button className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition" title="Delete"><TrashIcon size={15} /></button>
+                                    <button onClick={() => handleDelete(r.id)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition" title="Delete"><TrashIcon size={15} /></button>
                                 </div>
                             </div>
                             <p className="text-sm text-slate-600">{r.body}</p>

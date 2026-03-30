@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { productDummyData } from '@/assets/assets'
 import Loading from '@/components/Loading'
 import { SparklesIcon, RefreshCwIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -12,8 +11,13 @@ export default function AdminAiAnalysis() {
     const [progress, setProgress] = useState(0)
 
     useEffect(() => {
-        setProducts(productDummyData.map(p => ({ ...p, title: p.title || p.name })))
-        setLoading(false)
+        fetch('/api/products')
+            .then(r => r.json())
+            .then(data => {
+                setProducts((data.products || []).map(p => ({ ...p, title: p.title || p.name })))
+                setLoading(false)
+            })
+            .catch(() => setLoading(false))
     }, [])
 
     const analyseOne = async (productId) => {

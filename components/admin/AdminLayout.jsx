@@ -7,6 +7,7 @@ import AdminSidebar from "./AdminSidebar"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
+import { isAdminEmail } from "@/lib/admin"
 
 export default function AdminLayout({ children }) {
     const { user, loading: authLoading } = useAuth()
@@ -17,18 +18,25 @@ export default function AdminLayout({ children }) {
         if (authLoading) return
         if (!user) { setStatus('noauth'); return }
 
+        if (isAdminEmail(user.email)) {
+            sessionStorage.setItem(`role_${user.uid}`, 'ADMIN')
+            setStatus('admin')
+            return
+        }
+
         // Cache role in sessionStorage to avoid repeated DB calls
-        const cached = sessionStorage.getItem(`role_${user.id}`)
+        const cached = sessionStorage.getItem(`role_${user.uid}`)
         if (cached) {
             setStatus(cached === 'ADMIN' ? 'admin' : 'denied')
             return
         }
 
-        supabase.from('users').select('role').eq('id', user.id).single()
+        supabase.from('users').select('role').eq('id', user.uid).single()
             .then(({ data }) => {
                 const role = data?.role || 'USER'
-                sessionStorage.setItem(`role_${user.id}`, role)
-                setStatus(role === 'ADMIN' ? 'admin' : 'denied')
+                const effectiveRole = isAdminEmail(user.email) ? 'ADMIN' : role
+                sessionStorage.setItem(`role_${user.uid}`, effectiveRole)
+                setStatus(effectiveRole === 'ADMIN' ? 'admin' : 'denied')
             })
             .catch(() => setStatus('denied'))
     }, [user, authLoading])

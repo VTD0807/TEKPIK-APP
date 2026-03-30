@@ -1,12 +1,14 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeftIcon, SaveIcon, PlusIcon, XIcon } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { ArrowLeftIcon, SaveIcon, PlusIcon, XIcon, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
-export default function NewProduct() {
+export default function EditProduct() {
     const router = useRouter()
+    const { id } = useParams()
+    const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [form, setForm] = useState({
         title: '', description: '', price: '', originalPrice: '',
@@ -14,6 +16,30 @@ export default function NewProduct() {
         categoryId: '', tags: '', isFeatured: false, isActive: true,
     })
     const [imageUrls, setImageUrls] = useState([''])
+
+    useEffect(() => {
+        fetch(`/api/products/${id}`)
+            .then(r => r.json())
+            .then(data => {
+                setForm({
+                    title: data.title || '',
+                    description: data.description || '',
+                    price: data.price || '',
+                    originalPrice: data.originalPrice || '',
+                    discount: data.discount || '',
+                    affiliateUrl: data.affiliateUrl || '',
+                    asin: data.asin || '',
+                    brand: data.brand || '',
+                    categoryId: data.categoryId || '',
+                    tags: data.tags?.join(', ') || '',
+                    isFeatured: data.isFeatured || false,
+                    isActive: data.isActive || true,
+                })
+                setImageUrls(data.imageUrls?.length ? data.imageUrls : [''])
+                setLoading(false)
+            })
+            .catch(() => setLoading(false))
+    }, [id])
 
     const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -24,13 +50,11 @@ export default function NewProduct() {
         }
         setSaving(true)
         try {
-            const slug = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-            const res = await fetch('/api/admin/products', {
-                method: 'POST',
+            const res = await fetch(`/api/admin/products/${id}`, {
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...form,
-                    slug,
                     price: parseFloat(form.price),
                     originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : null,
                     discount: parseInt(form.discount) || 0,
@@ -42,7 +66,7 @@ export default function NewProduct() {
                 const d = await res.json()
                 throw new Error(d.error || 'Failed')
             }
-            toast.success('Product created!')
+            toast.success('Product updated!')
             router.push('/admin/products')
         } catch (err) {
             toast.error(err.message)
@@ -67,13 +91,15 @@ export default function NewProduct() {
         </div>
     )
 
+    if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-500" /></div>
+
     return (
         <div className="max-w-3xl space-y-6 mb-28">
             <div className="flex items-center gap-3">
                 <Link href="/admin/products" className="p-1.5 text-slate-400 hover:text-slate-600 transition">
                     <ArrowLeftIcon size={18} />
                 </Link>
-                <h1 className="text-2xl text-slate-500">Add <span className="text-slate-800 font-medium">Product</span></h1>
+                <h1 className="text-2xl text-slate-500">Edit <span className="text-slate-800 font-medium">Product</span></h1>
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm space-y-5">

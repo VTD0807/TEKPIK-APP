@@ -1,17 +1,25 @@
 'use client'
-import { productDummyData } from '@/assets/assets'
-import { HeartIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { HeartIcon, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 
-// Simulate wishlist save counts per product
-const saveCounts = { prod_1: 12, prod_2: 8, prod_3: 15, prod_4: 6, prod_5: 19, prod_6: 3 }
-
 export default function AdminWishlist() {
-    const products = productDummyData
-        .map(p => ({ ...p, title: p.title || p.name, imageUrls: p.imageUrls || p.images, saves: saveCounts[p.id] || 0 }))
-        .sort((a, b) => b.saves - a.saves)
+    const [products, setProducts] = useState([])
+    const [loading, setLoading] = useState(true)
 
-    const total = products.reduce((s, p) => s + p.saves, 0)
+    useEffect(() => {
+        fetch('/api/admin/wishlist-insights')
+            .then(r => r.json())
+            .then(data => {
+                setProducts(data || [])
+                setLoading(false)
+            })
+            .catch(() => setLoading(false))
+    }, [])
+
+    if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-500" /></div>
+
+    const total = products.reduce((s, p) => s + (p.saves || 0), 0)
 
     return (
         <div className="text-slate-500 mb-28 space-y-5">

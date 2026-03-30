@@ -1,12 +1,12 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import Link from 'next/link'
 import { assets } from '@/assets/assets'
 import { EyeIcon, EyeOffIcon, AlertCircleIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/lib/auth-context'
 
 const GoogleIcon = () => (
     <svg width="18" height="18" viewBox="0 0 48 48">
@@ -23,6 +23,7 @@ function LoginForm() {
     const redirect = searchParams.get('redirect') || '/'
     const urlError = searchParams.get('error')
 
+    const { signInWithGoogle, signInWithEmail } = useAuth()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [showPw, setShowPw] = useState(false)
@@ -30,11 +31,18 @@ function LoginForm() {
     const [googleLoading, setGoogleLoading] = useState(false)
     const [error, setError] = useState(urlError ? decodeURIComponent(urlError) : '')
 
-    // Uses your own /oauth/google route — Google shows YOUR app URL, not supabase.co
-    const handleGoogle = () => {
+    const handleGoogle = async () => {
         setGoogleLoading(true)
         setError('')
-        window.location.href = `/oauth/google?redirect=${encodeURIComponent(redirect)}`
+        try {
+            await signInWithGoogle()
+            toast.success('Welcome!')
+            setTimeout(() => { window.location.href = redirect }, 300)
+        } catch (e) {
+            console.error('Google sign-in error:', e)
+            setError(e.message || 'Google sign-in failed')
+            setGoogleLoading(false)
+        }
     }
 
     const handleLogin = async (e) => {
@@ -42,28 +50,19 @@ function LoginForm() {
         setLoading(true)
         setError('')
         try {
-            const { error } = await supabase.auth.signInWithPassword({ email, password })
-            if (error) {
-                if (error.message.includes('Invalid login') || error.message.includes('Email not confirmed')) {
-                    setError('Invalid email or password. If you signed up with Google, use "Continue with Google" instead.')
-                } else {
-                    setError(error.message)
-                }
-            } else {
-                toast.success('Welcome back!')
-                window.location.href = redirect
-            }
-        } catch {
-            setError('Something went wrong. Please try again.')
-        } finally {
+            await signInWithEmail(email, password)
+            toast.success('Welcome back!')
+            setTimeout(() => { window.location.href = redirect }, 300)
+        } catch (e) {
+            console.error('Login error:', e)
+            setError('Invalid email or password')
             setLoading(false)
         }
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4" suppressHydrationWarning>
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-20">
             <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-6">
-
                 <div className="flex flex-col items-center gap-2">
                     <Image src={assets.tekpik_logo} alt="TEKPIK" width={120} height={40} className="h-10 w-auto object-contain" />
                     <p className="text-slate-500 text-sm">Sign in to your account</p>
@@ -76,57 +75,42 @@ function LoginForm() {
                     </div>
                 )}
 
-                <button
-                    type="button"
-                    onClick={handleGoogle}
-                    disabled={googleLoading}
-                    className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition shadow-sm"
-                >
-                    {googleLoading
-                        ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                        : <GoogleIcon />
-                    }
-                    {googleLoading ? 'Redirecting...' : 'Continue with Google'}
+                <button type="button" onClick={handleGoogle} disabled={googleLoading}
+                    className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition shadow-sm">
+                    {googleLoading ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <GoogleIcon />}
+                    {googleLoading ? 'Signing in...' : 'Continue with Google'}
                 </button>
 
                 <div className="flex items-center gap-3 text-xs text-slate-400">
-                    <div className="flex-1 h-px bg-slate-200" />
-                    <span>or sign in with email</span>
-                    <div className="flex-1 h-px bg-slate-200" />
+                    <div className="flex-1 h-px bg-slate-200" /><span>or sign in with email</span><div className="flex-1 h-px bg-slate-200" />
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-slate-500">Email</label>
-                        <input type="email" required autoComplete="email"
-                            value={email} onChange={e => setEmail(e.target.value)}
-                            className="border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-400 transition"
-                            placeholder="you@example.com" />
+                        <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:bg-white transition" placeholder="you@example.com" />
                     </div>
+
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-slate-500">Password</label>
                         <div className="relative">
-                            <input type={showPw ? 'text' : 'password'} required autoComplete="current-password"
-                                value={password} onChange={e => setPassword(e.target.value)}
-                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-400 transition pr-10"
-                                placeholder="••••••••" />
-                            <button type="button" onClick={() => setShowPw(v => !v)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                                {showPw ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                            <input type={showPw ? 'text' : 'password'} required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:bg-white transition" placeholder="••••••••" />
+                            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
+                                {showPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                             </button>
                         </div>
                     </div>
+
                     <button type="submit" disabled={loading}
-                        className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-60 text-white text-sm font-medium rounded-xl transition">
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-sm font-semibold transition shadow-md shadow-indigo-100 disabled:opacity-60">
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
 
                 <p className="text-center text-sm text-slate-500">
-                    No account?{' '}
-                    <Link href={`/register?redirect=${redirect}`} className="text-indigo-500 hover:underline font-medium">
-                        Create one
-                    </Link>
+                    Don't have an account? <Link href="/register" className="text-indigo-600 font-medium hover:underline">Sign up</Link>
                 </p>
             </div>
         </div>
@@ -135,11 +119,7 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        }>
+        <Suspense fallback={<div>Loading...</div>}>
             <LoginForm />
         </Suspense>
     )

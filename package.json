@@ -1,5 +1,5 @@
 {
-  "name": "gocart",
+  "name": "tekpik",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,9 +15,11 @@
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.100.1",
     "date-fns": "^4.1.0",
+    "firebase": "^12.11.0",
     "lucide-react": "^0.525.0",
     "next": "^16.2.1",
     "pg": "^8.20.0",
+    "posthog-js": "^1.364.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-hot-toast": "^2.5.2",

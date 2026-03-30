@@ -39,9 +39,12 @@ export async function POST(req) {
     */
 
     // ── Option B: Log to console (dev fallback) ────────────────────
-    console.log(`\n📧 Welcome email for: ${email}`)
-    console.log(`   Name: ${displayName}`)
-    console.log(`   Preview: ${appUrl}/ai-picks\n`)
+    // Log successful email sending for tracking in dev
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`\n📧 Welcome email for: ${email}`)
+        console.log(`   Name: ${displayName}`)
+        console.log(`   Preview: ${appUrl}/ai-picks\n`)
+    }
 
     return NextResponse.json({ success: true })
 }

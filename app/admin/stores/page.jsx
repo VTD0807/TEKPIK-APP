@@ -1,5 +1,4 @@
 'use client'
-import { storesDummyData } from "@/assets/assets"
 import StoreInfo from "@/components/admin/StoreInfo"
 import Loading from "@/components/Loading"
 import { useEffect, useState } from "react"
@@ -10,9 +9,29 @@ export default function AdminStores() {
     const [stores, setStores] = useState([])
     const [loading, setLoading] = useState(true)
 
-    const fetchStores = async () => {
-        setStores(storesDummyData)
-        setLoading(false)
+    useEffect(() => {
+        fetch('/api/admin/stores')
+            .then(r => r.json())
+            .then(data => {
+                setStores(data || [])
+                setLoading(false)
+            })
+            .catch(() => setLoading(false))
+    }, [])
+
+    const handleAction = async (id, status) => {
+        try {
+            const res = await fetch(`/api/admin/stores/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            })
+            if (!res.ok) throw new Error()
+            setStores(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+            toast.success(`Store ${status}`)
+        } catch {
+            toast.error('Action failed')
+        }
     }
 
     const toggleIsActive = async (storeId) => {

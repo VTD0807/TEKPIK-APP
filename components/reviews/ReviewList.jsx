@@ -15,7 +15,9 @@ export default function ReviewList({ reviews = [], productId }) {
     const [showForm, setShowForm] = useState(false)
 
     const sorted = [...reviews].sort((a, b) => {
-        if (sort === 'recent') return new Date(b.createdAt) - new Date(a.createdAt)
+        const dateA = new Date(a.created_at || a.createdAt)
+        const dateB = new Date(b.created_at || b.createdAt)
+        if (sort === 'recent') return dateB - dateA
         if (sort === 'highest') return b.rating - a.rating
         if (sort === 'lowest') return a.rating - b.rating
         if (sort === 'helpful') return b.helpful - a.helpful

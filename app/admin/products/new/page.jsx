@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeftIcon, SaveIcon, PlusIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 export default function NewProduct() {
     const router = useRouter()
     const [saving, setSaving] = useState(false)
+    const [categories, setCategories] = useState([])
     const [form, setForm] = useState({
         title: '', description: '', price: '', originalPrice: '',
         discount: '', affiliateUrl: '', asin: '', brand: '',
@@ -15,10 +16,25 @@ export default function NewProduct() {
     })
     const [imageUrls, setImageUrls] = useState([''])
 
+    useEffect(() => {
+        fetch('/api/admin/categories')
+            .then(r => r.json())
+            .then(d => setCategories(Array.isArray(d) ? d : []))
+            .catch(() => {})
+    }, [])
+
     const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        await submitForm(false)
+    }
+
+    const handleDraft = async () => {
+        await submitForm(true)
+    }
+
+    const submitForm = async (isDraft) => {
         if (!form.title || !form.price || !form.affiliateUrl) {
             return toast.error('Title, price and affiliate URL are required')
         }
@@ -36,13 +52,14 @@ export default function NewProduct() {
                     discount: parseInt(form.discount) || 0,
                     imageUrls: imageUrls.filter(Boolean),
                     tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
+                    isActive: isDraft ? false : form.isActive,
                 }),
             })
             if (!res.ok) {
                 const d = await res.json()
                 throw new Error(d.error || 'Failed')
             }
-            toast.success('Product created!')
+            toast.success(isDraft ? 'Draft saved!' : 'Product created!')
             router.push('/admin/products')
         } catch (err) {
             toast.error(err.message)
@@ -97,7 +114,19 @@ export default function NewProduct() {
                 {field('ASIN', 'asin', 'text', 'e.g. B08N5WRWNW (optional)')}
 
                 {/* Category */}
-                {field('Category ID', 'categoryId', 'text', 'Paste the category ID from the Categories page')}
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-slate-500">Category <span className="text-red-400">*</span></label>
+                    <select value={form.categoryId} onChange={e => set('categoryId', e.target.value)} required
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400 bg-white">
+                        <option value="">Select a category...</option>
+                        {categories.map(c => (
+                            <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                        ))}
+                    </select>
+                    {categories.length === 0 && (
+                        <p className="text-[11px] text-amber-500">No categories yet — <Link href="/admin/categories" className="underline">add one first</Link></p>
+                    )}
+                </div>
                 {field('Tags', 'tags', 'text', 'Comma-separated: wireless, gaming, budget')}
 
                 {/* Images */}

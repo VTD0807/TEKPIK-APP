@@ -26,7 +26,8 @@ const Footer = () => {
             title: "INFO",
             links: [
                 { text: "Affiliate Disclosure", path: '/disclosure', icon: null },
-                { text: "Privacy Policy", path: '/', icon: null },
+                { text: "Privacy Policy", path: '/help', icon: null },
+                { text: "Help & Terms", path: '/help', icon: null },
                 { text: "About", path: '/', icon: null },
                 { text: "Contact", path: '/', icon: null },
             ]
@@ -34,9 +35,9 @@ const Footer = () => {
         {
             title: "CONTACT",
             links: [
-                { text: "+1-212-456-7890", path: '/', icon: MailIcon },
-                { text: "contact@example.com", path: '/', icon: PhoneIcon },
-                { text: "794 Francisco, 94102", path: '/', icon: MapPinIcon }
+                { text: "support@tekpik.app", path: 'mailto:support@tekpik.app', icon: MailIcon },
+                { text: "@tekpik_official", path: 'https://twitter.com', icon: PhoneIcon },
+                { text: "Worldwide Delivery", path: '/', icon: MapPinIcon }
             ]
         }
     ];
@@ -83,7 +84,7 @@ const Footer = () => {
                 </div>
                 <div className="py-4 text-xs text-slate-400 space-y-1">
                     <p>As an Amazon Associate we earn from qualifying purchases. <Link href="/disclosure" className="underline hover:text-slate-600">Full disclosure →</Link></p>
-                    <p>Copyright 2025 © TEKPIK All Rights Reserved. &nbsp;|&nbsp; Originally developed by <a href="https://www.youtube.com/@GreatStackDev" target="_blank" rel="noopener noreferrer" className="hover:underline">GreatStack</a>.</p>
+                    <p>Copyright 2026 © TEKPIK All Rights Reserved. &nbsp;|&nbsp; Originally developed by <a href="https://www.youtube.com/@GreatStackDev" target="_blank" rel="noopener noreferrer" className="hover:underline">GreatStack</a>.</p>
                 </div>
             </div>
         </footer>

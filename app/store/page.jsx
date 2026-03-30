@@ -1,5 +1,4 @@
 'use client'
-import { dummyStoreDashboardData } from "@/assets/assets"
 import Loading from "@/components/Loading"
 import { CircleDollarSignIcon, ShoppingBasketIcon, StarIcon, TagsIcon } from "lucide-react"
 import Image from "next/image"
@@ -28,7 +27,13 @@ export default function Dashboard() {
     ]
 
     const fetchDashboardData = async () => {
-        setDashboardData(dummyStoreDashboardData)
+        // In a real app, fetch from /api/store/dashboard
+        setDashboardData({
+            totalProducts: 0,
+            totalEarnings: 0,
+            totalOrders: 0,
+            ratings: [],
+        })
         setLoading(false)
     }
 

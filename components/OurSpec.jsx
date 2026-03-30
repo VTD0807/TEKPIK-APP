@@ -1,6 +1,45 @@
 import React from 'react'
 import Title from './Title'
-import { ourSpecsData } from '@/assets/assets'
+import { ShieldCheck, Truck, Headphones, CreditCard, RotateCcw, Zap } from 'lucide-react'
+
+const ourSpecsData = [
+    {
+        title: "Fast & Free Shipping",
+        description: "Get your items delivered quickly and for free on orders over $50.",
+        icon: Truck,
+        accent: "#3b82f6"
+    },
+    {
+        title: "Secure Payments",
+        description: "Your transactions are protected with industry-leading encryption.",
+        icon: ShieldCheck,
+        accent: "#10b981"
+    },
+    {
+        title: "24/7 Support",
+        description: "Our dedicated support team is available around the clock to help.",
+        icon: Headphones,
+        accent: "#f59e0b"
+    },
+    {
+        title: "Easy Returns",
+        description: "Not satisfied? Return your items within 30 days for a full refund.",
+        icon: RotateCcw,
+        accent: "#ef4444"
+    },
+    {
+        title: "Instant AI Analysis",
+        description: "Get real-time pros, cons, and value scores for any product.",
+        icon: Zap,
+        accent: "#8b5cf6"
+    },
+    {
+        title: "Best Price Guarantee",
+        description: "We ensure you get the most value for your money on every purchase.",
+        icon: CreditCard,
+        accent: "#ec4899"
+    }
+]
 
 const OurSpecs = () => {
 

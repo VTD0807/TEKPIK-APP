@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useDispatch, useSelector } from 'react-redux'
 import { toggleWishlistItem } from '@/lib/features/wishlist/wishlistSlice'
+import { usePostHog } from 'posthog-js/react'
 
 const ScoreBadge = ({ score }) => {
     if (!score) return null
@@ -17,8 +18,18 @@ const ScoreBadge = ({ score }) => {
 
 const ProductCard = ({ product }) => {
     const dispatch = useDispatch()
+    const posthog = usePostHog()
     const wishlistIds = useSelector(state => state.wishlist.ids)
     const isWishlisted = wishlistIds.includes(product.id)
+
+    const handleAmazonClick = () => {
+        posthog.capture('amazon_click', {
+            product_id: product.id,
+            product_title: product.title || product.name,
+            category: product.category,
+            price: product.price
+        })
+    }
 
     const rating = product.reviews?.length
         ? Math.round(product.reviews.reduce((a, r) => a + r.rating, 0) / product.reviews.length)
@@ -76,6 +87,7 @@ const ProductCard = ({ product }) => {
                     href={product.affiliateUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
+                    onClick={handleAmazonClick}
                     className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-amber-400 hover:bg-amber-500 transition text-slate-900 font-semibold py-1.5 rounded-full"
                 >
                     <ExternalLinkIcon size={12} />

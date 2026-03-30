@@ -1,8 +1,6 @@
 'use client'
 import { useEffect, useState } from "react"
 import Loading from "@/components/Loading"
-import { orderDummyData } from "@/assets/assets"
-
 export default function StoreOrders() {
     const [orders, setOrders] = useState([])
     const [loading, setLoading] = useState(true)
@@ -11,7 +9,8 @@ export default function StoreOrders() {
 
 
     const fetchOrders = async () => {
-       setOrders(orderDummyData)
+       // In a real app, fetch from /api/store/orders
+       setOrders([])
        setLoading(false)
     }
 

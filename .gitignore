@@ -47,3 +47,6 @@ client_secret*.json
 *credentials*.json
 .env.local
 .env*.local
+
+# clerk configuration (can include secrets)
+/.clerk/

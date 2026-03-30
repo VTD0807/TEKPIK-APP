@@ -1,32 +1,50 @@
 'use client'
-import { useEffect, useState } from "react"
+import { useAuth } from "@/lib/auth-context"
+import { supabase } from "@/lib/supabase"
 import Loading from "../Loading"
 import Link from "next/link"
 import { ArrowRightIcon } from "lucide-react"
 import SellerNavbar from "./StoreNavbar"
 import SellerSidebar from "./StoreSidebar"
-import { dummyStoreData } from "@/assets/assets"
 
 const StoreLayout = ({ children }) => {
-
-
+    const { user, loading: authLoading } = useAuth()
     const [isSeller, setIsSeller] = useState(false)
     const [loading, setLoading] = useState(true)
     const [storeInfo, setStoreInfo] = useState(null)
 
-    const fetchIsSeller = async () => {
-        setIsSeller(true)
-        setStoreInfo(dummyStoreData)
-        setLoading(false)
-    }
-
     useEffect(() => {
-        fetchIsSeller()
-    }, [])
+        const fetchStore = async () => {
+            if (authLoading) return
+            if (!user) {
+                setLoading(false)
+                return
+            }
 
-    return loading ? (
-        <Loading />
-    ) : isSeller ? (
+            try {
+                const { data, error } = await supabase
+                    .from('stores')
+                    .select('*')
+                    .eq('userId', user.uid)
+                    .single()
+
+                if (data) {
+                    setIsSeller(true)
+                    setStoreInfo(data)
+                }
+            } catch (err) {
+                console.error('Error fetching store:', err)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchStore()
+    }, [user, authLoading])
+
+    if (authLoading || loading) return <Loading />
+
+    return isSeller ? (
         <div className="flex flex-col h-screen">
             <SellerNavbar />
             <div className="flex flex-1 items-start h-full overflow-y-scroll no-scrollbar">

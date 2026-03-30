@@ -35,7 +35,7 @@ create table public.categories (
 create table public.products (
     id             uuid primary key default gen_random_uuid(),
     title          text not null,
-    slug           text not null unique,
+    slug           text not null unique,  
     description    text not null default '',
     price          numeric(10,2) not null,
     original_price numeric(10,2),
