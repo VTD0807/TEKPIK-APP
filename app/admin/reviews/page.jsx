@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
-import { CheckIcon, XIcon, BadgeCheckIcon, TrashIcon } from 'lucide-react'
+import { Check, X, PatchCheck, Trash } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 const TABS = ['All', 'Pending', 'Approved', 'Rejected']
 
@@ -79,7 +79,7 @@ export default function AdminReviews() {
 
             <div className="flex gap-2 border-b border-slate-200">
                 {TABS.map(t => (
-                    <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm transition border-b-2 -mb-px ${tab === t ? 'border-indigo-500 text-indigo-600' : 'border-transparent hover:text-slate-700'}`}>
+                    <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm transition border-b-2 -mb-px ${tab === t ? 'border-black text-slate-900' : 'border-transparent hover:text-slate-700'}`}>
                         {t}
                     </button>
                 ))}
@@ -94,18 +94,18 @@ export default function AdminReviews() {
                             <div className="flex items-start justify-between gap-2">
                                 <div>
                                     <p className="font-medium text-slate-700 text-sm">{r.authorName} <span className="text-slate-400 font-normal">on</span> {r.productName}</p>
-                                    <p className="text-xs text-slate-400">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</p>
+                                    <p className="text-xs text-slate-400">{''.repeat(r.rating)}{''.repeat(5 - r.rating)}</p>
                                 </div>
                                 <div className="flex gap-1.5">
-                                    <button onClick={() => action(r.id, 'approved')} className="p-1.5 text-green-500 hover:bg-green-50 rounded transition" title="Approve"><CheckIcon size={15} /></button>
-                                    <button onClick={() => action(r.id, 'verified')} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded transition" title="Verify"><BadgeCheckIcon size={15} /></button>
-                                    <button onClick={() => action(r.id, 'rejected')} className="p-1.5 text-red-400 hover:bg-red-50 rounded transition" title="Reject"><XIcon size={15} /></button>
-                                    <button onClick={() => handleDelete(r.id)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition" title="Delete"><TrashIcon size={15} /></button>
+                                    <button onClick={() => action(r.id, 'approved')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Approve"><Check size={15} /></button>
+                                    <button onClick={() => action(r.id, 'verified')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Verify"><PatchCheck size={15} /></button>
+                                    <button onClick={() => action(r.id, 'rejected')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Reject"><X size={15} /></button>
+                                    <button onClick={() => handleDelete(r.id)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition" title="Delete"><Trash size={15} /></button>
                                 </div>
                             </div>
                             <p className="text-sm text-slate-600">{r.body}</p>
-                            {r.isApproved && <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">Approved</span>}
-                            {r.isVerified && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full ml-1">Verified</span>}
+                            {r.isApproved && <span className="text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full">Approved</span>}
+                            {r.isVerified && <span className="text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full ml-1">Verified</span>}
                         </div>
                     ))}
                 </div>

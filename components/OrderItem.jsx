@@ -1,6 +1,6 @@
 'use client'
 import Image from "next/image";
-import { DotIcon } from "lucide-react";
+import { Dot } from 'react-bootstrap-icons';
 import { useSelector } from "react-redux";
 import Rating from "./Rating";
 import { useState } from "react";
@@ -23,7 +23,7 @@ const OrderItem = ({ order }) => {
                                 <div className="w-20 aspect-square bg-slate-100 flex items-center justify-center rounded-md">
                                     <Image
                                         className="h-14 w-auto"
-                                        src={item.product.images[0]}
+                                        src={item.product.images?.[0] || '/placeholder.png'}
                                         alt="product_img"
                                         width={50}
                                         height={50}
@@ -62,7 +62,7 @@ const OrderItem = ({ order }) => {
                                 : 'text-slate-500 bg-slate-100'
                             }`}
                     >
-                        <DotIcon size={10} className="scale-250" />
+                        <Dot size={10} className="scale-250" />
                         {order.status.split('_').join(' ').toLowerCase()}
                     </div>
                 </td>

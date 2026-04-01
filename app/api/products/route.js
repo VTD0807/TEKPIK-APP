@@ -1,36 +1,71 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+
     const { searchParams } = new URL(req.url)
     const category = searchParams.get('category')
-    const search = searchParams.get('search')
+    const search = searchParams.get('search')?.toLowerCase()
     const featured = searchParams.get('featured')
     const sort = searchParams.get('sort') || 'newest'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
 
-    const supabase = await createSupabaseServerClient()
+    try {
+        let query = dbAdmin.collection('products').where('isActive', '==', true)
 
-    let query = supabase
-        .from('products')
-        .select('*, categories(name,slug,icon), ai_analysis(score,value_for_money)', { count: 'exact' })
-        .eq('is_active', true)
+        if (featured === 'true') {
+            query = query.where('isFeatured', '==', true)
+        }
 
-    if (category) query = query.eq('categories.slug', category)
-    if (featured === 'true') query = query.eq('is_featured', true)
-    if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,brand.ilike.%${search}%`)
+        if (sort === 'price_asc') query = query.orderBy('price', 'asc')
+        else if (sort === 'price_desc') query = query.orderBy('price', 'desc')
+        else query = query.orderBy('createdAt', 'desc')
 
-    if (sort === 'price_asc') query = query.order('price', { ascending: true })
-    else if (sort === 'price_desc') query = query.order('price', { ascending: false })
-    else query = query.order('created_at', { ascending: false })
+        const snapshot = await query.get()
+        let products = []
+        
+        // Categories mapping to join manually
+        const categoriesSnap = await dbAdmin.collection('categories').get()
+        const categoriesMap = {}
+        categoriesSnap.forEach(doc => { categoriesMap[doc.id] = doc.data() })
 
-    query = query.range((page - 1) * limit, page * limit - 1)
+        snapshot.forEach(doc => {
+            const data = doc.data()
+            
+            // Client side text search filter
+            if (search) {
+                const searchStr = `${data.title} ${data.description} ${data.brand}`.toLowerCase()
+                if (!searchStr.includes(search)) return
+            }
 
-    const { data, count, error } = await query
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+            // Client side Category Filter
+            const cat = categoriesMap[data.categoryId]
+            if (category && cat?.slug !== category) return
 
-    return NextResponse.json({ products: data, total: count, page, pages: Math.ceil((count || 0) / limit) })
+            products.push({ 
+                id: doc.id, 
+                ...data, 
+                createdAt: timestampToJSON(data.createdAt),
+                updatedAt: timestampToJSON(data.updatedAt),
+                categories: cat || null 
+            })
+        })
+
+        const total = products.length
+        const start = (page - 1) * limit
+        const paginatedProducts = products.slice(start, start + limit)
+
+        return NextResponse.json({ 
+            products: paginatedProducts, 
+            total, 
+            page, 
+            pages: Math.ceil((total || 0) / limit) 
+        })
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }

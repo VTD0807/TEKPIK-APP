@@ -3,10 +3,12 @@ import { assets } from "@/assets/assets"
 import Image from "next/image"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
+import { useRouter } from "next/navigation"
 
 export default function StoreAddProduct() {
 
     const categories = ['Electronics', 'Clothing', 'Home & Kitchen', 'Beauty & Health', 'Toys & Games', 'Sports & Outdoors', 'Books & Media', 'Food & Drink', 'Hobbies & Crafts', 'Others']
+    const router = useRouter()
 
     const [images, setImages] = useState({ 1: null, 2: null, 3: null, 4: null })
     const [productInfo, setProductInfo] = useState({
@@ -25,8 +27,90 @@ export default function StoreAddProduct() {
 
     const onSubmitHandler = async (e) => {
         e.preventDefault()
-        // Logic to add a product
         
+        // Validate at least one image
+        const imageFiles = Object.values(images).filter(img => img !== null)
+        if (imageFiles.length === 0) {
+            throw new Error('Please upload at least one product image')
+        }
+
+        // Validate prices
+        if (parseFloat(productInfo.price) <= 0) {
+            throw new Error('Offer price must be greater than 0')
+        }
+        if (parseFloat(productInfo.mrp) < parseFloat(productInfo.price)) {
+            throw new Error('Actual price must be greater than or equal to offer price')
+        }
+
+        setLoading(true)
+
+        try {
+            // Upload images to Cloudinary
+            const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+            const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'tekpik_oqens'
+            
+            const imageUrls = []
+            
+            for (const imageFile of imageFiles) {
+                const formData = new FormData()
+                formData.append('file', imageFile)
+                formData.append('upload_preset', uploadPreset)
+                
+                const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+                    method: 'POST',
+                    body: formData
+                })
+                
+                if (!uploadRes.ok) throw new Error('Failed to upload image')
+                
+                const uploadData = await uploadRes.json()
+                imageUrls.push(uploadData.secure_url)
+            }
+
+            // Create product in database
+            const discount = Math.round(((productInfo.mrp - productInfo.price) / productInfo.mrp) * 100)
+            
+            const productData = {
+                title: productInfo.name,
+                slug: productInfo.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                description: productInfo.description,
+                price: parseFloat(productInfo.price),
+                originalPrice: parseFloat(productInfo.mrp),
+                discount: discount,
+                brand: '',
+                imageUrls: imageUrls,
+                categoryId: null, // Will need to map category name to ID
+                tags: [productInfo.category],
+                isFeatured: false,
+                isActive: true,
+            }
+
+            const response = await fetch('/api/admin/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productData)
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.error || 'Failed to add product')
+            }
+
+            const result = await response.json()
+            
+            // Reset form
+            setProductInfo({ name: "", description: "", mrp: 0, price: 0, category: "" })
+            setImages({ 1: null, 2: null, 3: null, 4: null })
+            
+            toast.success('Product added successfully!')
+            router.push('/store/manage-product')
+            
+        } catch (error) {
+            setLoading(false)
+            throw error
+        } finally {
+            setLoading(false)
+        }
     }
 
 
@@ -56,11 +140,11 @@ export default function StoreAddProduct() {
 
             <div className="flex gap-5">
                 <label htmlFor="" className="flex flex-col gap-2 ">
-                    Actual Price ($)
+                    Actual Price (INR)
                     <input type="number" name="mrp" onChange={onChangeHandler} value={productInfo.mrp} placeholder="0" rows={5} className="w-full max-w-45 p-2 px-4 outline-none border border-slate-200 rounded resize-none" required />
                 </label>
                 <label htmlFor="" className="flex flex-col gap-2 ">
-                    Offer Price ($)
+                    Offer Price (INR)
                     <input type="number" name="price" onChange={onChangeHandler} value={productInfo.price} placeholder="0" rows={5} className="w-full max-w-45 p-2 px-4 outline-none border border-slate-200 rounded resize-none" required />
                 </label>
             </div>

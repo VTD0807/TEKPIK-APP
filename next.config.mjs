@@ -1,3 +1,8 @@
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const workspaceRoot = dirname(fileURLToPath(import.meta.url))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
@@ -11,7 +16,10 @@ const nextConfig = {
     },
     // Reduce bundle size
     experimental: {
-        optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
+        optimizePackageImports: ['firebase'],
+    },
+    turbopack: {
+        root: workspaceRoot,
     },
     // Compress responses
     compress: true,

@@ -9,8 +9,8 @@ import {
     updateProfile,
     getIdToken
 } from 'firebase/auth'
-import { auth, googleProvider } from '@/lib/firebase'
-import { supabase } from '@/lib/supabase'
+import { doc, setDoc } from 'firebase/firestore'
+import { auth, db, googleProvider } from '@/lib/firebase'
 import { isAdminEmail } from '@/lib/admin'
 
 const AuthContext = createContext({ 
@@ -22,38 +22,34 @@ const AuthContext = createContext({
     signOut: async () => {} 
 })
 
-// Sync Firebase user to Supabase public.users table for relational data (reviews, wishlist)
-async function syncUserToSupabase(firebaseUser) {
-    if (!firebaseUser || !firebaseUser.uid) return
-    if (!firebaseUser.email) return
+// Sync Firebase user directly to Firestore
+async function syncUserToFirestore(firebaseUser) {
+    if (!firebaseUser?.uid || !firebaseUser?.email) return
 
     const payload = {
-        id: firebaseUser.uid,
-        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
-        email: firebaseUser.email || '',
+        name: firebaseUser.displayName || firebaseUser.email.split('@')[0] || 'User',
+        email: firebaseUser.email,
         image: firebaseUser.photoURL || '',
     }
     if (isAdminEmail(firebaseUser.email)) payload.role = 'ADMIN'
 
     try {
-        const { error } = await supabase.from('users').upsert(payload, { onConflict: 'id' })
-        if (error) {
-            const details = [error.message, error.details, error.hint].filter(Boolean).join(' | ')
-            console.warn('Supabase user sync skipped:', details || error)
-        }
+        await setDoc(doc(db, 'users', firebaseUser.uid), payload, { merge: true })
+        console.log(' User synced to Firestore:', payload.email)
     } catch (err) {
-        const message = err?.message || err
-        console.warn('Supabase user sync failed:', message)
+        console.warn('Sync to Firestore error:', err?.message || err)
     }
 }
 
 // Set or remove session cookie for server-side auth (middleware)
 async function updateSessionCookie(firebaseUser) {
     if (firebaseUser) {
-        const token = await getIdToken(firebaseUser)
-        // Set cookie via a small API route or client-side cookie library
-        // For simplicity and stability, we'll use a client-side approach that middleware can read
-        document.cookie = `fb-token=${token}; path=/; max-age=3600; SameSite=Lax`
+        try {
+            const token = await getIdToken(firebaseUser)
+            document.cookie = `fb-token=${token}; path=/; max-age=3600; SameSite=Lax`
+        } catch (e) {
+            console.warn('Failed to set session cookie:', e.message)
+        }
     } else {
         document.cookie = `fb-token=; path=/; max-age=0; SameSite=Lax`
     }
@@ -69,11 +65,12 @@ export function AuthProvider({ children }) {
             setLoading(false)
             
             if (firebaseUser) {
-                // Sync profile and update server session cookie
-                syncUserToSupabase(firebaseUser).catch(console.error)
-                updateSessionCookie(firebaseUser).catch(console.error)
+                Promise.allSettled([
+                    syncUserToFirestore(firebaseUser),
+                    updateSessionCookie(firebaseUser),
+                ])
             } else {
-                updateSessionCookie(null).catch(console.error)
+                updateSessionCookie(null).catch(() => {})
             }
         })
         return unsub
@@ -109,3 +106,4 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext)
+

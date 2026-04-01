@@ -1,5 +1,5 @@
 'use client'
-import { XIcon } from "lucide-react"
+import { X } from 'react-bootstrap-icons'
 import { useState } from "react"
 import { toast } from "react-hot-toast"
 
@@ -47,7 +47,7 @@ const AddressModal = ({ setShowAddressModal }) => {
                 <input name="phone" onChange={handleAddressChange} value={address.phone} className="p-2 px-4 outline-none border border-slate-200 rounded w-full" type="text" placeholder="Phone" required />
                 <button className="bg-slate-800 text-white text-sm font-medium py-2.5 rounded-md hover:bg-slate-900 active:scale-95 transition-all">SAVE ADDRESS</button>
             </div>
-            <XIcon size={30} className="absolute top-5 right-5 text-slate-500 hover:text-slate-700 cursor-pointer" onClick={() => setShowAddressModal(false)} />
+            <X size={30} className="absolute top-5 right-5 text-slate-500 hover:text-slate-700 cursor-pointer" onClick={() => setShowAddressModal(false)} />
         </form>
     )
 }

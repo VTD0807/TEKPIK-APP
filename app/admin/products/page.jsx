@@ -1,9 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
-import Image from 'next/image'
 import Link from 'next/link'
-import { PlusIcon, PencilIcon, TrashIcon, SparklesIcon } from 'lucide-react'
+import { Plus, PencilSquare, Trash, Stars } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 
 export default function AdminProducts() {
@@ -39,8 +38,8 @@ export default function AdminProducts() {
         <div className="text-slate-500 mb-28 space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl text-slate-500">Manage <span className="text-slate-800 font-medium">Products</span></h1>
-                <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-lg transition">
-                    <PlusIcon size={14} /> Add Product
+                <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                    <Plus size={14} /> Add Product
                 </Link>
             </div>
 
@@ -56,37 +55,49 @@ export default function AdminProducts() {
                         </tr>
                     </thead>
                     <tbody>
-                        {products.map(p => (
+                        {products.length > 0 ? products.map(p => (
                             <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50">
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-3">
-                                        <Image src={p.imageUrls[0]} alt={p.title} width={40} height={40} className="w-10 h-10 object-contain rounded bg-slate-100" />
-                                        <span className="max-w-48 truncate">{p.title}</span>
+                                        <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center overflow-hidden shrink-0">
+                                            {(p.image_urls?.[0] || p.imageUrls?.[0]) ? (
+                                                <img src={p.image_urls?.[0] || p.imageUrls?.[0]} alt={p.title || 'Product'} className="w-full h-full object-contain" referrerPolicy="no-referrer" onError={e => e.target.style.display = 'none'} />
+                                            ) : (
+                                                <div className="text-[10px] text-slate-300">No img</div>
+                                            )}
+                                        </div>
+                                        <span className="max-w-48 truncate font-medium text-slate-700">{p.title || 'Untitled Product'}</span>
                                     </div>
                                 </td>
                                 <td className="px-4 py-3">{p.category}</td>
-                                <td className="px-4 py-3">${p.price}</td>
+                                <td className="px-4 py-3">₹{p.price}</td>
                                 <td className="px-4 py-3">
-                                    {p.aiAnalysis?.score
-                                        ? <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">{p.aiAnalysis.score}/10</span>
+                                    {(p.ai_analysis?.score || p.aiAnalysis?.score)
+                                        ? <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-xs font-medium">{p.ai_analysis?.score || p.aiAnalysis?.score}/10</span>
                                         : <span className="text-slate-300 text-xs">—</span>
                                     }
                                 </td>
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => handleAnalyse(p.id)} className="p-1.5 text-purple-500 hover:bg-purple-50 rounded transition" title="Generate AI Analysis">
-                                            <SparklesIcon size={15} />
+                                        <button onClick={() => handleAnalyse(p.id)} className="p-1.5 text-slate-900 hover:bg-slate-100 rounded transition" title="Generate AI Analysis">
+                                            <Stars size={15} />
                                         </button>
                                         <Link href={`/admin/products/${p.id}/edit`} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition">
-                                            <PencilIcon size={15} />
+                                            <PencilSquare size={15} />
                                         </Link>
-                                        <button className="p-1.5 text-red-400 hover:bg-red-50 rounded transition">
-                                            <TrashIcon size={15} />
+                                        <button className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition">
+                                            <Trash size={15} />
                                         </button>
                                     </div>
                                 </td>
                             </tr>
-                        ))}
+                        )) : (
+                            <tr>
+                                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                                    No products found.
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

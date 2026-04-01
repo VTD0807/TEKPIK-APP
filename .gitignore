@@ -45,8 +45,10 @@ next-env.d.ts
 # Google OAuth credentials (NEVER commit these)
 client_secret*.json
 *credentials*.json
+*firebase-adminsdk*.json
 .env.local
 .env*.local
 
 # clerk configuration (can include secrets)
 /.clerk/
+/screenshorts/

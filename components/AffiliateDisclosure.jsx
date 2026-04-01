@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { InfoIcon } from 'lucide-react'
+import { InfoCircle } from 'react-bootstrap-icons'
 
 export default function AffiliateDisclosure({ variant = 'banner' }) {
     if (variant === 'inline') {
@@ -13,7 +13,7 @@ export default function AffiliateDisclosure({ variant = 'banner' }) {
 
     return (
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-            <InfoIcon size={16} className="shrink-0 mt-0.5" />
+            <InfoCircle size={16} className="shrink-0 mt-0.5" />
             <p>
                 <span className="font-medium">Affiliate Disclosure:</span> TEKPIK participates in the Amazon Associates Program. We earn a small commission on qualifying purchases at no extra cost to you.{' '}
                 <Link href="/disclosure" className="underline hover:text-amber-900">Full disclosure</Link>

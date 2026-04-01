@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { assets } from '@/assets/assets'
-import { EyeIcon, EyeOffIcon, AlertCircleIcon, UserIcon } from 'lucide-react'
+import { Eye, EyeSlash, ExclamationCircle, Person } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/lib/auth-context'
 
@@ -74,7 +74,7 @@ function RegisterForm() {
 
                 {error && (
                     <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-                        <AlertCircleIcon size={16} className="shrink-0 mt-0.5" />
+                        <ExclamationCircle size={16} className="shrink-0 mt-0.5" />
                         <span>{error}</span>
                     </div>
                 )}
@@ -95,7 +95,7 @@ function RegisterForm() {
                         <div className="relative">
                             <input type="text" required value={name} onChange={e => setName(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pl-10 text-sm outline-none focus:border-indigo-400 focus:bg-white transition" placeholder="John Doe" />
-                            <UserIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <Person size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
                     </div>
 
@@ -111,7 +111,7 @@ function RegisterForm() {
                             <input type={showPw ? 'text' : 'password'} required autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:bg-white transition" placeholder="Min. 6 characters" />
                             <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
-                                {showPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                {showPw ? <EyeSlash size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
                     </div>

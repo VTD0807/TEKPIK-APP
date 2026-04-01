@@ -1,9 +1,8 @@
 'use client'
 
-import { Star } from 'lucide-react';
+import { Star, X } from 'react-bootstrap-icons'
 import React, { useState } from 'react'
-import { XIcon } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from 'react-hot-toast'
 
 const RatingModal = ({ ratingModal, setRatingModal }) => {
 
@@ -25,7 +24,7 @@ const RatingModal = ({ ratingModal, setRatingModal }) => {
         <div className='fixed inset-0 z-120 flex items-center justify-center bg-black/10'>
             <div className='bg-white p-8 rounded-lg shadow-lg w-96 relative'>
                 <button onClick={() => setRatingModal(null)} className='absolute top-3 right-3 text-gray-500 hover:text-gray-700'>
-                    <XIcon size={20} />
+                    <X size={20} />
                 </button>
                 <h2 className='text-xl font-medium text-slate-600 mb-4'>Rate Product</h2>
                 <div className='flex items-center justify-center mb-4'>

@@ -1,29 +1,38 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { dbAdmin } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(req, { params }) {
     const { id } = await params
-    const { action } = await req.json()
-    const supabase = await createSupabaseServerClient()
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
-    const update = action === 'approve' ? { is_approved: true }
-        : action === 'reject' ? { is_approved: false }
-        : action === 'verify' ? { is_verified: true }
-        : null
+    try {
+        const { action } = await req.json()
+        const updateData = action === 'approve' ? { isApproved: true }
+            : action === 'reject' ? { isApproved: false }
+            : action === 'verify' ? { isVerified: true }
+            : null
 
-    if (!update) return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+        if (!updateData) return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 
-    const { data, error } = await supabase.from('reviews').update(update).eq('id', id).select().single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ review: data })
+        await dbAdmin.collection('reviews').doc(id).update(updateData)
+        const docSnap = await dbAdmin.collection('reviews').doc(id).get()
+
+        return NextResponse.json({ review: { id: docSnap.id, ...docSnap.data() } })
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }
 
 export async function DELETE(req, { params }) {
     const { id } = await params
-    const supabase = await createSupabaseServerClient()
-    const { error } = await supabase.from('reviews').delete().eq('id', id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ success: true })
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+
+    try {
+        await dbAdmin.collection('reviews').doc(id).delete()
+        return NextResponse.json({ success: true })
+    } catch (error) {
+         return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }

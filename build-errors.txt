@@ -1,0 +1,664 @@
+﻿
+> tekpik@0.1.0 build
+> next build
+
+node.exe : ΓÜá Warning: Next.js 
+inferred your workspace root, 
+but it may not be correct.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~
+    + CategoryInfo          : N 
+   otSpecified: (ΓÜá Warning:   
+  Ne...not be correct.:String   
+ ) [], RemoteException
+    + FullyQualifiedErrorId : N 
+   ativeCommandError
+ 
+ We detected multiple lockfiles 
+and selected the directory of C:
+\Users\ADMIN\package-lock.json 
+as the root directory.
+ To silence this warning, set 
+`turbopack.root` in your 
+Next.js config, or consider 
+removing one of the lockfiles 
+if it's not needed.
+   See https://nextjs.org/docs/a
+pp/api-reference/config/next-con
+fig-js/turbopack#root-directory 
+for more information.
+ Detected additional lockfiles: 
+   * C:\Users\ADMIN\Desktop\Play
+ground\tekpik\app\package-lock.j
+son
+
+Γû▓ Next.js 16.2.1 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  ┬╖ optimizePackageImports
+
+ΓÜá The "middleware" file 
+convention is deprecated. 
+Please use "proxy" instead. 
+Learn more: https://nextjs.org/d
+ocs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed 
+with 9 errors:
+./Desktop/Playground/tekpik/app/
+app/cms/ai-analysis/page.jsx:3:6
+8
+the name `ArrowRepeat` is 
+defined multiple times
+  [90m1 |[0m ...
+  [90m2 |[0m ... } 
+[36mfrom[0m [32m'react'[0m
+[31m[1m>[0m [90m3 |[0m 
+...[33mepeat[0m, 
+[33mCheckCircle[0m, 
+[33mExclamationCircle[0m, 
+[33mArrowRepeat[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m  |[0m                  
+                         
+[31m[1m^^^^^^^^^^^[0m
+  [90m4 |[0m 
+...[32m-toast'[0m
+  [90m5 |[0m ...
+  [90m6 |[0m 
+...[33mIAnalysis[0m() {
+
+Ecmascript file had an error
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/cms/ai-analysis/page.jsx
+ [Client Component Browser]
+    ./Desktop/Playground/tekpik/
+app/app/cms/ai-analysis/page.jsx
+ [Server Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/cms/ai-analysis/page.jsx
+ [Client Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/cms/ai-analysis/page.jsx
+ [Server Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/cms/page.jsx:4:1
+Export ArrowUpRightIcon doesn't 
+exist in target module
+  [90m 2 |[0m [36mimport[0m 
+{ useEffect, useState } 
+[36mfrom[0m [32m'react'[0m
+  [90m 3 |[0m [36mimport[0m 
+[33mCMSStatCard[0m 
+[36mfrom[0m [32m'@/components
+/cms/CMSStatCard'[0m
+[31m[1m>[0m [90m 4 |[0m 
+[36mimport[0m {
+  [90m   |[0m 
+[31m[1m^^^^^^^[0m
+[31m[1m>[0m [90m 5 |[0m    
+ [33mBoxSeam[0m, 
+[33mStar[0m, [33mStars[0m, 
+[33mHeart[0m,
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m 6 |[0m    
+ [33mTrendingUpIcon[0m, 
+[33mArrowUpRightIcon[0m, 
+[33mInboxIcon[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^[0m
+[31m[1m>[0m [90m 7 |[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m 8 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m 9 |[0m
+  [90m10 |[0m 
+[36mfunction[0m 
+[33mSkeletonCard[0m() {
+
+The export ArrowUpRightIcon was 
+not found in module [project]/De
+sktop/Playground/tekpik/app/node
+_modules/react-bootstrap-icons/d
+ist/index.js [app-client] 
+(ecmascript).
+Did you mean to import 
+ArrowUpRight?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component Browser]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/cms/page.jsx:4:1
+Export ArrowUpRightIcon doesn't 
+exist in target module
+  [90m 2 |[0m [36mimport[0m 
+{ useEffect, useState } 
+[36mfrom[0m [32m'react'[0m
+  [90m 3 |[0m [36mimport[0m 
+[33mCMSStatCard[0m 
+[36mfrom[0m [32m'@/components
+/cms/CMSStatCard'[0m
+[31m[1m>[0m [90m 4 |[0m 
+[36mimport[0m {
+  [90m   |[0m 
+[31m[1m^^^^^^^[0m
+[31m[1m>[0m [90m 5 |[0m    
+ [33mBoxSeam[0m, 
+[33mStar[0m, [33mStars[0m, 
+[33mHeart[0m,
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m 6 |[0m    
+ [33mTrendingUpIcon[0m, 
+[33mArrowUpRightIcon[0m, 
+[33mInboxIcon[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^[0m
+[31m[1m>[0m [90m 7 |[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m 8 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m 9 |[0m
+  [90m10 |[0m 
+[36mfunction[0m 
+[33mSkeletonCard[0m() {
+
+The export ArrowUpRightIcon was 
+not found in module [project]/De
+sktop/Playground/tekpik/app/node
+_modules/react-bootstrap-icons/d
+ist/index.js [app-ssr] 
+(ecmascript).
+Did you mean to import 
+ArrowUpRight?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component Browser]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/admin/products/[id]/edit/pag
+e.jsx:4:1
+Export SaveIcon doesn't exist 
+in target module
+  [90m2 |[0m [36mimport[0m 
+{ useState, useEffect } 
+[36mfrom[0m [32m'react'[0m
+  [90m3 |[0m [36mimport[0m 
+{ useRouter, useParams } 
+[36mfrom[0m 
+[32m'next/navigation'[0m
+[31m[1m>[0m [90m4 |[0m 
+[36mimport[0m { 
+[33mArrowLeft[0m, 
+[33mSaveIcon[0m, 
+[33mPlus[0m, [33mX[0m, 
+[33mArrowRepeat[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m  |[0m [31m[1m^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^[0m
+  [90m5 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m6 |[0m [36mimport[0m 
+toast [36mfrom[0m 
+[32m'react-hot-toast'[0m
+  [90m7 |[0m
+
+The export SaveIcon was not 
+found in module [project]/Deskto
+p/Playground/tekpik/app/node_mod
+ules/react-bootstrap-icons/dist/
+index.js [app-client] 
+(ecmascript).
+Did you mean to import Save?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Client Component 
+Browser]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Server Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Client Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Server Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/admin/products/[id]/edit/pag
+e.jsx:4:1
+Export SaveIcon doesn't exist 
+in target module
+  [90m2 |[0m [36mimport[0m 
+{ useState, useEffect } 
+[36mfrom[0m [32m'react'[0m
+  [90m3 |[0m [36mimport[0m 
+{ useRouter, useParams } 
+[36mfrom[0m 
+[32m'next/navigation'[0m
+[31m[1m>[0m [90m4 |[0m 
+[36mimport[0m { 
+[33mArrowLeft[0m, 
+[33mSaveIcon[0m, 
+[33mPlus[0m, [33mX[0m, 
+[33mArrowRepeat[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m  |[0m [31m[1m^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^[0m
+  [90m5 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m6 |[0m [36mimport[0m 
+toast [36mfrom[0m 
+[32m'react-hot-toast'[0m
+  [90m7 |[0m
+
+The export SaveIcon was not 
+found in module [project]/Deskto
+p/Playground/tekpik/app/node_mod
+ules/react-bootstrap-icons/dist/
+index.js [app-ssr] (ecmascript).
+Did you mean to import Save?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Client Component 
+Browser]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Server Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Client Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/[id]/edit
+/page.jsx [Server Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/admin/products/new/page.jsx:
+4:1
+Export SaveIcon doesn't exist 
+in target module
+  [90m2 |[0m [36mimport[0m 
+{ useState, useEffect } 
+[36mfrom[0m [32m'react'[0m
+  [90m3 |[0m [36mimport[0m 
+{ useRouter } [36mfrom[0m 
+[32m'next/navigation'[0m
+[31m[1m>[0m [90m4 |[0m 
+[36mimport[0m { 
+[33mArrowLeft[0m, 
+[33mSaveIcon[0m, 
+[33mPlus[0m, [33mX[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m  |[0m [31m[1m^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m6 |[0m [36mimport[0m 
+toast [36mfrom[0m 
+[32m'react-hot-toast'[0m
+  [90m7 |[0m
+
+The export SaveIcon was not 
+found in module [project]/Deskto
+p/Playground/tekpik/app/node_mod
+ules/react-bootstrap-icons/dist/
+index.js [app-client] 
+(ecmascript).
+Did you mean to import Save?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Client Component Browser]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Server Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Client Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Server Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/admin/products/new/page.jsx:
+4:1
+Export SaveIcon doesn't exist 
+in target module
+  [90m2 |[0m [36mimport[0m 
+{ useState, useEffect } 
+[36mfrom[0m [32m'react'[0m
+  [90m3 |[0m [36mimport[0m 
+{ useRouter } [36mfrom[0m 
+[32m'next/navigation'[0m
+[31m[1m>[0m [90m4 |[0m 
+[36mimport[0m { 
+[33mArrowLeft[0m, 
+[33mSaveIcon[0m, 
+[33mPlus[0m, [33mX[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m  |[0m [31m[1m^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m6 |[0m [36mimport[0m 
+toast [36mfrom[0m 
+[32m'react-hot-toast'[0m
+  [90m7 |[0m
+
+The export SaveIcon was not 
+found in module [project]/Deskto
+p/Playground/tekpik/app/node_mod
+ules/react-bootstrap-icons/dist/
+index.js [app-ssr] (ecmascript).
+Did you mean to import Save?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Client Component Browser]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Server Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Client Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/admin/products/new/page.
+jsx [Server Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/cms/page.jsx:4:1
+Export TrendingUpIcon doesn't 
+exist in target module
+  [90m 2 |[0m [36mimport[0m 
+{ useEffect, useState } 
+[36mfrom[0m [32m'react'[0m
+  [90m 3 |[0m [36mimport[0m 
+[33mCMSStatCard[0m 
+[36mfrom[0m [32m'@/components
+/cms/CMSStatCard'[0m
+[31m[1m>[0m [90m 4 |[0m 
+[36mimport[0m {
+  [90m   |[0m 
+[31m[1m^^^^^^^[0m
+[31m[1m>[0m [90m 5 |[0m    
+ [33mBoxSeam[0m, 
+[33mStar[0m, [33mStars[0m, 
+[33mHeart[0m,
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m 6 |[0m    
+ [33mTrendingUpIcon[0m, 
+[33mArrowUpRightIcon[0m, 
+[33mInboxIcon[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^[0m
+[31m[1m>[0m [90m 7 |[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m 8 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m 9 |[0m
+  [90m10 |[0m 
+[36mfunction[0m 
+[33mSkeletonCard[0m() {
+
+The export TrendingUpIcon was 
+not found in module [project]/De
+sktop/Playground/tekpik/app/node
+_modules/react-bootstrap-icons/d
+ist/index.js [app-client] 
+(ecmascript).
+Did you mean to import 
+SignIntersection?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component Browser]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+
+./Desktop/Playground/tekpik/app/
+app/cms/page.jsx:4:1
+Export TrendingUpIcon doesn't 
+exist in target module
+  [90m 2 |[0m [36mimport[0m 
+{ useEffect, useState } 
+[36mfrom[0m [32m'react'[0m
+  [90m 3 |[0m [36mimport[0m 
+[33mCMSStatCard[0m 
+[36mfrom[0m [32m'@/components
+/cms/CMSStatCard'[0m
+[31m[1m>[0m [90m 4 |[0m 
+[36mimport[0m {
+  [90m   |[0m 
+[31m[1m^^^^^^^[0m
+[31m[1m>[0m [90m 5 |[0m    
+ [33mBoxSeam[0m, 
+[33mStar[0m, [33mStars[0m, 
+[33mHeart[0m,
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m 6 |[0m    
+ [33mTrendingUpIcon[0m, 
+[33mArrowUpRightIcon[0m, 
+[33mInboxIcon[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^[0m
+[31m[1m>[0m [90m 7 |[0m } 
+[36mfrom[0m 
+[32m'react-bootstrap-icons'[0m
+  [90m   |[0m [31m[1m^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m 8 |[0m [36mimport[0m 
+[33mLink[0m [36mfrom[0m 
+[32m'next/link'[0m
+  [90m 9 |[0m
+  [90m10 |[0m 
+[36mfunction[0m 
+[33mSkeletonCard[0m() {
+
+The export TrendingUpIcon was 
+not found in module [project]/De
+sktop/Playground/tekpik/app/node
+_modules/react-bootstrap-icons/d
+ist/index.js [app-ssr] 
+(ecmascript).
+Did you mean to import 
+SignIntersection?
+All exports of the module are 
+statically known (It doesn't 
+have dynamic exports). So it's 
+known statically that the 
+requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component Browser]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+  Client Component SSR:
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Client 
+Component SSR]
+    ./Desktop/Playground/tekpik/
+app/app/cms/page.jsx [Server 
+Component]
+
+
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/cms/ai-ana
+lysis/page.jsx:3:68)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/cms/page.j
+sx:4:1)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/cms/page.j
+sx:4:1)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/admin/prod
+ucts/[id]/edit/page.jsx:4:1)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/admin/prod
+ucts/[id]/edit/page.jsx:4:1)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/admin/prod
+ucts/new/page.jsx:4:1)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/admin/prod
+ucts/new/page.jsx:4:1)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/cms/page.j
+sx:4:1)
+    at <unknown> (./Desktop/Play
+ground/tekpik/app/app/cms/page.j
+sx:4:1)

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Loader2Icon } from 'lucide-react'
+import { ArrowRepeat } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 
 export default function AdminUsers() {
@@ -36,7 +36,7 @@ export default function AdminUsers() {
         }
     }
 
-    if (loading) return <div className="flex justify-center py-20"><Loader2Icon className="animate-spin text-indigo-500" /></div>
+    if (loading) return <div className="flex justify-center py-20"><ArrowRepeat className="animate-spin text-slate-900" /></div>
 
     return (
         <div className="text-slate-500 mb-28 space-y-5">
@@ -60,15 +60,20 @@ export default function AdminUsers() {
                                     <td className="px-4 py-3 font-medium text-slate-700">{u.name}</td>
                                     <td className="px-4 py-3 text-slate-400">{u.email}</td>
                                     <td className="px-4 py-3">
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.role === 'ADMIN' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.role === 'ADMIN' ? 'bg-slate-100 text-slate-900' : 'bg-slate-100 text-slate-500'}`}>
                                             {u.role}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-slate-400">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
                                     <td className="px-4 py-3">
-                                        <button onClick={() => toggleRole(u.id)} className="text-xs px-3 py-1 border border-slate-200 hover:bg-slate-50 rounded-lg transition">
-                                            Make {u.role === 'ADMIN' ? 'USER' : 'ADMIN'}
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <a href={`/admin/profile/${u.id}`} className="text-xs px-3 py-1 bg-slate-100 text-slate-900 hover:bg-slate-100 rounded-lg transition font-medium">
+                                                View Profile
+                                            </a>
+                                            <button onClick={() => toggleRole(u.id)} className="text-xs px-3 py-1 border border-slate-200 hover:bg-slate-50 rounded-lg transition">
+                                                Make {u.role === 'ADMIN' ? 'USER' : 'ADMIN'}
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

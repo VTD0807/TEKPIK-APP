@@ -1,7 +1,7 @@
 'use client'
 import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
-import { LogOutIcon, UserIcon } from 'lucide-react'
+import { BoxArrowRight, Person } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 
 export default function UserProfileCard() {
@@ -26,7 +26,7 @@ export default function UserProfileCard() {
             {avatar
                 ? <img src={avatar} alt={name} referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-100" />
                 : <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <UserIcon size={18} className="text-indigo-600" />
+                    <Person size={18} className="text-indigo-600" />
                   </div>
             }
 
@@ -41,7 +41,7 @@ export default function UserProfileCard() {
                 onClick={handleSignOut}
                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition px-2 py-1.5 rounded-lg hover:bg-red-50"
             >
-                <LogOutIcon size={14} />
+                <BoxArrowRight size={14} />
                 <span className="hidden sm:inline">Sign out</span>
             </button>
         </div>

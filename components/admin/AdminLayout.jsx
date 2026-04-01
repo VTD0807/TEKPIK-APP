@@ -5,7 +5,8 @@ import Loading from "../Loading"
 import AdminNavbar from "./AdminNavbar"
 import AdminSidebar from "./AdminSidebar"
 import { useAuth } from "@/lib/auth-context"
-import { supabase } from "@/lib/supabase"
+import { db } from "@/lib/firebase"
+import { doc, getDoc } from "firebase/firestore"
 import Link from "next/link"
 import { isAdminEmail } from "@/lib/admin"
 
@@ -24,16 +25,15 @@ export default function AdminLayout({ children }) {
             return
         }
 
-        // Cache role in sessionStorage to avoid repeated DB calls
         const cached = sessionStorage.getItem(`role_${user.uid}`)
         if (cached) {
             setStatus(cached === 'ADMIN' ? 'admin' : 'denied')
             return
         }
 
-        supabase.from('users').select('role').eq('id', user.uid).single()
-            .then(({ data }) => {
-                const role = data?.role || 'USER'
+        getDoc(doc(db, 'users', user.uid))
+            .then(docSnap => {
+                const role = docSnap.exists() ? docSnap.data().role : 'USER'
                 const effectiveRole = isAdminEmail(user.email) ? 'ADMIN' : role
                 sessionStorage.setItem(`role_${user.uid}`, effectiveRole)
                 setStatus(effectiveRole === 'ADMIN' ? 'admin' : 'denied')
@@ -47,7 +47,7 @@ export default function AdminLayout({ children }) {
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
             <div className="text-center space-y-4">
                 <p className="text-slate-600">Sign in to access the admin panel.</p>
-                <Link href="/login?redirect=/admin" className="inline-block px-6 py-2 bg-indigo-500 text-white text-sm rounded-full hover:bg-indigo-600 transition">
+                <Link href="/login?redirect=/admin" className="inline-block px-6 py-2 bg-black text-white text-sm rounded-full hover:bg-black/90 transition">
                     Sign In
                 </Link>
             </div>
@@ -57,7 +57,7 @@ export default function AdminLayout({ children }) {
     if (status === 'denied') return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
             <div className="text-center space-y-3">
-                <p className="text-2xl">🔒</p>
+                <p className="text-2xl"></p>
                 <p className="text-slate-700 font-medium">Access Denied</p>
                 <Link href="/" className="inline-block px-6 py-2 border border-slate-200 text-slate-600 text-sm rounded-full">Go Home</Link>
             </div>
@@ -76,3 +76,4 @@ export default function AdminLayout({ children }) {
         </div>
     )
 }
+

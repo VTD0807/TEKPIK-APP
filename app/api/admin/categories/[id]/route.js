@@ -1,27 +1,54 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { dbAdmin } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function PUT(req, { params }) {
     const { id } = await params
-    const supabase = await createSupabaseServerClient()
-    const body = await req.json()
-    const { data, error } = await supabase
-        .from('categories')
-        .update({ name: body.name, slug: body.slug, icon: body.icon, description: body.description })
-        .eq('id', id)
-        .select()
-        .single()
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data)
+    try {
+        const body = await req.json()
+        const name = (body.name || '').trim()
+        const slug = (body.slug || '').trim().toLowerCase()
+
+        if (!name || !slug) {
+            return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 })
+        }
+
+        const allSnap = await dbAdmin.collection('categories').get()
+        const duplicate = allSnap.docs.some(doc => {
+            if (doc.id === id) return false
+            const cat = doc.data()
+            return (cat?.name || '').trim().toLowerCase() === name.toLowerCase() || (cat?.slug || '').trim().toLowerCase() === slug
+        })
+
+        if (duplicate) {
+            return NextResponse.json({ error: 'Category with same name or slug already exists' }, { status: 409 })
+        }
+
+        await dbAdmin.collection('categories').doc(id).update({
+            name,
+            slug,
+            icon: body.icon,
+            description: body.description
+        })
+
+        const docSnap = await dbAdmin.collection('categories').doc(id).get()
+        return NextResponse.json({ id: docSnap.id, ...docSnap.data() })
+    } catch (error) {
+         return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }
 
 export async function DELETE(req, { params }) {
     const { id } = await params
-    const supabase = await createSupabaseServerClient()
-    const { error } = await supabase.from('categories').delete().eq('id', id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ success: true })
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+
+    try {
+        await dbAdmin.collection('categories').doc(id).delete()
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }

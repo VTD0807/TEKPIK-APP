@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSelector } from 'react-redux'
 import ProductCard from '@/components/ProductCard'
-import { SearchIcon } from 'lucide-react'
+import { Search } from 'react-bootstrap-icons'
 
 function SearchContent() {
     const searchParams = useSearchParams()
@@ -20,7 +20,7 @@ function SearchContent() {
     return (
         <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
             <div className="flex items-center gap-2 text-slate-600">
-                <SearchIcon size={20} />
+                <Search size={20} />
                 <h1 className="text-xl font-semibold text-slate-800">
                     {q ? `Results for "${q}"` : 'Search Products'}
                 </h1>

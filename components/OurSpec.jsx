@@ -1,6 +1,6 @@
 import React from 'react'
 import Title from './Title'
-import { ShieldCheck, Truck, Headphones, CreditCard, RotateCcw, Zap } from 'lucide-react'
+import { ShieldCheck, Truck, Headset, CreditCard, ArrowRepeat, LightningCharge } from 'react-bootstrap-icons'
 
 const ourSpecsData = [
     {
@@ -18,19 +18,19 @@ const ourSpecsData = [
     {
         title: "24/7 Support",
         description: "Our dedicated support team is available around the clock to help.",
-        icon: Headphones,
+        icon: Headset,
         accent: "#f59e0b"
     },
     {
         title: "Easy Returns",
         description: "Not satisfied? Return your items within 30 days for a full refund.",
-        icon: RotateCcw,
+        icon: ArrowRepeat,
         accent: "#ef4444"
     },
     {
         title: "Instant AI Analysis",
         description: "Get real-time pros, cons, and value scores for any product.",
-        icon: Zap,
+        icon: LightningCharge,
         accent: "#8b5cf6"
     },
     {

@@ -1,5 +1,5 @@
 'use client'
-import { PlusIcon, SquarePenIcon, XIcon } from 'lucide-react';
+import { Plus, PencilSquare, X } from 'react-bootstrap-icons';
 import React, { useState } from 'react'
 import AddressModal from './AddressModal';
 import { useSelector } from 'react-redux';
@@ -49,7 +49,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                     selectedAddress ? (
                         <div className='flex gap-2 items-center'>
                             <p>{selectedAddress.name}, {selectedAddress.city}, {selectedAddress.state}, {selectedAddress.zip}</p>
-                            <SquarePenIcon onClick={() => setSelectedAddress(null)} className='cursor-pointer' size={18} />
+                            <PencilSquare onClick={() => setSelectedAddress(null)} className='cursor-pointer' size={18} />
                         </div>
                     ) : (
                         <div>
@@ -65,7 +65,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                                     </select>
                                 )
                             }
-                            <button className='flex items-center gap-1 text-slate-600 mt-1' onClick={() => setShowAddressModal(true)} >Add Address <PlusIcon size={18} /></button>
+                            <button className='flex items-center gap-1 text-slate-600 mt-1' onClick={() => setShowAddressModal(true)} >Add Address <Plus size={18} /></button>
                         </div>
                     )
                 }
@@ -93,7 +93,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                         <div className='w-full flex items-center justify-center gap-2 text-xs mt-2'>
                             <p>Code: <span className='font-semibold ml-1'>{coupon.code.toUpperCase()}</span></p>
                             <p>{coupon.description}</p>
-                            <XIcon size={18} onClick={() => setCoupon('')} className='hover:text-red-700 transition cursor-pointer' />
+                            <X size={18} onClick={() => setCoupon('')} className='hover:text-red-700 transition cursor-pointer' />
                         </div>
                     )
                 }

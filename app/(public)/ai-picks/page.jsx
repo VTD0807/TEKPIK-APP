@@ -1,5 +1,5 @@
 'use client'
-import { SparklesIcon } from 'lucide-react'
+import { Stars } from 'react-bootstrap-icons'
 import { useSelector } from 'react-redux'
 import ProductCard from '@/components/ProductCard'
 import AffiliateDisclosure from '@/components/AffiliateDisclosure'
@@ -18,7 +18,7 @@ export default function AiPicksPage() {
     return (
         <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
             <div className="flex items-center gap-2 text-indigo-700">
-                <SparklesIcon size={22} />
+                <Stars size={22} />
                 <h1 className="text-2xl font-semibold">AI Picks</h1>
             </div>
             <p className="text-slate-500 text-sm max-w-xl">

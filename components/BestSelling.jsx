@@ -1,7 +1,7 @@
 import React from 'react'
 import Title from './Title'
 import ProductCard from './ProductCard'
-import { createSupabasePublicClient } from '@/lib/supabase-server'
+import { dbAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
 
 const BestSelling = async () => {
     const displayQuantity = 8
@@ -9,19 +9,26 @@ const BestSelling = async () => {
     let errorMsg = null
 
     try {
-        const supabase = createSupabasePublicClient()
-        const { data, error } = await supabase
-            .from('products')
-            .select('*, categories(name,slug)')
-            .eq('is_active', true)
-            .eq('is_featured', true)
-            .limit(displayQuantity)
+        if (!dbAdmin) throw new Error('DB not initialized')
 
-        if (error) {
-            console.error('Error fetching best selling products:', error)
-            errorMsg = error.message
-        } else {
-            products = data || []
+        const querySnap = await dbAdmin.collection('products')
+            .where('isActive', '==', true)
+            .where('isFeatured', '==', true)
+            .limit(displayQuantity)
+            .get()
+
+        const prodList = []
+        querySnap.forEach(doc => prodList.push(sanitizeFirestoreData({ id: doc.id, ...doc.data() })))
+
+        if (prodList.length > 0) {
+            const catSnap = await dbAdmin.collection('categories').get()
+            const catMap = {}
+            catSnap.forEach(doc => catMap[doc.id] = doc.data())
+
+            products = prodList.map(p => ({
+                ...p,
+                categories: catMap[p.categoryId] ? { name: catMap[p.categoryId].name, slug: catMap[p.categoryId].slug } : null
+            }))
         }
     } catch (e) {
         console.error('Unexpected error in BestSelling:', e)

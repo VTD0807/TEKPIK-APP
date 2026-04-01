@@ -1,11 +1,13 @@
 'use client'
 import { useAuth } from "@/lib/auth-context"
-import { supabase } from "@/lib/supabase"
+import { db } from "@/lib/firebase"
+import { doc, getDoc } from "firebase/firestore"
 import Loading from "../Loading"
 import Link from "next/link"
-import { ArrowRightIcon } from "lucide-react"
+import { ArrowRight } from 'react-bootstrap-icons'
 import SellerNavbar from "./StoreNavbar"
 import SellerSidebar from "./StoreSidebar"
+import { useState, useEffect } from "react"
 
 const StoreLayout = ({ children }) => {
     const { user, loading: authLoading } = useAuth()
@@ -22,15 +24,10 @@ const StoreLayout = ({ children }) => {
             }
 
             try {
-                const { data, error } = await supabase
-                    .from('stores')
-                    .select('*')
-                    .eq('userId', user.uid)
-                    .single()
-
-                if (data) {
+                const docSnap = await getDoc(doc(db, 'stores', user.uid))
+                if (docSnap.exists()) {
                     setIsSeller(true)
-                    setStoreInfo(data)
+                    setStoreInfo({ id: docSnap.id, ...docSnap.data() })
                 }
             } catch (err) {
                 console.error('Error fetching store:', err)
@@ -58,7 +55,7 @@ const StoreLayout = ({ children }) => {
         <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
             <h1 className="text-2xl sm:text-4xl font-semibold text-slate-400">You are not authorized to access this page</h1>
             <Link href="/" className="bg-slate-700 text-white flex items-center gap-2 mt-8 p-2 px-6 max-sm:text-sm rounded-full">
-                Go to home <ArrowRightIcon size={18} />
+                Go to home <ArrowRight size={18} />
             </Link>
         </div>
     )

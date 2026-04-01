@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
-import { SparklesIcon, RefreshCwIcon } from 'lucide-react'
+import { Stars, ArrowRepeat } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 
 export default function AdminAiAnalysis() {
@@ -58,8 +58,8 @@ export default function AdminAiAnalysis() {
         <div className="text-slate-500 mb-28 space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <h1 className="text-2xl text-slate-500">AI <span className="text-slate-800 font-medium">Analysis</span></h1>
-                <button onClick={runBulk} disabled={bulkRunning} className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-60 text-white text-sm rounded-lg transition">
-                    <SparklesIcon size={14} /> {bulkRunning ? `Running... ${progress}%` : 'Bulk Analyse All'}
+                <button onClick={runBulk} disabled={bulkRunning} className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 disabled:opacity-60 text-white text-sm rounded-lg transition">
+                    <Stars size={14} /> {bulkRunning ? `Running... ${progress}%` : 'Bulk Analyse All'}
                 </button>
             </div>
 
@@ -70,11 +70,11 @@ export default function AdminAiAnalysis() {
                     <span>{Math.round((analysed / products.length) * 100)}%</span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${(analysed / products.length) * 100}%` }} />
+                    <div className="bg-black h-2 rounded-full transition-all" style={{ width: `${(analysed / products.length) * 100}%` }} />
                 </div>
                 {bulkRunning && (
                     <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1">
-                        <div className="bg-indigo-400 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                        <div className="bg-black h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
                     </div>
                 )}
             </div>
@@ -89,11 +89,11 @@ export default function AdminAiAnalysis() {
                         </div>
                         <div className="flex items-center gap-3">
                             {p.aiAnalysis
-                                ? <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">Score: {p.aiAnalysis.score}/10</span>
+                                ? <span className="text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-medium">Score: {p.aiAnalysis.score}/10</span>
                                 : <span className="text-xs text-slate-300">Not analysed</span>
                             }
-                            <button onClick={() => analyseOne(p.id)} className="p-1.5 text-purple-500 hover:bg-purple-50 rounded transition" title={p.aiAnalysis ? 'Re-analyse' : 'Analyse'}>
-                                {p.aiAnalysis ? <RefreshCwIcon size={14} /> : <SparklesIcon size={14} />}
+                            <button onClick={() => analyseOne(p.id)} className="p-1.5 text-slate-900 hover:bg-slate-100 rounded transition" title={p.aiAnalysis ? 'Re-analyse' : 'Analyse'}>
+                                {p.aiAnalysis ? <ArrowRepeat size={14} /> : <Stars size={14} />}
                             </button>
                         </div>
                     </div>

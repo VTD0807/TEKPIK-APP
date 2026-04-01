@@ -1,42 +1,63 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { dbAdmin, authAdmin } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+async function getUser(req) {
+    const authHeader = req.headers.get('Authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+        try { return await authAdmin.verifyIdToken(authHeader.split('Bearer ')[1]) } catch(e) {}
+    }
+    const userId = req.headers.get('x-user-id')
+    if (userId) return { uid: userId }
+    return null
+}
+
+export async function GET(req) {
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const user = await getUser(req)
     if (!user) return NextResponse.json({ wishlist: [] })
 
-    const { data } = await supabase
-        .from('wishlists')
-        .select('product_id, products(*, ai_analysis(score))')
-        .eq('user_id', user.id)
-        .order('added_at', { ascending: false })
+    try {
+        const snap = await dbAdmin.collection('wishlists').where('userId', '==', user.uid).orderBy('addedAt', 'desc').get()
+        let productIds = []
+        snap.forEach(doc => productIds.push(doc.data().productId))
 
-    return NextResponse.json({ wishlist: data?.map(w => w.products) || [] })
+        let wishlistMap = []
+        if (productIds.length > 0) {
+            const pSnap = await dbAdmin.collection('products').where('__name__', 'in', productIds.slice(0, 30)).get()
+            const pMap = {}
+            pSnap.forEach(doc => { pMap[doc.id] = { id: doc.id, ...doc.data() } })
+            productIds.forEach(id => {
+                if (pMap[id]) wishlistMap.push(pMap[id])
+            })
+        }
+
+        return NextResponse.json({ wishlist: wishlistMap })
+    } catch (e) {
+        return NextResponse.json({ error: e.message }, { status: 500 })
+    }
 }
 
 export async function POST(req) {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const user = await getUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { productId } = await req.json()
-    if (!productId) return NextResponse.json({ error: 'productId required' }, { status: 400 })
+    try {
+        const { productId } = await req.json()
+        if (!productId) return NextResponse.json({ error: 'productId required' }, { status: 400 })
 
-    const { data: existing } = await supabase
-        .from('wishlists')
-        .select('product_id')
-        .eq('user_id', user.id)
-        .eq('product_id', productId)
-        .single()
+        const snap = await dbAdmin.collection('wishlists').where('userId', '==', user.uid).where('productId', '==', productId).limit(1).get()
 
-    if (existing) {
-        await supabase.from('wishlists').delete().eq('user_id', user.id).eq('product_id', productId)
-        return NextResponse.json({ saved: false })
-    } else {
-        await supabase.from('wishlists').insert({ user_id: user.id, product_id: productId })
-        return NextResponse.json({ saved: true })
+        if (!snap.empty) {
+            await dbAdmin.collection('wishlists').doc(snap.docs[0].id).delete()
+            return NextResponse.json({ saved: false })
+        } else {
+            await dbAdmin.collection('wishlists').add({ userId: user.uid, productId, addedAt: new Date() })
+            return NextResponse.json({ saved: true })
+        }
+    } catch (e) {
+        return NextResponse.json({ error: e.message }, { status: 500 })
     }
 }

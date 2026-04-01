@@ -1,6 +1,6 @@
 'use client'
 import Loading from "@/components/Loading"
-import { CircleDollarSignIcon, ShoppingBasketIcon, StarIcon, TagsIcon } from "lucide-react"
+import { CurrencyDollar, Basket, Star, Tags } from 'react-bootstrap-icons'
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -20,10 +20,10 @@ export default function Dashboard() {
     })
 
     const dashboardCardsData = [
-        { title: 'Total Products', value: dashboardData.totalProducts, icon: ShoppingBasketIcon },
-        { title: 'Total Earnings', value: currency + dashboardData.totalEarnings, icon: CircleDollarSignIcon },
-        { title: 'Total Orders', value: dashboardData.totalOrders, icon: TagsIcon },
-        { title: 'Total Ratings', value: dashboardData.ratings.length, icon: StarIcon },
+        { title: 'Total Products', value: dashboardData.totalProducts, icon: Basket },
+        { title: 'Total Earnings', value: currency + dashboardData.totalEarnings, icon: CurrencyDollar },
+        { title: 'Total Orders', value: dashboardData.totalOrders, icon: Tags },
+        { title: 'Total Ratings', value: dashboardData.ratings.length, icon: Star },
     ]
 
     const fetchDashboardData = async () => {
@@ -83,7 +83,7 @@ export default function Dashboard() {
                                     <p className="font-medium">{review.product?.name}</p>
                                     <div className='flex items-center'>
                                         {Array(5).fill('').map((_, index) => (
-                                            <StarIcon key={index} size={17} className='text-transparent mt-0.5' fill={review.rating >= index + 1 ? "#00C950" : "#D1D5DB"} />
+                                            <Star key={index} size={17} className='text-transparent mt-0.5' fill={review.rating >= index + 1 ? "#00C950" : "#D1D5DB"} />
                                         ))}
                                     </div>
                                 </div>

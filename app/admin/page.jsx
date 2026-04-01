@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
 import OrdersAreaChart from '@/components/OrdersAreaChart'
-import { SparklesIcon, ShoppingBasketIcon, ClockIcon, HeartIcon, StarIcon, PlusIcon, CheckSquareIcon } from 'lucide-react'
+import { Stars, Basket, Clock, Heart, Star, Plus, CheckSquare } from 'react-bootstrap-icons'
 import Link from 'next/link'
 
 export default function AdminDashboard() {
@@ -38,13 +38,13 @@ export default function AdminDashboard() {
     const aiPct = Math.round((data.aiCoverage.analysed / data.aiCoverage.total) * 100)
 
     const statCards = [
-        { title: 'Total Products', value: data.totalProducts, icon: ShoppingBasketIcon, sub: '+2 this week', color: 'text-indigo-600 bg-indigo-50' },
-        { title: 'Pending Reviews', value: data.pendingReviews, icon: ClockIcon, sub: data.pendingReviews > 0 ? 'Needs attention' : 'All clear', color: data.pendingReviews > 0 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50' },
-        { title: 'AI Coverage', value: `${data.aiCoverage.analysed}/${data.aiCoverage.total}`, icon: SparklesIcon, sub: `${aiPct}% analysed`, color: 'text-purple-600 bg-purple-50' },
-        { title: 'Wishlist Saves', value: data.wishlistSaves, icon: HeartIcon, sub: '+5 this week', color: 'text-red-500 bg-red-50' },
+        { title: 'Total Products', value: data.totalProducts, icon: Basket, sub: '+2 this week', color: 'text-slate-900 bg-slate-100' },
+        { title: 'Pending Reviews', value: data.pendingReviews, icon: Clock, sub: data.pendingReviews > 0 ? 'Needs attention' : 'All clear', color: data.pendingReviews > 0 ? 'text-slate-800 bg-slate-100' : 'text-slate-800 bg-slate-100' },
+        { title: 'AI Coverage', value: `${data.aiCoverage.analysed}/${data.aiCoverage.total}`, icon: Stars, sub: `${aiPct}% analysed`, color: 'text-slate-900 bg-slate-100' },
+        { title: 'Wishlist Saves', value: data.wishlistSaves, icon: Heart, sub: '+5 this week', color: 'text-slate-700 bg-slate-100' },
     ]
 
-    const activityIcons = { review: StarIcon, product: ShoppingBasketIcon, ai: SparklesIcon, wishlist: HeartIcon }
+    const activityIcons = { review: Star, product: Basket, ai: Stars, wishlist: Heart }
 
     return (
         <div className="text-slate-600 space-y-8 pb-20">
@@ -67,11 +67,11 @@ export default function AdminDashboard() {
             {/* AI Coverage bar */}
             <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><SparklesIcon size={14} className="text-purple-500" /> AI Analysis Coverage</p>
+                    <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><Stars size={14} className="text-slate-900" /> AI Analysis Coverage</p>
                     <span className="text-sm text-slate-500">{aiPct}%</span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${aiPct}%` }} />
+                    <div className="bg-black h-2 rounded-full transition-all" style={{ width: `${aiPct}%` }} />
                 </div>
                 <p className="text-xs text-slate-400 mt-1">{data.aiCoverage.analysed} of {data.aiCoverage.total} products have AI analysis</p>
             </div>
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
                     <p className="text-sm font-medium text-slate-700 mb-4">Recent Activity</p>
                     <ul className="space-y-3">
                         {data.recentActivity.map((item, i) => {
-                            const Icon = activityIcons[item.type] || StarIcon
+                            const Icon = activityIcons[item.type] || Star
                             return (
                                 <li key={i} className="flex items-start gap-3 text-sm">
                                     <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
@@ -109,15 +109,15 @@ export default function AdminDashboard() {
             <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
                 <p className="text-sm font-medium text-slate-700 mb-4">Quick Actions</p>
                 <div className="flex flex-wrap gap-3">
-                    <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-lg transition">
-                        <PlusIcon size={14} /> Add Product
+                    <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                        <Plus size={14} /> Add Product
                     </Link>
-                    <Link href="/admin/reviews" className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg transition">
-                        <CheckSquareIcon size={14} /> Moderate Reviews
-                        {data.pendingReviews > 0 && <span className="bg-white text-amber-600 text-xs font-bold px-1.5 rounded-full">{data.pendingReviews}</span>}
+                    <Link href="/admin/reviews" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                        <CheckSquare size={14} /> Moderate Reviews
+                        {data.pendingReviews > 0 && <span className="bg-white text-slate-800 text-xs font-bold px-1.5 rounded-full">{data.pendingReviews}</span>}
                     </Link>
-                    <Link href="/admin/ai-analysis" className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm rounded-lg transition">
-                        <SparklesIcon size={14} /> Run AI Analysis
+                    <Link href="/admin/ai-analysis" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                        <Stars size={14} /> Run AI Analysis
                     </Link>
                 </div>
             </div>

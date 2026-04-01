@@ -1,6 +1,10 @@
 'use client'
 import { usePathname } from "next/navigation"
-import { HomeIcon, ShoppingBasketIcon, StarIcon, SparklesIcon, HeartIcon, TagsIcon, UsersIcon } from "lucide-react"
+import { 
+    Speedometer2, PeopleFill, ShieldLock, Gear, Plug,
+    LightningCharge, ShieldCheck, Palette, Database, Globe,
+    Bell, HeartPulse 
+} from "react-bootstrap-icons"
 import Image from "next/image"
 import Link from "next/link"
 import { assets } from "@/assets/assets"
@@ -9,13 +13,18 @@ const AdminSidebar = () => {
     const pathname = usePathname()
 
     const sidebarLinks = [
-        { name: 'Dashboard', href: '/admin', icon: HomeIcon },
-        { name: 'Products', href: '/admin/products', icon: ShoppingBasketIcon },
-        { name: 'Reviews', href: '/admin/reviews', icon: StarIcon },
-        { name: 'AI Analysis', href: '/admin/ai-analysis', icon: SparklesIcon },
-        { name: 'Wishlist', href: '/admin/wishlist', icon: HeartIcon },
-        { name: 'Categories', href: '/admin/categories', icon: TagsIcon },
-        { name: 'Users', href: '/admin/users', icon: UsersIcon },
+        { name: 'Dashboard', href: '/admin', icon: Speedometer2 },
+        { name: 'Users / Staff', href: '/admin/users', icon: PeopleFill },
+        { name: 'Roles & Permissions', href: '/admin/roles', icon: ShieldLock },
+        { name: 'Store Settings', href: '/admin/settings', icon: Gear },
+        { name: 'API Integrations', href: '/admin/integrations', icon: Plug },
+        { name: 'Webhooks', href: '/admin/webhooks', icon: LightningCharge },
+        { name: 'Security', href: '/admin/security', icon: ShieldCheck },
+        { name: 'Theme', href: '/admin/theme', icon: Palette },
+        { name: 'Data Management', href: '/admin/data', icon: Database },
+        { name: 'Localization', href: '/admin/localization', icon: Globe },
+        { name: 'Notifications', href: '/admin/notifications', icon: Bell },
+        { name: 'Platform Health', href: '/admin/health', icon: HeartPulse },
     ]
 
     return (
@@ -30,7 +39,7 @@ const AdminSidebar = () => {
                     <Link key={index} href={link.href} className={`relative flex items-center gap-3 text-slate-500 hover:bg-slate-50 p-2.5 transition ${pathname.startsWith(link.href) && (link.href !== '/admin' || pathname === '/admin') && 'bg-slate-100 sm:text-slate-600'}`}>
                         <link.icon size={18} className="sm:ml-5" />
                         <p className="max-sm:hidden">{link.name}</p>
-                        {pathname.startsWith(link.href) && (link.href !== '/admin' || pathname === '/admin') && <span className="absolute bg-indigo-500 right-0 top-1.5 bottom-1.5 w-1 sm:w-1.5 rounded-l"></span>}
+                        {pathname.startsWith(link.href) && (link.href !== '/admin' || pathname === '/admin') && <span className="absolute bg-black right-0 top-1.5 bottom-1.5 w-1 sm:w-1.5 rounded-l"></span>}
                     </Link>
                 ))}
             </div>
@@ -39,3 +48,4 @@ const AdminSidebar = () => {
 }
 
 export default AdminSidebar
+

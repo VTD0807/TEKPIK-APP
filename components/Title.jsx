@@ -1,5 +1,5 @@
 'use client'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'react-bootstrap-icons'
 import Link from 'next/link'
 import React from 'react'
 

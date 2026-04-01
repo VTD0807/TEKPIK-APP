@@ -1,68 +1,64 @@
 import { NextResponse } from 'next/server'
+import { dbAdmin } from '@/lib/firebase-admin'
 import { generateProductAnalysis } from '@/lib/openrouter'
-import { prisma } from '@/lib/prisma'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { isAdminEmail } from '@/lib/admin'
 
-// POST /api/ai/analyse/bulk  — generate analyses for all unanalysed products
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
-    // Basic admin check (assuming email is the identifier for now)
-    if (!user || !isAdminEmail(user.email)) {
-        // In production, we'd check for a 'role' in the DB, but let's assume this for now
-        // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    try {
+        const productsSnap = await dbAdmin.collection('products').get()
+        const aiSnap = await dbAdmin.collection('ai_analysis').get()
+        
+        const analysedProductIds = new Set()
+        aiSnap.forEach(doc => analysedProductIds.add(doc.data().productId))
 
-    // Fetch products without analysis
-    const products = await prisma.products.findMany({
-        where: {
-            ai_analysis: {
-                none: {}
-            }
-        },
-        include: {
-            categories: true
-        },
-        take: 5 // limit per batch to avoid timeouts
-    })
+        const unanalysed = []
+        productsSnap.forEach(doc => {
+            if (!analysedProductIds.has(doc.id)) unanalysed.push({ id: doc.id, ...doc.data() })
+        })
 
-    const results = []
+        const products = unanalysed.slice(0, 5) // limit 5
+        const results = []
 
-    for (const product of products) {
-        try {
-            const analysis = await generateProductAnalysis({
-                title: product.title,
-                description: product.description,
-                brand: product.brand || '',
-                price: product.price,
-                category: product.categories?.name || 'General',
-            })
+        const catSnap = await dbAdmin.collection('categories').get()
+        const catMap = {}
+        catSnap.forEach(doc => catMap[doc.id] = doc.data().name)
 
-            // Save to DB
-            await prisma.ai_analysis.create({
-                data: {
-                    product_id: product.id,
+        for (const product of products) {
+            try {
+                const analysis = await generateProductAnalysis({
+                    title: product.title,
+                    description: product.description,
+                    brand: product.brand || '',
+                    price: product.price,
+                    category: catMap[product.categoryId] || 'General',
+                })
+
+                await dbAdmin.collection('ai_analysis').add({
+                    productId: product.id,
                     summary: analysis.summary,
                     pros: analysis.pros,
                     cons: analysis.cons,
-                    who_is_it_for: analysis.whoIsItFor,
+                    whoIsItFor: analysis.whoIsItFor,
                     verdict: analysis.verdict,
                     score: analysis.score,
-                    score_reason: analysis.scoreReason,
-                    value_for_money: analysis.valueForMoney,
-                    model: analysis.model
-                }
-            })
+                    scoreReason: analysis.scoreReason,
+                    valueForMoney: analysis.valueForMoney,
+                    model: analysis.model,
+                    generatedAt: new Date()
+                })
 
-            results.push({ productId: product.id, success: true })
-            // Rate limit: 1 per 1.5s
-            await new Promise(r => setTimeout(r, 1500))
-        } catch (err) {
-            results.push({ productId: product.id, success: false, error: err.message })
+                results.push({ productId: product.id, success: true })
+                await new Promise(r => setTimeout(r, 1500))
+            } catch (err) {
+                results.push({ productId: product.id, success: false, error: err.message })
+            }
         }
-    }
 
-    return NextResponse.json({ results })
+        return NextResponse.json({ results })
+    } catch (e) {
+        return NextResponse.json({ error: e.message }, { status: 500 })
+    }
 }

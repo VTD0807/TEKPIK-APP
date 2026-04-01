@@ -1,7 +1,9 @@
 import ProductCard from "@/components/ProductCard"
-import { MoveLeftIcon } from "lucide-react"
-import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { ArrowLeft } from 'react-bootstrap-icons'
+import { dbAdmin, sanitizeFirestoreData } from "@/lib/firebase-admin"
 import Link from "next/link"
+
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
     title: "Shop All Products - TEKPIK",
@@ -10,31 +12,36 @@ export const metadata = {
 
 export default async function ShopPage({ searchParams }) {
     const { search } = await searchParams
-    const supabase = await createSupabaseServerClient()
 
-    let query = supabase
-        .from('products')
-        .select('*, categories(name,slug), reviews(rating)')
-        .eq('is_active', true)
+    let products = []
+    let hasProducts = false
 
-    if (search) {
-        query = query.ilike('title', `%${search}%`)
+    if (dbAdmin) {
+        try {
+            const querySnap = await dbAdmin.collection('products')
+                .where('isActive', '==', true)
+                .orderBy('createdAt', 'desc')
+                .get()
+
+            const allProducts = []
+            querySnap.forEach(doc => allProducts.push(sanitizeFirestoreData({ id: doc.id, ...doc.data() })))
+
+            products = search
+                ? allProducts.filter(p => p.title.toLowerCase().includes(search.toLowerCase()))
+                : allProducts
+
+            hasProducts = products.length > 0
+        } catch (error) {
+            console.error('Error fetching shop products:', error)
+        }
     }
-
-    const { data: products, error } = await query.order('created_at', { ascending: false })
-
-    if (error) {
-        console.error('Error fetching shop products:', error)
-    }
-
-    const hasProducts = products && products.length > 0
 
     return (
         <div className="min-h-[70vh] mx-6">
             <div className="max-w-7xl mx-auto">
                 <div className="my-6">
                     <Link href="/shop" className="text-2xl text-slate-500 flex items-center gap-2 hover:text-slate-700 transition group">
-                        {search && <MoveLeftIcon size={20} className="group-hover:-translate-x-1 transition-transform" />}
+                        {search && <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />}
                         All <span className="text-slate-700 font-medium">Products</span>
                     </Link>
                     {search && (
@@ -52,7 +59,7 @@ export default async function ShopPage({ searchParams }) {
                     ) : (
                         <div className="w-full text-center py-32 flex flex-col items-center justify-center gap-4">
                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
-                                <span className="text-2xl text-slate-300">🔍</span>
+                                <span className="text-2xl text-slate-300"></span>
                             </div>
                             <div className="space-y-1">
                                 <h3 className="text-slate-800 font-medium text-lg">0 results found</h3>

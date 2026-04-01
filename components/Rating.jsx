@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import { Star } from 'react-bootstrap-icons';
 import React from "react";
 
 const Rating = ({ value = 4 }) => {
