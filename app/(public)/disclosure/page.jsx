@@ -1,3 +1,35 @@
+import { absoluteUrl } from '@/lib/seo'
+
+const STORE_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
+
+export async function generateMetadata() {
+    const title = `Affiliate Disclosure | ${STORE_NAME}`
+    const description = `Read how affiliate links work on ${STORE_NAME}, including commission transparency, editorial independence, and compliance details.`
+    const canonical = absoluteUrl('/disclosure')
+    const ogImage = absoluteUrl('/logo-tekpik.png')
+
+    return {
+        title,
+        description,
+        alternates: {
+            canonical,
+        },
+        openGraph: {
+            title,
+            description,
+            url: canonical,
+            type: 'article',
+            images: [{ url: ogImage }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [ogImage],
+        },
+    }
+}
+
 export default function DisclosurePage() {
     return (
         <div className="max-w-3xl mx-auto px-6 py-14 space-y-6 text-slate-700">
