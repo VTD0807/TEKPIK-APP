@@ -1,11 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import AIGeneratedResults from '@/components/AIGeneratedResults'
-import { useState } from 'react'
+import ProductCard from '@/components/ProductCard'
+import { useEffect, useMemo, useState } from 'react'
 
 export default function HelpPageClient() {
     const [selectedFAQ, setSelectedFAQ] = useState(null)
+    const [products, setProducts] = useState([])
+    const [loadingProducts, setLoadingProducts] = useState(true)
+    const [productError, setProductError] = useState(null)
 
     const faqs = [
         {
@@ -50,28 +53,156 @@ export default function HelpPageClient() {
         },
     ]
 
+    useEffect(() => {
+        let cancelled = false
+
+        const loadProducts = async () => {
+            try {
+                setLoadingProducts(true)
+                const response = await fetch('/api/products?limit=160&sort=price_asc', {
+                    cache: 'no-store',
+                })
+
+                if (!response.ok) {
+                    throw new Error('Failed to load products')
+                }
+
+                const data = await response.json()
+                if (!cancelled) {
+                    setProducts(Array.isArray(data.products) ? data.products : [])
+                    setProductError(null)
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setProducts([])
+                    setProductError(error.message || 'Failed to load products')
+                }
+            } finally {
+                if (!cancelled) setLoadingProducts(false)
+            }
+        }
+
+        loadProducts()
+
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+    const featuredProducts = useMemo(() => {
+        const safeProducts = Array.isArray(products) ? products.filter(Boolean) : []
+        if (safeProducts.length === 0) return []
+
+        const toPrice = (product) => {
+            const price = Number(product?.price)
+            return Number.isFinite(price) ? price : Number.POSITIVE_INFINITY
+        }
+
+        const categoryKeyFor = (product) => {
+            const categoryName = product?.categories?.name || product?.category || ''
+            const categorySlug = product?.categories?.slug || ''
+            return String(categorySlug || categoryName || 'uncategorized').toLowerCase().trim()
+        }
+
+        const grouped = new Map()
+        for (const product of safeProducts) {
+            const key = categoryKeyFor(product)
+            const existing = grouped.get(key)
+            if (!existing || toPrice(product) < toPrice(existing)) {
+                grouped.set(key, product)
+            }
+        }
+
+        const categoryPicks = Array.from(grouped.values())
+            .filter((product) => Number.isFinite(Number(product?.price)) && Number(product.price) > 0)
+            .sort((a, b) => Number(a.price) - Number(b.price))
+
+        const lowPricePool = [...safeProducts]
+            .filter((product) => Number.isFinite(Number(product?.price)) && Number(product.price) > 0)
+            .sort((a, b) => Number(a.price) - Number(b.price))
+            .slice(0, Math.max(12, categoryPicks.length))
+
+        const shuffle = (list) => {
+            const copy = [...list]
+            for (let index = copy.length - 1; index > 0; index -= 1) {
+                const randomIndex = Math.floor(Math.random() * (index + 1))
+                const temp = copy[index]
+                copy[index] = copy[randomIndex]
+                copy[randomIndex] = temp
+            }
+            return copy
+        }
+
+        const selected = []
+        const seenIds = new Set()
+
+        for (const product of shuffle(categoryPicks)) {
+            if (selected.length >= 8) break
+            if (!seenIds.has(product.id)) {
+                selected.push(product)
+                seenIds.add(product.id)
+            }
+        }
+
+        for (const product of shuffle(lowPricePool)) {
+            if (selected.length >= 8) break
+            if (!seenIds.has(product.id)) {
+                selected.push(product)
+                seenIds.add(product.id)
+            }
+        }
+
+        return shuffle(selected).slice(0, 8)
+    }, [products])
+
     return (
         <div className="min-h-screen bg-white text-slate-800">
-            {/* Header Section */}
             <div className="max-w-4xl mx-auto px-6 py-8 border-b border-slate-200">
                 <h1 className="text-4xl font-bold text-slate-900 mb-2">Help Center</h1>
-                <p className="text-lg text-slate-600">Answers to your questions about TEKPIK and AI-powered product discovery</p>
+                <p className="text-lg text-slate-600">
+                    Answers to your questions about TEKPIK and low-price products across categories
+                </p>
             </div>
 
-            {/* AI Result for selected FAQ */}
-            {selectedFAQ && (
-                <div className="max-w-4xl mx-auto px-6 py-8">
-                    <AIGeneratedResults 
-                        query={selectedFAQ.q}
-                        products={[]}
-                    />
+            <div className="max-w-6xl mx-auto px-6 py-8">
+                <div className="flex items-end justify-between gap-4 mb-5">
+                    <div>
+                        <h2 className="text-2xl font-semibold text-slate-900">Random low-price picks</h2>
+                        <p className="text-sm text-slate-600">
+                            A mixed set of affordable products from different categories.
+                        </p>
+                    </div>
+                    <Link href="/shop" className="text-sm font-medium text-blue-600 hover:underline">
+                        Browse all products
+                    </Link>
                 </div>
-            )}
 
-            {/* FAQ Results Section */}
+                {loadingProducts ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                        {Array.from({ length: 8 }).map((_, index) => (
+                            <div key={index} className="h-56 rounded-lg bg-slate-100 animate-pulse" />
+                        ))}
+                    </div>
+                ) : productError ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        {productError}
+                    </div>
+                ) : featuredProducts.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                        {featuredProducts.map((product) => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        No products found yet.
+                    </div>
+                )}
+            </div>
+
             <div className="max-w-4xl mx-auto px-6 py-8 space-y-4">
                 {faqs.map((faq) => (
-                    <div 
+                    <div
                         key={faq.id}
                         onClick={() => setSelectedFAQ(selectedFAQ?.id === faq.id ? null : faq)}
                         className={`border rounded-lg p-4 cursor-pointer transition ${
@@ -83,12 +214,11 @@ export default function HelpPageClient() {
                         <h3 className="text-lg font-medium text-blue-600 hover:underline mb-2">
                             {faq.q}
                         </h3>
-                        {selectedFAQ?.id !== faq.id && (
+                        {selectedFAQ?.id !== faq.id ? (
                             <p className="text-sm text-slate-600 line-clamp-2">
                                 {faq.a}
                             </p>
-                        )}
-                        {selectedFAQ?.id === faq.id && (
+                        ) : (
                             <p className="text-sm text-slate-700 leading-relaxed mb-2">
                                 {faq.a}
                             </p>
@@ -100,15 +230,14 @@ export default function HelpPageClient() {
                 ))}
             </div>
 
-            {/* Contact Section */}
             <div className="max-w-4xl mx-auto px-6 py-12 border-t border-slate-200 space-y-6">
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-slate-900 mb-2">Still have questions?</h2>
                     <p className="text-slate-700 mb-4">
                         Our support team is here to help. Send us an email and we'll get back to you within 24 hours.
                     </p>
-                    <a 
-                        href="mailto:support@tekpik.in" 
+                    <a
+                        href="mailto:support@tekpik.in"
                         className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition"
                     >
                         Contact Support
