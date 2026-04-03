@@ -115,20 +115,20 @@ After restarting, verify everything works:
 
 ### Firebase Admin Tests:
 1. ✅ **No warning in console** - Should NOT see "Firebase Admin: Missing credentials"
-2. ✅ **Admin Dashboard** - Visit http://localhost:3000/cms (should load with stats)
-3. ✅ **Products page** - Visit http://localhost:3000/cms/products (should list products)
+2. ✅ **Admin Dashboard** - Visit https://tekpik.in/cms (should load with stats)
+3. ✅ **Products page** - Visit https://tekpik.in/cms/products (should list products)
 4. ✅ **Create product** - Try creating a new product (should save successfully)
-5. ✅ **Homepage** - Visit http://localhost:3000 (Best Selling section should show products)
+5. ✅ **Homepage** - Visit https://tekpik.in (Best Selling section should show products)
 
 ### AI Model Tests:
-6. ✅ **AI Analysis** - Visit http://localhost:3000/cms/ai-analysis
+6. ✅ **AI Analysis** - Visit https://tekpik.in/cms/ai-analysis
 7. ✅ **Run Analysis** - Click "Analyze" on any product (should generate description)
 8. ✅ **Check quality** - AI descriptions should be detailed and relevant
 
 ### API Tests:
-9. ✅ **Products API** - `curl http://localhost:3000/api/admin/products`
+9. ✅ **Products API** - `curl https://tekpik.in/api/admin/products`
    - Should return product array (not "DB not initialized")
-10. ✅ **Analytics API** - `curl http://localhost:3000/api/admin/analytics`
+10. ✅ **Analytics API** - `curl https://tekpik.in/api/admin/analytics`
     - Should return stats object
 
 ---
@@ -281,9 +281,9 @@ npm run dev
 ```
 
 Then visit:
-- 🏠 Homepage: http://localhost:3000
-- 👨‍💼 Admin: http://localhost:3000/cms
-- 🤖 AI Analysis: http://localhost:3000/cms/ai-analysis
+- 🏠 Homepage: https://tekpik.in
+- 👨‍💼 Admin: https://tekpik.in/cms
+- 🤖 AI Analysis: https://tekpik.in/cms/ai-analysis
 
 ---
 

@@ -73,7 +73,7 @@ https://console.firebase.google.com/v1/r/project/tekpik-oqens-fbrtdx/firestore/i
 npm run dev
 ```
 
-Visit http://localhost:3000
+Visit https://tekpik.in
 
 ---
 
@@ -81,7 +81,7 @@ Visit http://localhost:3000
 
 After creating indexes:
 1. ✅ Homepage loads with products (no crashes!)
-2. ✅ Admin dashboard: http://localhost:3000/cms
+2. ✅ Admin dashboard: https://tekpik.in/cms
 3. ✅ Create a product - it saves!
 4. ✅ AI Analysis works with better descriptions
 5. ✅ No console errors!

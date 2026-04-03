@@ -1,10 +1,9 @@
 import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
-import { getSiteUrl } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
 export default async function sitemap() {
-    const siteUrl = getSiteUrl()
+    const siteUrl = 'https://tekpik.in'
     const staticPages = [
         '',
         '/shop',

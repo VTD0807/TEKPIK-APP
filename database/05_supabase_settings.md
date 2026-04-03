@@ -12,8 +12,8 @@
 
 | Setting | Value |
 |---|---|
-| Site URL | `http://localhost:3000` (change to prod URL on deploy) |
-| Redirect URLs | `http://localhost:3000/auth/callback` |
+| Site URL | `https://tekpik.in` |
+| Redirect URLs | `https://tekpik.in/auth/callback` |
 
 ## Authentication → Providers → Google (optional)
 

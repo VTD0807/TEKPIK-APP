@@ -234,7 +234,7 @@ Ctrl+C
 npm run dev
 
 # 3. Test admin dashboard
-# Visit: http://localhost:3000/cms
+# Visit: https://tekpik.in/cms
 ```
 
 ### Recommended (Within 24 Hours):

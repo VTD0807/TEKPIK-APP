@@ -11,7 +11,7 @@ export async function POST(req) {
     const { name, email } = await req.json()
     if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 })
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tekpik.in'
     const displayName = name || email.split('@')[0]
 
     // ── Option A: Resend (recommended for production) ──────────────

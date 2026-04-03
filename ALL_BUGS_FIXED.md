@@ -120,7 +120,7 @@ Should show: `react-is@19.0.0` or similar.
 
 ### Step 3: Verify Everything Works
 After creating indexes:
-1. Refresh homepage: http://localhost:3000
+1. Refresh homepage: https://tekpik.in
 2. Check console - should see no errors
 3. Homepage should show:
    - ✅ Banner carousel (if you have banners)

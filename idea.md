@@ -570,7 +570,7 @@ Because Amazon prices change frequently:
 DATABASE_URL=postgresql://user:password@host:5432/deallens
 
 # ── Authentication ────────────────────────────────────────────
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://tekpik.in
 NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32
 
 # ── OpenRouter AI ─────────────────────────────────────────────
@@ -583,7 +583,7 @@ AMAZON_ASSOCIATE_TAG=yourtag-20
 
 # ── App Config ────────────────────────────────────────────────
 NEXT_PUBLIC_APP_NAME=DealLens
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=https://tekpik.in
 ```
 
 ### next.config.mjs — Image Domains

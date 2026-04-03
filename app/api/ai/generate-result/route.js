@@ -40,7 +40,7 @@ Format as JSON with keys: answer, keyPoints[], recommendations[], confidence`
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+                'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://tekpik.in',
                 'X-Title': 'TEKPIK',
             },
             body: JSON.stringify({

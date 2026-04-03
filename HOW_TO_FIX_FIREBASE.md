@@ -66,7 +66,7 @@ npm run dev
 Firebase Admin: Missing credentials. Some features may not work.
 ```
 
-✅ Visit http://localhost:3000/cms - dashboard should load with stats
+✅ Visit https://tekpik.in/cms - dashboard should load with stats
 
 ✅ Try creating a product - it should save successfully
 
