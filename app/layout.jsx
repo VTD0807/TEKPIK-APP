@@ -19,6 +19,7 @@ export const metadata = {
     keywords: "amazon affiliate, product reviews, AI analysis, best deals",
     icons: {
         icon: [
+            { url: '/favicon.ico', type: 'image/x-icon' },
             { url: '/icon.png', type: 'image/png' },
             { url: logoPath, type: 'image/png' },
         ],
@@ -26,7 +27,7 @@ export const metadata = {
             { url: '/apple-icon.png', type: 'image/png' },
             { url: logoPath, type: 'image/png' },
         ],
-        shortcut: [{ url: '/icon.png', type: 'image/png' }],
+        shortcut: [{ url: '/favicon.ico', type: 'image/x-icon' }],
     },
     alternates: {
         canonical: "/",
