@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Save, Plus, X, ArrowRepeat, CheckCircle, XCircle, Flag, Eye, EyeSlash, AlertCircle } from 'react-bootstrap-icons'
+import { ArrowLeft, Save, Plus, X, ArrowRepeat, CheckCircle, XCircle, Flag, Eye, EyeSlash, ExclamationCircle } from 'react-bootstrap-icons'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -238,7 +238,7 @@ export default function EditProduct() {
                         <div className="text-xs font-medium text-slate-500 uppercase">Alerts</div>
                         {alerts.map((alert, i) => (
                             <div key={i} className={`flex gap-2 text-[13px] p-2 rounded-lg ${alert.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
-                                <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+                                <ExclamationCircle size={14} className="flex-shrink-0 mt-0.5" />
                                 <span>{alert.msg}</span>
                             </div>
                         ))}
