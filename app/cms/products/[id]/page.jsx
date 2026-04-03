@@ -12,6 +12,8 @@ export default function CMSProductEditor() {
     const params = useParams()
     const isNew = params.id === 'new'
     const [saving, setSaving] = useState(false)
+    const [scrapingAmazon, setScrapingAmazon] = useState(false)
+    const [amazonUrl, setAmazonUrl] = useState('')
     const [loading, setLoading] = useState(!isNew)
     const [categories, setCategories] = useState([])
     const [form, setForm] = useState({
@@ -66,6 +68,60 @@ export default function CMSProductEditor() {
     }, [params.id, isNew])
 
     const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+    const handleAmazonImport = async () => {
+        const url = amazonUrl.trim()
+        if (!url) {
+            toast.error('Paste an Amazon URL first')
+            return
+        }
+
+        setScrapingAmazon(true)
+        try {
+            const res = await fetch('/api/admin/scrape-amazon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url }),
+            })
+
+            const data = await res.json()
+            if (!res.ok) throw new Error(data?.error || 'Failed to import from Amazon')
+
+            const product = data?.product || {}
+            setForm(prev => ({
+                ...prev,
+                title: product.title || prev.title,
+                description: product.descriptionHtml || prev.description,
+                price: product.price != null ? String(product.price) : prev.price,
+                originalPrice: product.originalPrice != null ? String(product.originalPrice) : prev.originalPrice,
+                affiliateUrl: product.affiliateUrl || product.resolvedUrl || prev.affiliateUrl,
+                asin: product.asin || prev.asin,
+                brand: product.brand || prev.brand,
+            }))
+
+            if (Array.isArray(product.imageUrls) && product.imageUrls.length > 0) {
+                setImageUrls(product.imageUrls)
+            }
+
+            if (Array.isArray(product.bulletPoints) && product.bulletPoints.length > 0) {
+                const generatedTags = product.bulletPoints
+                    .flatMap(point => point.split(/[,|/]/g))
+                    .map(value => value.toLowerCase().trim())
+                    .filter(value => value.length >= 4)
+                    .slice(0, 6)
+
+                if (generatedTags.length > 0) {
+                    setForm(prev => ({ ...prev, tags: generatedTags.join(', ') }))
+                }
+            }
+
+            toast.success('Amazon details imported')
+        } catch (err) {
+            toast.error(err.message || 'Could not import this Amazon URL')
+        } finally {
+            setScrapingAmazon(false)
+        }
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -166,6 +222,30 @@ export default function CMSProductEditor() {
                             {saving ? <><ArrowRepeat size={15} className="animate-spin" /> Saving...</> : <><Save size={15} /> Save Product</>}
                         </button>
                     </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+                    <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider">Quick Import</h3>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                            type="url"
+                            value={amazonUrl}
+                            onChange={e => setAmazonUrl(e.target.value)}
+                            placeholder="Paste Amazon or amzn.to product URL"
+                            className={`${inputClass} flex-1`}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAmazonImport}
+                            disabled={scrapingAmazon}
+                            className="px-5 py-2.5 text-sm font-medium rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition"
+                        >
+                            {scrapingAmazon ? 'Importing...' : 'Import from Amazon'}
+                        </button>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                        This fills title, prices, image, ASIN, affiliate URL, and description so you can publish faster.
+                    </p>
                 </div>
 
                 {/* Basic Info */}

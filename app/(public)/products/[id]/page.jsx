@@ -7,6 +7,8 @@ import ShareButton from '@/components/ShareButton'
 import ProductImageGallery from '@/components/ProductImageGallery'
 import ProductCard from '@/components/ProductCard'
 import { dbAdmin, timestampToJSON, sanitizeFirestoreData } from '@/lib/firebase-admin'
+import { sanitizeDescriptionHtml, descriptionToPlainText } from '@/lib/description-html'
+import { absoluteUrl } from '@/lib/seo'
 import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -57,13 +59,21 @@ export async function generateMetadata({ params }) {
     if (!snap.exists) return { title: 'Product Not Found' }
 
     const product = snap.data()
+    const descriptionText = descriptionToPlainText(product.description)
+    const canonicalPath = `/products/${id}`
+    const image = product.imageUrls?.[0] || product.image_urls?.[0] || ''
 
     return {
         title: `${product.title} - TEKPIK`,
-        description: product.description?.slice(0, 160),
+        description: descriptionText.slice(0, 160),
+        alternates: {
+            canonical: canonicalPath,
+        },
         openGraph: {
             title: product.title,
-            description: product.description?.slice(0, 160),
+            description: descriptionText.slice(0, 160),
+            url: absoluteUrl(canonicalPath),
+            images: image ? [{ url: image }] : undefined,
         },
     }
 }
@@ -103,11 +113,40 @@ export default async function ProductPage({ params }) {
     })
 
     const product = productData
+    const descriptionHtml = sanitizeDescriptionHtml(product.description)
 
     const images = product.imageUrls || []
     const rating = product.reviews?.length
         ? (product.reviews.reduce((s, r) => s + r.rating, 0) / product.reviews.length).toFixed(1)
         : null
+    const productUrl = absoluteUrl(`/products/${product.id}`)
+    const schemaImage = images[0] || null
+    const numericPrice = Number(product.price)
+    const schemaData = {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: product.title,
+        description: descriptionToPlainText(product.description).slice(0, 500),
+        image: schemaImage ? [schemaImage] : undefined,
+        sku: product.asin || product.id,
+        brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+        category: product.categories?.name || undefined,
+        url: productUrl,
+        offers: {
+            '@type': 'Offer',
+            priceCurrency: 'INR',
+            price: Number.isFinite(numericPrice) ? numericPrice.toFixed(2) : undefined,
+            availability: 'https://schema.org/InStock',
+            url: productUrl,
+        },
+        aggregateRating: rating
+            ? {
+                '@type': 'AggregateRating',
+                ratingValue: Number(rating),
+                reviewCount: product.reviews.length,
+            }
+            : undefined,
+    }
 
     let suggestedProducts = []
     try {
@@ -195,6 +234,11 @@ export default async function ProductPage({ params }) {
 
     return (
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-10 space-y-6 sm:space-y-10">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+            />
+
             {/* Product hero */}
             <div className="grid md:grid-cols-2 gap-6 sm:gap-10">
                 <ProductImageGallery images={images} title={product.title} price={product.price} rating={rating} />
@@ -232,7 +276,7 @@ export default async function ProductPage({ params }) {
                         <a
                             href={product.affiliate_url || product.affiliateUrl || '#'}
                             target="_blank"
-                            rel="noopener noreferrer sponsored"
+                            rel="noopener noreferrer nofollow sponsored"
                             className="flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 font-semibold rounded-full"
                         >
                             <BoxArrowUpRight size={16} />
@@ -244,7 +288,14 @@ export default async function ProductPage({ params }) {
                         </div>
                     </div>
 
-                    <p className="text-slate-600 text-sm leading-relaxed break-words">{product.description}</p>
+                    {descriptionHtml ? (
+                        <div
+                            className="text-slate-600 text-sm leading-relaxed break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1"
+                            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                        />
+                    ) : (
+                        <p className="text-slate-500 text-sm leading-relaxed break-words">No description available.</p>
+                    )}
 
                 </div>
             </div>

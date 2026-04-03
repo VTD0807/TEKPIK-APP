@@ -12,6 +12,120 @@ const MAX_VECTOR_FEATURES = 220
 const MAX_VECTOR_CATEGORY = 40
 const MAX_VECTOR_BRANDS = 60
 
+const normalizeSearchText = (value = '') => String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const tokenizeSearch = (value = '') => normalizeSearchText(value)
+    .split(' ')
+    .filter((token) => token.length > 1)
+
+const getSafeLimit = (rawLimit) => {
+    const parsed = Number(rawLimit)
+    if (!Number.isFinite(parsed)) return LIMIT_FEED
+    return clamp(Math.floor(parsed), 1, LIMIT_PRODUCTS)
+}
+
+const textSearchMatch = (product, searchText, searchTokens) => {
+    if (!searchText) return true
+    const searchBlob = normalizeSearchText([
+        product.title,
+        product.name,
+        product.brand,
+        product.description,
+        ...(Array.isArray(product.tags) ? product.tags : []),
+        product.metaKeywords,
+    ].filter(Boolean).join(' '))
+
+    if (!searchBlob) return false
+    if (searchBlob.includes(searchText)) return true
+    if (!searchTokens.length) return false
+    return searchTokens.every((token) => searchBlob.includes(token))
+}
+
+const toNumber = (value, fallback = 0) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num : fallback
+}
+
+const getAverageRating = (product) => {
+    const summaryRating = toNumber(product.reviewSummary?.averageRating, NaN)
+    if (Number.isFinite(summaryRating) && summaryRating > 0) return summaryRating
+
+    const directRating = toNumber(product.rating, NaN)
+    if (Number.isFinite(directRating) && directRating > 0) return directRating
+
+    return toNumber(product.amazonRating, 0)
+}
+
+const getReviewCount = (product) => {
+    const summaryCount = toNumber(product.reviewSummary?.count, NaN)
+    if (Number.isFinite(summaryCount) && summaryCount >= 0) return summaryCount
+    if (Array.isArray(product.reviews)) return product.reviews.length
+    return toNumber(product.reviewCount, 0)
+}
+
+const getDiscountPercent = (product) => {
+    const provided = toNumber(product.discount, NaN)
+    if (Number.isFinite(provided) && provided > 0) return clamp(provided, 0, 90)
+
+    const price = toNumber(product.price, 0)
+    const original = toNumber(product.originalPrice || product.original_price, 0)
+    if (!price || !original || original <= price) return 0
+    return clamp(((original - price) / original) * 100, 0, 90)
+}
+
+const daysSince = (dateValue) => {
+    if (!dateValue) return 365
+    const dt = new Date(dateValue)
+    const ts = dt.getTime()
+    if (!Number.isFinite(ts)) return 365
+    const diff = Date.now() - ts
+    if (!Number.isFinite(diff) || diff < 0) return 0
+    return diff / (1000 * 60 * 60 * 24)
+}
+
+const stableHash = (text = '') => {
+    let hash = 0
+    const str = String(text)
+    for (let i = 0; i < str.length; i += 1) {
+        hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
+    }
+    return Math.abs(hash)
+}
+
+const rerankForDiversity = (items, limit) => {
+    const pool = [...items]
+    const selected = []
+    const catCounts = new Map()
+    const brandCounts = new Map()
+
+    while (pool.length && selected.length < limit) {
+        let bestIndex = 0
+        let bestScore = -Infinity
+
+        for (let i = 0; i < pool.length; i += 1) {
+            const item = pool[i]
+            const catPenalty = (catCounts.get(item._categoryKey) || 0) * 0.75
+            const brandPenalty = (brandCounts.get(item._brandKey) || 0) * 0.45
+            const rerankScore = item._interestScore - catPenalty - brandPenalty
+            if (rerankScore > bestScore) {
+                bestScore = rerankScore
+                bestIndex = i
+            }
+        }
+
+        const picked = pool.splice(bestIndex, 1)[0]
+        selected.push(picked)
+        catCounts.set(picked._categoryKey, (catCounts.get(picked._categoryKey) || 0) + 1)
+        brandCounts.set(picked._brandKey, (brandCounts.get(picked._brandKey) || 0) + 1)
+    }
+
+    return selected
+}
+
 const getProductIdFromPath = (path) => {
     const match = /^\/products\/([^/?#]+)/.exec(String(path || ''))
     return match?.[1] ? decodeURIComponent(match[1]) : null
@@ -113,7 +227,7 @@ const buildVectorFromInteractions = (interactions, productMap) => {
         if (categoryId) categoryWeight.set(categoryId, (categoryWeight.get(categoryId) || 0) + w)
         if (brand) brandWeight.set(brand, (brandWeight.get(brand) || 0) + w)
 
-        const features = getProductFeatures(product)
+        const features = buildProductFeatureVector(product)
         features.forEach((feature) => {
             preferenceMap.set(feature, (preferenceMap.get(feature) || 0) + w)
         })
@@ -159,7 +273,13 @@ export async function GET(req) {
     if (!dbAdmin) return NextResponse.json({ source: 'fallback', products: [], interestCategories: [] })
 
     try {
+        const url = new URL(req.url)
+        const searchText = normalizeSearchText(url.searchParams.get('search') || '')
+        const searchTokens = tokenizeSearch(searchText)
+        const limit = getSafeLimit(url.searchParams.get('limit'))
         const accountId = await resolveAccountId(req)
+        const deviceId = String(url.searchParams.get('deviceId') || '').trim()
+        const identityId = accountId || deviceId
 
         const catalog = await getCached('recommendations:catalog:v2', 1000 * 60 * 5, async () => {
             const [productsSnap, categoriesSnap] = await Promise.all([
@@ -204,15 +324,23 @@ export async function GET(req) {
             return { products: hydratedProducts, categoriesMap }
         })
 
-        const products = catalog.products || []
+        const products = (catalog.products || []).filter((product) => textSearchMatch(product, searchText, searchTokens))
         const categoriesMap = catalog.categoriesMap || {}
         const productMap = new Map(products.map((p) => [p.id, p]))
 
-        if (!accountId) {
-            return NextResponse.json(buildFallbackFeed(products, categoriesMap))
+        if (!identityId) {
+            return NextResponse.json({
+                ...buildFallbackFeed(products, categoriesMap),
+                products: products.slice(0, limit).map((product) => ({
+                    ...product,
+                    categories: categoriesMap[product.categoryId]
+                        ? { name: categoriesMap[product.categoryId].name, slug: categoriesMap[product.categoryId].slug }
+                        : null,
+                })),
+            })
         }
 
-        const vectorState = await getVectorState(accountId)
+        const vectorState = await getVectorState(identityId)
         let vector = vectorState.vector
 
         if (!vectorState.isFresh || !vector) {
@@ -243,7 +371,15 @@ export async function GET(req) {
             })
 
             if (!interactions.length) {
-                return NextResponse.json(buildFallbackFeed(products, categoriesMap))
+                return NextResponse.json({
+                    ...buildFallbackFeed(products, categoriesMap),
+                    products: products.slice(0, limit).map((product) => ({
+                        ...product,
+                        categories: categoriesMap[product.categoryId]
+                            ? { name: categoriesMap[product.categoryId].name, slug: categoriesMap[product.categoryId].slug }
+                            : null,
+                    })),
+                })
             }
 
             vector = buildVectorFromInteractions(interactions, productMap)
@@ -263,25 +399,52 @@ export async function GET(req) {
             const features = Array.isArray(product._featureVector)
                 ? product._featureVector
                 : buildProductFeatureVector(product)
-            let score = 0
+            let contentScore = 0
             features.forEach((feature) => {
-                score += preferenceMap.get(feature) || 0
+                contentScore += preferenceMap.get(feature) || 0
             })
+
+            const normalizedContentScore = contentScore / Math.max(features.length, 6)
 
             const categoryId = product.categoryId || product.category_id || null
             const brand = String(product.brand || '').trim().toLowerCase() || null
-            if (categoryId) score += (categoryWeight.get(categoryId) || 0) * 0.8
-            if (brand) score += (brandWeight.get(brand) || 0) * 0.5
+            const affinityScore = (categoryId ? (categoryWeight.get(categoryId) || 0) * 0.85 : 0)
+                + (brand ? (brandWeight.get(brand) || 0) * 0.55 : 0)
 
             const aiScore = Number(product.ai_analysis?.score || product.aiScore || 0)
-            const qualityBonus = Number.isFinite(aiScore) ? clamp(aiScore, 0, 10) * 0.35 : 0
-            score += qualityBonus
+            const aiQuality = Number.isFinite(aiScore) ? clamp(aiScore, 0, 10) : 0
+            const avgRating = clamp(getAverageRating(product), 0, 5)
+            const ratingQuality = (avgRating / 5) * 10
+            const qualityScore = (aiQuality * 0.62) + (ratingQuality * 0.38)
 
-            if (score <= 0) return
+            const discountPercent = getDiscountPercent(product)
+            const valueScore = clamp(discountPercent / 10, 0, 9)
+
+            const reviewCount = getReviewCount(product)
+            const popularityScore = clamp((Math.log10(reviewCount + 1) / Math.log10(300)) * 10, 0, 10)
+
+            const recencyScore = clamp(10 - (daysSince(product.createdAt) / 12), 0, 10)
+
+            const noveltyBase = 1 - clamp(popularityScore / 10, 0, 1)
+            const explorationScore = noveltyBase * ((stableHash(`${identityId}:${product.id}`) % 100) / 100)
+
+            const score = (
+                normalizedContentScore * 0.46
+                + affinityScore * 0.18
+                + qualityScore * 0.14
+                + valueScore * 0.09
+                + popularityScore * 0.06
+                + recencyScore * 0.05
+                + explorationScore * 0.02
+            )
+
+            if (score <= 0.05) return
 
             ranked.push({
                 ...product,
                 _interestScore: Number(score.toFixed(2)),
+                _categoryKey: categoryId || 'none',
+                _brandKey: brand || 'none',
                 categories: categoriesMap[categoryId]
                     ? { name: categoriesMap[categoryId].name, slug: categoriesMap[categoryId].slug }
                     : null,
@@ -289,10 +452,19 @@ export async function GET(req) {
         })
 
         if (!ranked.length) {
-            return NextResponse.json(buildFallbackFeed(products, categoriesMap))
+            return NextResponse.json({
+                ...buildFallbackFeed(products, categoriesMap),
+                products: products.slice(0, limit).map((product) => ({
+                    ...product,
+                    categories: categoriesMap[product.categoryId]
+                        ? { name: categoriesMap[product.categoryId].name, slug: categoriesMap[product.categoryId].slug }
+                        : null,
+                })),
+            })
         }
 
         ranked.sort((a, b) => b._interestScore - a._interestScore)
+        const diversified = rerankForDiversity(ranked, limit)
 
         const categoryInterests = new Map()
         categoryWeight.forEach((score, categoryId) => {
@@ -314,7 +486,7 @@ export async function GET(req) {
         return NextResponse.json({
             source: 'personalized',
             interestCategories,
-            products: ranked.slice(0, LIMIT_FEED),
+            products: diversified,
         })
     } catch (error) {
         console.error('[recommendations-feed]', error)

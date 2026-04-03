@@ -9,7 +9,6 @@ export default function StoreProvider({ children }) {
   const storeRef = useRef(undefined)
   const persistTimerRef = useRef(null)
   const lastWishlistRef = useRef('[]')
-  const lastProductsRef = useRef('[]')
   if (!storeRef.current) {
     // Create the store instance the first time this renders
     storeRef.current = makeStore()
@@ -22,7 +21,6 @@ export default function StoreProvider({ children }) {
     // Hydrate persisted client state.
     try {
       const wishlistRaw = localStorage.getItem('tekpik_wishlist_ids')
-      const productsRaw = localStorage.getItem('tekpik_products')
 
       if (wishlistRaw) {
         const parsedWishlist = JSON.parse(wishlistRaw)
@@ -31,37 +29,26 @@ export default function StoreProvider({ children }) {
           lastWishlistRef.current = wishlistRaw
         }
       }
-
-      if (productsRaw) {
-        const parsedProducts = JSON.parse(productsRaw)
-        if (Array.isArray(parsedProducts) && parsedProducts.length > 0) {
-          store.dispatch(setProduct(parsedProducts))
-          lastProductsRef.current = productsRaw
-        }
-      }
     } catch {
       // Ignore malformed local cache and continue.
     }
 
-    const hasCachedProducts = lastProductsRef.current !== '[]'
-    if (!hasCachedProducts) {
-      const refreshProducts = () => {
-        fetch('/api/products')
-          .then(r => r.json())
-          .then(d => {
-            const products = Array.isArray(d?.products) ? d.products : []
-            if (products.length > 0) {
-              store.dispatch(setProduct(products))
-            }
-          })
-          .catch(() => {})
-      }
+    const refreshProducts = () => {
+      fetch('/api/products?limit=160&page=1')
+        .then(r => r.json())
+        .then(d => {
+          const products = Array.isArray(d?.products) ? d.products : []
+          if (products.length > 0) {
+            store.dispatch(setProduct(products))
+          }
+        })
+        .catch(() => {})
+    }
 
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        idleHandle = window.requestIdleCallback(refreshProducts, { timeout: 2000 })
-      } else {
-        idleHandle = window.setTimeout(refreshProducts, 250)
-      }
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleHandle = window.requestIdleCallback(refreshProducts, { timeout: 2000 })
+    } else {
+      idleHandle = window.setTimeout(refreshProducts, 250)
     }
 
     const unsubscribe = store.subscribe(() => {
@@ -74,13 +61,6 @@ export default function StoreProvider({ children }) {
           if (wishlistJson !== lastWishlistRef.current) {
             localStorage.setItem('tekpik_wishlist_ids', wishlistJson)
             lastWishlistRef.current = wishlistJson
-          }
-
-          const productsList = Array.isArray(state.product?.list) ? state.product.list : []
-          const productsJson = JSON.stringify(productsList)
-          if (productsJson !== lastProductsRef.current) {
-            localStorage.setItem('tekpik_products', productsJson)
-            lastProductsRef.current = productsJson
           }
         } catch {
           // Ignore storage write errors.

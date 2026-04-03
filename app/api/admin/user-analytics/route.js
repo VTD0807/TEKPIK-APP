@@ -27,11 +27,89 @@ const addKnown = (map, value) => {
     map.set(normalized, (map.get(normalized) || 0) + 1)
 }
 
+const parseDeviceInfoFromUserAgent = (userAgent = '') => {
+    const ua = String(userAgent || '')
+
+    let phoneModel = null
+    if (/iphone/i.test(ua)) phoneModel = 'iPhone'
+    else if (/pixel/i.test(ua)) phoneModel = 'Google Pixel'
+    else if (/sm-/i.test(ua) || /samsung/i.test(ua)) phoneModel = 'Samsung Galaxy'
+    else if (/redmi|mi\s|xiaomi/i.test(ua)) phoneModel = 'Xiaomi Redmi'
+    else if (/oneplus/i.test(ua)) phoneModel = 'OnePlus'
+    else if (/oppo/i.test(ua)) phoneModel = 'Oppo'
+    else if (/vivo/i.test(ua)) phoneModel = 'Vivo'
+    else if (/realme/i.test(ua)) phoneModel = 'Realme'
+    else if (/motorola|moto/i.test(ua)) phoneModel = 'Motorola'
+    else if (/nokia/i.test(ua)) phoneModel = 'Nokia'
+    else if (/nothing/i.test(ua)) phoneModel = 'Nothing'
+
+    let browser = null
+    if (/chrome/i.test(ua) && !/edg|opr|opera/i.test(ua)) browser = 'Chrome'
+    else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari'
+    else if (/firefox/i.test(ua)) browser = 'Firefox'
+    else if (/edg/i.test(ua)) browser = 'Edge'
+    else if (/opera|opr/i.test(ua)) browser = 'Opera'
+
+    return { phoneModel, browser }
+}
+
+const isPublicIp = (ip) => {
+    const raw = String(ip || '').trim()
+    if (!raw) return false
+    if (raw === '::1' || raw.startsWith('127.') || raw.startsWith('10.') || raw.startsWith('192.168.')) return false
+    if (raw.startsWith('172.')) {
+        const second = Number(raw.split('.')[1])
+        if (second >= 16 && second <= 31) return false
+    }
+    if (raw.startsWith('fc') || raw.startsWith('fd') || raw.startsWith('fe80:')) return false
+    return true
+}
+
+const fetchGeoFromIp = async (ip) => {
+    const target = String(ip || '').trim()
+    if (!isPublicIp(target)) return null
+
+    try {
+        const response = await fetch(`https://ipapi.co/${encodeURIComponent(target)}/json/`, {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(1800),
+        })
+        if (!response.ok) return null
+        const data = await response.json().catch(() => null)
+        if (!data) return null
+
+        return {
+            country: normalizeKnown(data.country_name || data.country || null),
+            region: normalizeKnown(data.region || data.region_code || null),
+            city: normalizeKnown(data.city || null),
+        }
+    } catch {
+        return null
+    }
+}
+
 export async function GET() {
     if (!dbAdmin) return NextResponse.json({ users: [], summary: {} })
 
     try {
-        const snap = await dbAdmin.collection('users').get()
+        const [usersSnap, productAnalyticsSnap] = await Promise.all([
+            dbAdmin.collection('users').get(),
+            dbAdmin.collection('analytics_product_unique_visitors').limit(8000).get(),
+        ])
+
+        const latestByAccount = new Map()
+        productAnalyticsSnap.forEach((doc) => {
+            const data = doc.data() || {}
+            const accountId = String(data.accountId || '').trim()
+            if (!accountId) return
+
+            const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null
+            const existing = latestByAccount.get(accountId)
+            if (!existing || (createdAt && existing.createdAt && createdAt > existing.createdAt) || (createdAt && !existing.createdAt)) {
+                latestByAccount.set(accountId, { createdAt, data })
+            }
+        })
+
         const users = []
         const regionCounts = new Map()
         const cityCounts = new Map()
@@ -39,9 +117,13 @@ export async function GET() {
         const browserCounts = new Map()
         const osCounts = new Map()
         const countryCounts = new Map()
+        const ipLookupTasks = []
+        const ipLookupCache = new Map()
 
-        snap.forEach(doc => {
+        usersSnap.forEach(doc => {
             const data = doc.data() || {}
+            const analyticsLatest = latestByAccount.get(doc.id)?.data || null
+            const uaFallback = parseDeviceInfoFromUserAgent(data.lastKnownUserAgent || analyticsLatest?.userAgent || '')
             const user = {
                 id: doc.id,
                 name: data.name || 'Unknown',
@@ -51,18 +133,42 @@ export async function GET() {
                 createdAt: data.createdAt ? timestampToJSON(data.createdAt) : null,
                 deviceId: data.deviceId || data.lastDeviceId || null,
                 deviceIds: Array.isArray(data.deviceIds) ? data.deviceIds : (data.deviceId ? [data.deviceId] : []),
-                lastKnownIp: data.lastKnownIp || null,
-                lastKnownCountry: data.lastKnownCountry || null,
-                lastKnownRegion: data.lastKnownRegion || null,
-                lastKnownCity: data.lastKnownCity || null,
-                lastKnownPhoneModel: data.lastKnownPhoneModel || null,
-                lastKnownBrowser: data.lastKnownBrowser || null,
-                lastKnownOs: data.lastKnownOs || null,
+                lastKnownIp: data.lastKnownIp || analyticsLatest?.ipAddress || null,
+                lastKnownCountry: data.lastKnownCountry || analyticsLatest?.country || null,
+                lastKnownRegion: data.lastKnownRegion || analyticsLatest?.region || null,
+                lastKnownCity: data.lastKnownCity || analyticsLatest?.city || null,
+                lastKnownPhoneModel: data.lastKnownPhoneModel || analyticsLatest?.phoneModel || uaFallback.phoneModel || null,
+                lastKnownBrowser: data.lastKnownBrowser || analyticsLatest?.browser || uaFallback.browser || null,
+                lastKnownOs: data.lastKnownOs || analyticsLatest?.os || null,
                 lastKnownDeviceType: data.lastKnownDeviceType || null,
                 lastSeenAt: data.lastSeenAt ? timestampToJSON(data.lastSeenAt) : null,
             }
-            users.push(user)
 
+            const needsGeoLookup = !user.lastKnownRegion && !user.lastKnownCity && !user.lastKnownCountry && isPublicIp(user.lastKnownIp)
+            if (needsGeoLookup) {
+                const normalizedIp = String(user.lastKnownIp).trim()
+                ipLookupTasks.push(
+                    (async () => {
+                        if (!ipLookupCache.has(normalizedIp)) {
+                            ipLookupCache.set(normalizedIp, await fetchGeoFromIp(normalizedIp))
+                        }
+                        const geo = ipLookupCache.get(normalizedIp)
+                        if (!geo) return
+                        user.lastKnownCountry = user.lastKnownCountry || geo.country || null
+                        user.lastKnownRegion = user.lastKnownRegion || geo.region || null
+                        user.lastKnownCity = user.lastKnownCity || geo.city || null
+                    })()
+                )
+            }
+
+            users.push(user)
+        })
+
+        if (ipLookupTasks.length > 0) {
+            await Promise.allSettled(ipLookupTasks)
+        }
+
+        users.forEach((user) => {
             addKnown(countryCounts, user.lastKnownCountry)
             addKnown(regionCounts, user.lastKnownRegion)
             addKnown(cityCounts, user.lastKnownCity)

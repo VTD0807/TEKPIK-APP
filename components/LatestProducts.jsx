@@ -5,7 +5,7 @@ import { dbAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
 import { getCached } from '@/lib/server-cache'
 
 const LatestProducts = async () => {
-    const displayQuantity = 4
+    const displayQuantity = 12
     let products = []
     let errorMsg = null
 
@@ -40,9 +40,9 @@ const LatestProducts = async () => {
     }
 
     return (
-        <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-6xl mx-auto'>
+        <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-[1500px] mx-auto'>
             <Title title='Latest Products' description={`Our newest finds for you.`} href='/shop' />
-            <div className='mt-8 sm:mt-10 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6'>
+            <div className='mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
                 {products && products.length > 0 ? (
                     products.map((product, index) => (
                         <ProductCard key={product.id || index} product={product} />

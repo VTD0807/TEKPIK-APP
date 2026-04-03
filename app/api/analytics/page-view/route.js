@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin } from '@/lib/firebase-admin'
 import admin from 'firebase-admin'
+import {
+    applyLearningEvent,
+    buildUserPreferenceKeys,
+    createEmptyPreferenceVector,
+    getPrimaryPreferenceKey,
+    loadPreferenceVector,
+    savePreferenceVector,
+} from '@/lib/recommendation-learning'
 
 export const dynamic = 'force-dynamic'
 
@@ -115,6 +123,8 @@ export async function POST(req) {
         const productDocId = productId
             ? `${safePart(productId, 250)}__device__${safePart(productViewerId, 300)}`
             : ''
+        const primaryKey = getPrimaryPreferenceKey({ accountId, deviceId })
+        const aliasKeys = buildUserPreferenceKeys({ accountId, deviceId }).filter((key) => key !== primaryKey)
 
         const now = admin.firestore.FieldValue.serverTimestamp()
         const pageRef = dbAdmin.collection('analytics_page_unique_visitors').doc(pageDocId)
@@ -125,6 +135,7 @@ export async function POST(req) {
         const productCountRef = productId
             ? dbAdmin.collection('analytics_product_view_counts').doc(productId)
             : null
+        const productRef = productId ? dbAdmin.collection('products').doc(productId) : null
 
         await Promise.all([
             pageRef.create({ pagePath, identityType, identityId, createdAt: now }).catch((err) => {
@@ -200,6 +211,29 @@ export async function POST(req) {
                     uniqueDeviceViews: admin.firestore.FieldValue.increment(1),
                     updatedAt: now,
                 }, { merge: true })
+
+                if (primaryKey && productRef) {
+                    const productSnap = await productRef.get()
+                    if (productSnap.exists) {
+                        const current = await loadPreferenceVector({ dbAdmin, keys: [primaryKey, ...aliasKeys] })
+                        const nextVector = current.exists ? current.vector : createEmptyPreferenceVector()
+                        const eventVector = applyLearningEvent({
+                            vector: nextVector,
+                            product: { id: productSnap.id, ...productSnap.data() },
+                            eventType: 'page_view',
+                            updatedAt: current.data?.updatedAt || null,
+                        })
+
+                        await savePreferenceVector({
+                            dbAdmin,
+                            primaryKey,
+                            aliasKeys,
+                            vector: eventVector,
+                            interactionCount: Number(current.data?.interactionCount || 0) + 1,
+                            updatedAt: new Date(),
+                        })
+                    }
+                }
             }
         }
 

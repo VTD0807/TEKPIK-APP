@@ -2,7 +2,8 @@
 import { usePathname } from "next/navigation"
 import { 
     Speedometer2, PeopleFill, Gear, Database,
-    Bell, Basket, Tag, Star, Stars, Eye, Megaphone, GeoAlt
+    Bell, Basket, Tag, Star, Stars, Eye, Megaphone, GeoAlt,
+    ArrowRepeat, ClockHistory
 } from "react-bootstrap-icons"
 import Image from "next/image"
 import Link from "next/link"
@@ -22,6 +23,8 @@ const AdminSidebar = () => {
         { name: 'Notify Users', href: '/admin/notifications', icon: Megaphone },
         { name: 'Analytics', href: '/admin/data', icon: Database },
         { name: 'Product Analytics', href: '/admin/data', icon: Eye },
+        { name: 'Product Updater', href: '/admin/product-updater', icon: ArrowRepeat },
+        { name: 'Updater Logs', href: '/admin/product-updater/logs', icon: ClockHistory },
         { name: 'Settings', href: '/admin/settings', icon: Gear },
     ]
 
@@ -44,7 +47,7 @@ const AdminSidebar = () => {
                     ))}
 
                     <p className="px-2 sm:px-5 pt-4 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 mb-2">Engagement</p>
-                    {sidebarLinks.slice(6, 10).map((link, index) => (
+                    {sidebarLinks.slice(6, 12).map((link, index) => (
                         <Link key={index + 100} href={link.href} className={`relative flex items-center gap-3 text-slate-500 hover:bg-slate-50 p-2.5 transition rounded-r-xl ${pathname.startsWith(link.href) && (link.href !== '/admin' || pathname === '/admin') && 'bg-slate-100 sm:text-slate-600'}`}>
                             <link.icon size={18} className="sm:ml-5" />
                             <p className="max-sm:hidden">{link.name}</p>
@@ -53,7 +56,7 @@ const AdminSidebar = () => {
                     ))}
 
                     <p className="px-2 sm:px-5 pt-4 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 mb-2">Settings</p>
-                    {sidebarLinks.slice(10).map((link, index) => (
+                    {sidebarLinks.slice(12).map((link, index) => (
                         <Link key={index + 200} href={link.href} className={`relative flex items-center gap-3 text-slate-500 hover:bg-slate-50 p-2.5 transition rounded-r-xl ${pathname.startsWith(link.href) && (link.href !== '/admin' || pathname === '/admin') && 'bg-slate-100 sm:text-slate-600'}`}>
                             <link.icon size={18} className="sm:ml-5" />
                             <p className="max-sm:hidden">{link.name}</p>

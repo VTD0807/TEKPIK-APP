@@ -6,10 +6,12 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:categories": "node scripts/seed-categories.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
+    "cheerio": "^1.2.0",
     "cloudinary": "^2.9.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.11.0",

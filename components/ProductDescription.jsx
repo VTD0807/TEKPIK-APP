@@ -3,10 +3,12 @@ import { ArrowRight, Star } from 'react-bootstrap-icons'
 import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
+import { sanitizeDescriptionHtml } from '@/lib/description-html'
 
 const ProductDescription = ({ product }) => {
 
     const [selectedTab, setSelectedTab] = useState('Description')
+    const descriptionHtml = sanitizeDescriptionHtml(product?.description)
 
     return (
         <div className="my-18 text-sm text-slate-600">
@@ -22,7 +24,14 @@ const ProductDescription = ({ product }) => {
 
             {/* Description */}
             {selectedTab === "Description" && (
-                <p className="max-w-xl">{product.description}</p>
+                descriptionHtml ? (
+                    <div
+                        className="max-w-xl [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1"
+                        dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                    />
+                ) : (
+                    <p className="max-w-xl">No description available.</p>
+                )
             )}
 
             {/* Reviews */}

@@ -131,7 +131,7 @@ export default async function BestPicksForYou() {
 
             return rankedProducts
                 .sort((a, b) => b._rankingScore - a._rankingScore)
-                .slice(0, 4)
+                .slice(0, 12)
         })
 
         products = data
@@ -145,13 +145,13 @@ export default async function BestPicksForYou() {
     }
 
     return (
-        <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-6xl mx-auto'>
+        <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-[1500px] mx-auto'>
             <div className="mb-3">
                 <h2 className="text-xl font-semibold text-slate-800">Best Picks For You</h2>
                 <p className="text-sm text-slate-500 mt-1">Ranked using community opinion and AI analysis.</p>
             </div>
             
-            <div className='mt-6 sm:mt-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6'>
+            <div className='mt-6 sm:mt-8 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
                 {products.map((product, index) => (
                     <ProductCard key={product.id || index} product={product} />
                 ))}

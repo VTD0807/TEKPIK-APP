@@ -19,6 +19,7 @@ import { useAuth } from '@/lib/auth-context'
 import { isAdminEmail } from '@/lib/admin'
 import toast from 'react-hot-toast'
 import { usePostHog } from 'posthog-js/react'
+import { getDeviceId } from '@/lib/device'
 
 const MOBILE_NAV = [
     { href: '/', label: 'Home', icon: House },
@@ -26,6 +27,16 @@ const MOBILE_NAV = [
     { href: '/ai-picks', label: 'AI', icon: Stars },
     { href: '/disclosure', label: 'Info', icon: InfoCircle },
 ]
+
+const normalizeSearchText = (value = '') => String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const tokenizeSearch = (value = '') => normalizeSearchText(value)
+    .split(' ')
+    .filter(token => token.length > 1)
 
 const Navbar = () => {
     const router = useRouter()
@@ -51,42 +62,60 @@ const Navbar = () => {
         const baseProducts = Array.isArray(products) ? products.filter(Boolean) : []
         if (baseProducts.length === 0) return []
 
-        const query = normalizedSearch
+        const query = normalizeSearchText(normalizedSearch)
+        if (!query) return []
+        const queryTokens = tokenizeSearch(query)
+
         const indexedProducts = baseProducts.slice(0, 120).map(product => {
-            const searchable = [
+            const searchableText = [
                 product.title,
                 product.name,
                 product.brand,
                 product.description,
                 product.categories?.name,
+                product.category,
+                product.metaKeywords,
                 ...(Array.isArray(product.tags) ? product.tags : []),
             ]
                 .filter(Boolean)
                 .join(' ')
-                .toLowerCase()
+            const searchable = normalizeSearchText(searchableText)
 
-            const title = (product.title || product.name || '').toLowerCase()
-            const brand = (product.brand || '').toLowerCase()
-            const category = (product.categories?.name || '').toLowerCase()
+            const title = normalizeSearchText(product.title || product.name || '')
+            const brand = normalizeSearchText(product.brand || '')
+            const category = normalizeSearchText(product.categories?.name || product.category || '')
+            const tagBlob = normalizeSearchText(Array.isArray(product.tags) ? product.tags.join(' ') : '')
 
-            return { product, searchable, title, brand, category }
+            return { product, searchable, title, brand, category, tagBlob }
         })
-
-        if (!query) return indexedProducts.slice(0, 6).map(entry => ({ product: entry.product, score: 1 }))
 
         return indexedProducts
             .map(entry => {
                 let score = 0
-                if (entry.title.startsWith(query)) score += 50
-                if (entry.title.includes(query)) score += 30
-                if (entry.brand.startsWith(query)) score += 16
-                if (entry.category.includes(query)) score += 12
-                if (entry.searchable.includes(query)) score += 10
+                const exactTitle = entry.title === query
+                const titleStarts = entry.title.startsWith(query)
+                const titleIncludes = entry.title.includes(query)
+                const searchableIncludes = entry.searchable.includes(query)
+
+                if (exactTitle) score += 80
+                if (titleStarts) score += 50
+                if (titleIncludes) score += 32
+                if (entry.brand && (entry.brand.includes(query) || queryTokens.some(token => entry.brand.includes(token)))) score += 16
+                if (entry.category && (entry.category.includes(query) || queryTokens.some(token => entry.category.includes(token)))) score += 14
+                if (entry.tagBlob && (entry.tagBlob.includes(query) || queryTokens.some(token => entry.tagBlob.includes(token)))) score += 12
+                if (searchableIncludes) score += 8
+
+                if (queryTokens.length > 1) {
+                    const matchedTokens = queryTokens.filter(token => entry.searchable.includes(token))
+                    score += matchedTokens.length * 10
+                    if (matchedTokens.length === queryTokens.length) score += 18
+                }
+
                 return score > 0 ? { product: entry.product, score } : null
             })
             .filter(Boolean)
             .sort((a, b) => b.score - a.score)
-            .slice(0, 6)
+            .slice(0, 8)
     }, [products, normalizedSearch, searchOpen])
 
     useEffect(() => {
@@ -109,6 +138,25 @@ const Navbar = () => {
         if (!term) return
 
         posthog?.capture('search_submitted', { query: term, source: 'navbar' })
+        const deviceId = getDeviceId()
+        const payload = {
+            eventType: 'search_query',
+            query: term,
+            accountId: user?.uid || null,
+            deviceId,
+            pagePath: pathname || '/',
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+            platform: typeof navigator !== 'undefined' ? navigator.platform || null : null,
+            language: typeof navigator !== 'undefined' ? navigator.language || null : null,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+            strength: 0.9,
+        }
+        fetch('/api/analytics/product-interaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true,
+        }).catch(() => {})
         setSearchOpen(false)
         router.push('/search?q=' + encodeURIComponent(term))
     }
@@ -141,8 +189,8 @@ const Navbar = () => {
                             <Link href="/ai-picks" className="flex items-center gap-1 hover:text-indigo-600 transition text-sm"><Stars size={14} /> AI Picks</Link>
                             <Link href="/disclosure" className="hover:text-slate-900 transition text-sm">Disclosure</Link>
 
-                            <div ref={desktopSearchRef} className="relative hidden xl:block w-72">
-                                <form onSubmit={handleSearch} className="flex items-center w-full text-sm gap-2 bg-slate-100 px-4 py-2 rounded-full border border-transparent focus-within:border-slate-300 focus-within:bg-white transition">
+                            <div ref={desktopSearchRef} className="relative hidden xl:block w-[28rem]">
+                                <form onSubmit={handleSearch} className="flex items-center w-full text-sm gap-2 bg-slate-100 px-4 py-2.5 rounded-full border border-transparent focus-within:border-slate-300 focus-within:bg-white transition">
                                     <Search size={15} className="text-slate-400 shrink-0" />
                                     <input
                                         className="w-full bg-transparent outline-none placeholder-slate-400 text-sm"
@@ -158,14 +206,16 @@ const Navbar = () => {
                                 </form>
 
                                 {searchOpen && (
-                                    <SuggestionDropdown
-                                        products={products}
-                                        suggestions={suggestions}
-                                        normalizedSearch={normalizedSearch}
-                                        search={search}
-                                        handleSearch={handleSearch}
-                                        openSuggestion={openSuggestion}
-                                    />
+                                    <div className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                                        <SuggestionDropdown
+                                            products={products}
+                                            suggestions={suggestions}
+                                            normalizedSearch={normalizedSearch}
+                                            search={search}
+                                            handleSearch={handleSearch}
+                                            openSuggestion={openSuggestion}
+                                        />
+                                    </div>
                                 )}
                             </div>
 
@@ -285,11 +335,11 @@ function SuggestionDropdown({
 
     return (
         <>
-            <div className={`flex items-center justify-between px-4 py-2 border-b border-slate-100 ${mobile ? 'bg-white' : 'bg-slate-50/80'}`}>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-400">
-                    {normalizedSearch ? 'Suggestions' : 'Popular products'}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-white">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Search suggestions
                 </p>
-                {normalizedSearch && (
+                {normalizedSearch && suggestions.length > 0 && (
                     <button type="button" onClick={() => handleSearch({ preventDefault() {} })} className="text-[11px] text-indigo-600 hover:text-indigo-700">
                         Search all
                     </button>
@@ -308,7 +358,7 @@ function SuggestionDropdown({
                                 onClick={() => openSuggestion(product)}
                                 className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition"
                             >
-                                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
+                                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
                                     {image ? <img src={image} alt={title} className="h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" /> : <span className="text-[10px] text-slate-400 uppercase">No image</span>}
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -323,7 +373,9 @@ function SuggestionDropdown({
                     })}
                 </div>
             ) : (
-                <div className="px-4 py-5 text-sm text-slate-400">No suggestions found.</div>
+                <div className="px-4 py-5 text-sm text-slate-400">
+                    {normalizedSearch ? 'No matching products found.' : 'Type to search products.'}
+                </div>
             )}
 
             {normalizedSearch && (

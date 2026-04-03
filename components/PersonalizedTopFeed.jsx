@@ -14,10 +14,18 @@ export default function PersonalizedTopFeed() {
     useEffect(() => {
         if (loading) return
 
+        if (!user?.uid) {
+            setProducts([])
+            setInterestCategories([])
+            setSource('fallback')
+            setFeedLoading(false)
+            return
+        }
+
         const controller = new AbortController()
         setFeedLoading(true)
 
-        const accountParam = user?.uid ? `?accountId=${encodeURIComponent(user.uid)}` : ''
+        const accountParam = `?accountId=${encodeURIComponent(user.uid)}`
 
         fetch(`/api/recommendations/feed${accountParam}`, {
             cache: 'no-store',
@@ -25,7 +33,8 @@ export default function PersonalizedTopFeed() {
         })
             .then((res) => res.json())
             .then((data) => {
-                setProducts(Array.isArray(data?.products) ? data.products : [])
+                const nextProducts = Array.isArray(data?.products) ? data.products.slice(0, 12) : []
+                setProducts(nextProducts)
                 setInterestCategories(Array.isArray(data?.interestCategories) ? data.interestCategories : [])
                 setSource(data?.source || 'fallback')
                 setFeedLoading(false)
@@ -41,15 +50,17 @@ export default function PersonalizedTopFeed() {
         return 'Building your interest profile. Showing trending picks for now.'
     }, [user, source])
 
+    if (loading || !user?.uid) return null
+
     if (feedLoading) {
         return (
-            <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-6xl mx-auto'>
+            <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-[1500px] mx-auto'>
                 <div className='mb-3'>
                     <h2 className='text-xl font-semibold text-slate-800'>Recommended For You</h2>
                     <p className='text-sm text-slate-500 mt-1'>Analyzing your interests...</p>
                 </div>
-                <div className='mt-6 sm:mt-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6'>
-                    {Array.from({ length: 4 }).map((_, index) => (
+                <div className='mt-6 sm:mt-8 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
+                    {Array.from({ length: 12 }).map((_, index) => (
                         <div key={index} className='h-64 rounded-xl border border-slate-100 bg-slate-50 animate-pulse' />
                     ))}
                 </div>
@@ -57,10 +68,17 @@ export default function PersonalizedTopFeed() {
         )
     }
 
+    const hasValidInterest = interestCategories.some((item) => {
+        if (!item || typeof item.name !== 'string') return false
+        return item.name.trim().length > 0 && Number(item.weight || 0) > 0
+    })
+
+    if (source !== 'personalized' || !hasValidInterest) return null
+
     if (!products.length) return null
 
     return (
-        <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-6xl mx-auto'>
+        <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-[1500px] mx-auto'>
             <div className='mb-3'>
                 <h2 className='text-xl font-semibold text-slate-800'>Recommended For You</h2>
                 <p className='text-sm text-slate-500 mt-1'>{subtitle}</p>
@@ -79,7 +97,7 @@ export default function PersonalizedTopFeed() {
                 </div>
             )}
 
-            <div className='mt-6 sm:mt-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6'>
+            <div className='mt-6 sm:mt-8 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
                 {products.map((product, index) => (
                     <ProductCard key={product.id || index} product={product} />
                 ))}

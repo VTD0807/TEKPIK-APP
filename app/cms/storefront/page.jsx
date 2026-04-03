@@ -7,7 +7,6 @@ const DEFAULT_SECTIONS = [
     { id: 'bannerCarousel', type: 'core', label: 'Banner Carousel', enabled: true },
     { id: 'bestPicks', type: 'core', label: 'Best Picks', enabled: true },
     { id: 'latestProducts', type: 'core', label: 'Latest Products', enabled: true },
-    { id: 'hero', type: 'core', label: 'Hero Grid', enabled: true },
     { id: 'bestSelling', type: 'core', label: 'Best Selling', enabled: true },
     { id: 'specs', type: 'core', label: 'Store Highlights', enabled: true },
     { id: 'newsletter', type: 'core', label: 'Newsletter', enabled: true },
@@ -24,28 +23,6 @@ const createPromo = () => ({
     link: '/shop',
     imageUrl: '',
     bgColor: 'bg-white'
-})
-
-const createPromoGrid = () => ({
-    id: `promo-grid-${Date.now()}`,
-    type: 'promoGrid',
-    label: 'Promo Grid',
-    enabled: true,
-    bigTitle: "Gadgets you'll love.",
-    bigCtaText: 'Learn more',
-    bigLink: '/shop',
-    bigImageUrl: '',
-    bigBgColor: 'bg-[#A9E6BD]',
-    topTitle: 'Best products',
-    topCtaText: 'View more',
-    topLink: '/shop',
-    topImageUrl: '',
-    topBgColor: 'bg-[#F1D4B8]',
-    bottomTitle: '20% discounts',
-    bottomCtaText: 'View more',
-    bottomLink: '/shop',
-    bottomImageUrl: '',
-    bottomBgColor: 'bg-[#B3D0F2]',
 })
 
 export default function StorefrontSettings() {
@@ -86,18 +63,15 @@ export default function StorefrontSettings() {
         setSections(prev => [...prev, createPromo()])
     }
 
-    const addPromoGrid = () => {
-        setSections(prev => [...prev, createPromoGrid()])
-    }
-
     const handleSave = async () => {
         setSaving(true)
         const toastId = toast.loading('Saving storefront settings...')
         try {
+            const cleanedSections = sections.filter(section => section?.type !== 'promoGrid' && section?.id !== 'hero')
             const res = await fetch('/api/admin/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ homepageSections: sections }),
+                body: JSON.stringify({ homepageSections: cleanedSections }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || 'Failed to save')
@@ -206,81 +180,6 @@ export default function StorefrontSettings() {
                                 </div>
                             )}
 
-                            {section.type === 'promoGrid' && (
-                                <div className="mt-4 grid md:grid-cols-2 gap-4">
-                                    <div className="md:col-span-2">
-                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Large Left Card</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Title</label>
-                                        <input value={section.bigTitle || ''} onChange={(e) => updateSection(section.id, { bigTitle: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">CTA Text</label>
-                                        <input value={section.bigCtaText || ''} onChange={(e) => updateSection(section.id, { bigCtaText: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Link</label>
-                                        <input value={section.bigLink || ''} onChange={(e) => updateSection(section.id, { bigLink: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Image URL</label>
-                                        <input value={section.bigImageUrl || ''} onChange={(e) => updateSection(section.id, { bigImageUrl: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs font-medium text-slate-500">Background Class</label>
-                                        <input value={section.bigBgColor || ''} onChange={(e) => updateSection(section.id, { bigBgColor: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-
-                                    <div className="md:col-span-2 mt-2">
-                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Top Right Card</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Title</label>
-                                        <input value={section.topTitle || ''} onChange={(e) => updateSection(section.id, { topTitle: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">CTA Text</label>
-                                        <input value={section.topCtaText || ''} onChange={(e) => updateSection(section.id, { topCtaText: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Link</label>
-                                        <input value={section.topLink || ''} onChange={(e) => updateSection(section.id, { topLink: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Image URL</label>
-                                        <input value={section.topImageUrl || ''} onChange={(e) => updateSection(section.id, { topImageUrl: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs font-medium text-slate-500">Background Class</label>
-                                        <input value={section.topBgColor || ''} onChange={(e) => updateSection(section.id, { topBgColor: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-
-                                    <div className="md:col-span-2 mt-2">
-                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bottom Right Card</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Title</label>
-                                        <input value={section.bottomTitle || ''} onChange={(e) => updateSection(section.id, { bottomTitle: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">CTA Text</label>
-                                        <input value={section.bottomCtaText || ''} onChange={(e) => updateSection(section.id, { bottomCtaText: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Link</label>
-                                        <input value={section.bottomLink || ''} onChange={(e) => updateSection(section.id, { bottomLink: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-500">Image URL</label>
-                                        <input value={section.bottomImageUrl || ''} onChange={(e) => updateSection(section.id, { bottomImageUrl: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs font-medium text-slate-500">Background Class</label>
-                                        <input value={section.bottomBgColor || ''} onChange={(e) => updateSection(section.id, { bottomBgColor: e.target.value })} className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-black/10" />
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     ))}
                 </div>
@@ -293,13 +192,6 @@ export default function StorefrontSettings() {
                 >
                     <Plus size={14} />
                     Add Promo Section
-                </button>
-                <button
-                    onClick={addPromoGrid}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-lg hover:bg-slate-800 transition"
-                >
-                    <Plus size={14} />
-                    Add Promo Grid
                 </button>
                 <button
                     onClick={handleSave}

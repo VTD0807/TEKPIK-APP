@@ -3,8 +3,8 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { 
     Grid1x2, BoxSeam, Link45deg, Tags, Images,
-    Star, Robot, People, Gear, Grid3x2Gap,
-    ChevronLeft, XLg 
+    Star, Robot, People, Gear,
+    ChevronLeft, XLg, ArrowRepeat, ClockHistory 
 } from 'react-bootstrap-icons'
 
 const navItems = [
@@ -16,7 +16,8 @@ const navItems = [
     { name: 'Reviews', href: '/cms/reviews', icon: Star },
     { name: 'AI Analysis', href: '/cms/ai-analysis', icon: Robot },
     { name: 'Users', href: '/cms/users', icon: People },
-    { name: 'Promo Grid', href: '/cms/promo-grid', icon: Grid3x2Gap },
+    { name: 'Product Updater', href: '/cms/product-updater', icon: ArrowRepeat },
+    { name: 'Updater Logs', href: '/cms/product-updater/logs', icon: ClockHistory },
     { name: 'Storefront', href: '/cms/storefront', icon: Gear }
 ]
 

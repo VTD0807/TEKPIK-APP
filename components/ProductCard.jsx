@@ -5,6 +5,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import { toggleWishlistItem } from '@/lib/features/wishlist/wishlistSlice'
 import { usePostHog } from 'posthog-js/react'
 import { useState } from 'react'
+import { useAuth } from '@/lib/auth-context'
+import { getDeviceId } from '@/lib/device'
 
 const ProductImage = ({ src, alt, className }) => {
     const [error, setError] = useState(false)
@@ -42,8 +44,37 @@ const ScoreBadge = ({ score }) => {
 const ProductCard = ({ product }) => {
     const dispatch = useDispatch()
     const posthog = usePostHog()
+    const { user } = useAuth()
     const wishlistIds = useSelector(state => state.wishlist.ids)
     const isWishlisted = wishlistIds.includes(product.id)
+
+    const trackInteraction = async (eventType) => {
+        const deviceId = getDeviceId()
+        if (!deviceId) return
+
+        const payload = {
+            eventType,
+            productId: product.id,
+            accountId: user?.uid || null,
+            deviceId,
+            pagePath: typeof window !== 'undefined' ? window.location.pathname : null,
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+            platform: typeof navigator !== 'undefined' ? navigator.platform || null : null,
+            language: typeof navigator !== 'undefined' ? navigator.language || null : null,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+        }
+
+        try {
+            await fetch('/api/analytics/product-interaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                keepalive: true,
+            })
+        } catch {
+            // Ignore analytics failures.
+        }
+    }
 
     const handleAmazonClick = () => {
         posthog.capture('amazon_click', {
@@ -74,11 +105,11 @@ const ProductCard = ({ product }) => {
         <div className="group relative flex flex-col w-full min-w-0">
             {/* Image */}
             <Link href={`/products/${product.id}`} className="block">
-                <div className="relative bg-[#F5F5F5] h-32 sm:h-64 w-full rounded-lg flex items-center justify-center overflow-hidden">
+                <div className="relative bg-[#F5F5F5] h-28 sm:h-44 w-full rounded-lg flex items-center justify-center overflow-hidden">
                     <ProductImage
                         src={imgSrc}
                         alt={product.title || product.name}
-                        className="max-h-24 sm:max-h-44 w-auto group-hover:scale-110 transition duration-300 object-contain"
+                        className="max-h-20 sm:max-h-32 w-auto group-hover:scale-110 transition duration-300 object-contain"
                     />
                     {discount > 0 && (
                         <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
@@ -119,8 +150,11 @@ const ProductCard = ({ product }) => {
                 <a
                     href={product.affiliateUrl || product.affiliate_url || '#'}
                     target="_blank"
-                    rel="noopener noreferrer sponsored"
-                    onClick={handleAmazonClick}
+                    rel="noopener noreferrer nofollow sponsored"
+                    onClick={() => {
+                        handleAmazonClick()
+                        trackInteraction('amazon_click')
+                    }}
                     className="flex-1 min-w-0 flex items-center justify-center gap-1 text-[10px] sm:text-xs bg-amber-400 hover:bg-amber-500 transition text-slate-900 font-semibold py-2 sm:py-1.5 rounded-full"
                 >
                     <BoxArrowUpRight size={12} />
@@ -133,6 +167,7 @@ const ProductCard = ({ product }) => {
                             product_id: product.id,
                             source: 'product_card',
                         })
+                        trackInteraction(isWishlisted ? 'wishlist_remove' : 'wishlist_add')
                     }}
                     className={`p-1.5 rounded-full border transition shrink-0 ${isWishlisted ? 'bg-red-50 border-red-300' : 'bg-white border-slate-300 hover:border-red-300'}`}
                     aria-label="Toggle wishlist"
