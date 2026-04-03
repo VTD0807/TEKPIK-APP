@@ -18,15 +18,8 @@ export const metadata = {
     description: "Discover the best products on Amazon with AI-powered analysis and honest community reviews.",
     keywords: "amazon affiliate, product reviews, AI analysis, best deals",
     icons: {
-        icon: [
-            { url: '/favicon.ico', type: 'image/x-icon' },
-            { url: '/icon.png', type: 'image/png' },
-            { url: logoPath, type: 'image/png' },
-        ],
-        apple: [
-            { url: '/apple-icon.png', type: 'image/png' },
-            { url: logoPath, type: 'image/png' },
-        ],
+        icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+        apple: [{ url: logoPath, type: 'image/png' }],
         shortcut: [{ url: '/favicon.ico', type: 'image/x-icon' }],
     },
     alternates: {

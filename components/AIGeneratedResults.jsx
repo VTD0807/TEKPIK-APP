@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { DiamondsIcon } from 'react-bootstrap-icons'
+import { Diamond } from 'react-bootstrap-icons'
 
 export default function AIGeneratedResults({ query, products = [] }) {
     const [aiResult, setAiResult] = useState(null)
@@ -45,7 +45,7 @@ export default function AIGeneratedResults({ query, products = [] }) {
         <div className="mb-8 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 shadow-sm">
             {/* AI Badge */}
             <div className="flex items-center gap-2 mb-4">
-                <DiamondsIcon className="w-5 h-5 text-blue-600" />
+                <Diamond className="w-5 h-5 text-blue-600" />
                 <span className="text-sm font-semibold text-blue-900">AI-Generated Answer</span>
             </div>
 
