@@ -1,96 +1,125 @@
-'use client'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { getDeviceId } from '@/lib/device'
+import BannerCarousel from "@/components/BannerCarousel";
+import Newsletter from "@/components/Newsletter";
+import LatestProducts from "@/components/LatestProducts";
+import BestSelling from "@/components/BestSelling";
+import PersonalizedTopFeed from "@/components/PersonalizedTopFeed";
+import PromoSection from "@/components/PromoSection";
+import { dbAdmin, timestampToJSON } from "@/lib/firebase-admin";
 
-export default function Home() {
-    const router = useRouter()
-    const [search, setSearch] = useState('')
+export const dynamic = 'force-dynamic'
 
-    const handleSearch = async (e) => {
-        e.preventDefault()
-        if (!search.trim()) return
-        
-        const deviceId = getDeviceId()
-        await fetch('/api/analytics/product-interaction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                eventType: 'search_query',
-                searchQuery: search,
-                deviceId,
-            })
-        }).catch(() => {})
+const DEFAULT_SECTIONS = [
+    { id: 'bannerCarousel', type: 'core', label: 'Banner Carousel', enabled: true },
+    { id: 'bestPicks', type: 'core', label: 'Best Picks', enabled: true },      
+    { id: 'latestProducts', type: 'core', label: 'Latest Products', enabled: true },
+    { id: 'bestSelling', type: 'core', label: 'Best Selling', enabled: true },  
+    { id: 'newsletter', type: 'core', label: 'Newsletter', enabled: true },     
+]
 
-        router.push(`/shop?search=${encodeURIComponent(search)}`)
+const CORE_SECTION_IDS = new Set(DEFAULT_SECTIONS.map(section => section.id))   
+
+const mergeWithCoreSections = (sections = []) => {
+    const safeSections = Array.isArray(sections) ? sections : []
+    const byId = new Map(safeSections.filter(Boolean).map(section => [section.id, section]))
+    const mergedCore = DEFAULT_SECTIONS.map(defaultSection => ({
+        ...defaultSection,
+        ...(byId.get(defaultSection.id) || {}),
+        id: defaultSection.id,
+        type: 'core',
+    }))
+
+    const extras = safeSections.filter(section => {
+        if (!section || !section.id) return false
+        if (CORE_SECTION_IDS.has(section.id)) return false
+        return section.id !== 'specs' && section.type !== 'promoGrid' && section.type !== 'hero'
+    })
+
+    return [...mergedCore, ...extras]
+}
+
+export default async function Home() {
+    let banners = []
+    let settings = {}
+    let categories = []
+
+    const sanitizeValue = (value) => {
+        if (!value) return value
+        if (Array.isArray(value)) return value.map(sanitizeValue)
+        if (typeof value === 'object') {
+            if (typeof value.toDate === 'function') return timestampToJSON(value)
+            const out = {}
+            for (const [key, val] of Object.entries(value)) {
+                out[key] = sanitizeValue(val)
+            }
+            return out
+        }
+        return value
     }
 
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-            {/* Logo Section */}
-            <div className="mb-12 mt-12">
-                <div className="flex items-center gap-2 justify-center">
-                    <Image
-                        src="/logo-tekpik.png"
-                        alt="TEKPIK"
-                        width={120}
-                        height={60}
-                        priority
-                        className="h-16 w-auto"
-                    />
-                    <h1 className="text-5xl font-light text-slate-800 tracking-tight">TEKPIK</h1>
-                </div>
-                <p className="text-center text-slate-600 text-lg mt-2">Shop smarter with AI-powered product discovery</p>
-            </div>
+    if (dbAdmin) {
+        try {
+            // Fetch Promotional Banners for Carousel
+            const snap = await dbAdmin.collection('banners').where('isActive', '==', true).orderBy('createdAt', 'desc').get()
+            snap.forEach(doc => {
+                const data = doc.data()
+                banners.push(sanitizeValue({ id: doc.id, ...data }))
+            })
 
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="w-full max-w-2xl px-6 mb-12">
-                <div className="flex shadow-lg rounded-full border border-slate-300 bg-white hover:shadow-xl transition-shadow">
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search products..."
-                        className="flex-1 px-6 py-4 rounded-full outline-none text-lg"
-                    />
-                    <button
-                        type="submit"
-                        className="px-8 py-4 text-blue-600 hover:text-blue-800 font-semibold"
-                    >
-                        Search
-                    </button>
-                </div>
-            </form>
+            // Fetch Homepage Settings
+            const settingsDoc = await dbAdmin.collection('settings').doc('general').get()
+            if (settingsDoc.exists) {
+                settings = sanitizeValue(settingsDoc.data())
+            }
 
-            {/* Quick Links */}
-            <div className="flex gap-6 mb-16">
-                <Link href="/ai-picks" className="text-blue-600 hover:underline font-medium">
-                    AI Picks
-                </Link>
-                <Link href="/shop" className="text-blue-600 hover:underline font-medium">
-                    Browse Shop
-                </Link>
-                <Link href="/help" className="text-blue-600 hover:underline font-medium">
-                    Help
-                </Link>
-            </div>
+            // Fetch Active Categories
+            const catSnap = await dbAdmin.collection('categories').orderBy('name').limit(10).get()
+            catSnap.forEach(doc => {
+                categories.push(doc.data().name)
+            })
 
-            {/* Footer */}
-            <div className="absolute bottom-0 left-0 right-0 bg-slate-100 border-t border-slate-300 py-4">
-                <div className="max-w-4xl mx-auto px-6 flex justify-between text-sm text-slate-600">
-                    <div className="flex gap-6">
-                        <Link href="/disclosure" className="hover:text-blue-600">
-                            Affiliate Disclosure
-                        </Link>
-                        <Link href="/about" className="hover:text-blue-600">
-                            About
-                        </Link>
-                    </div>
-                    <p>© 2026 TEKPIK</p>
-                </div>
-            </div>
-        </div>
-    )
+        } catch (error) {
+            console.error('Error fetching data for homepage:', error)
+        }
+    }
+
+    const rawSections = Array.isArray(settings.homepageSections) && settings.homepageSections.length > 0
+        ? settings.homepageSections
+        : DEFAULT_SECTIONS
+
+    const mergedSections = mergeWithCoreSections(rawSections)
+    const sections = mergedSections
+
+    const renderSection = (section) => {
+        const isEnabled = !(section?.enabled === false || section?.enabled === 'false')
+        if (!isEnabled) return null
+        if (section.type === 'promo') {
+            return (
+                <PromoSection
+                    key={section.id}
+                    title={section.title}
+                    subtitle={section.subtitle}
+                    ctaText={section.ctaText}
+                    link={section.link}
+                    imageUrl={section.imageUrl}
+                    bgColor={section.bgColor}
+                />
+            )
+        }
+        switch (section.id) {
+            case 'bannerCarousel':
+                return <BannerCarousel key={section.id} banners={banners} settings={settings} />
+            case 'bestPicks':
+                return <PersonalizedTopFeed key={section.id} />
+            case 'latestProducts':
+                return <LatestProducts key={section.id} />
+            case 'bestSelling':
+                return <BestSelling key={section.id} />
+            case 'newsletter':
+                return <Newsletter key={section.id} />
+            default:
+                return null
+        }
+    }
+
+    return <div className="space-y-10">{sections.map(renderSection)}</div>
 }
