@@ -7,6 +7,9 @@ import { setProduct } from '@/lib/features/product/productSlice'
 
 export default function StoreProvider({ children }) {
   const storeRef = useRef(undefined)
+  const persistTimerRef = useRef(null)
+  const lastWishlistRef = useRef('[]')
+  const lastProductsRef = useRef('[]')
   if (!storeRef.current) {
     // Create the store instance the first time this renders
     storeRef.current = makeStore()
@@ -14,6 +17,7 @@ export default function StoreProvider({ children }) {
 
   useEffect(() => {
     const store = storeRef.current
+    let idleHandle = null
 
     // Hydrate persisted client state.
     try {
@@ -24,6 +28,7 @@ export default function StoreProvider({ children }) {
         const parsedWishlist = JSON.parse(wishlistRaw)
         if (Array.isArray(parsedWishlist)) {
           store.dispatch(setWishlist(parsedWishlist))
+          lastWishlistRef.current = wishlistRaw
         }
       }
 
@@ -31,34 +36,69 @@ export default function StoreProvider({ children }) {
         const parsedProducts = JSON.parse(productsRaw)
         if (Array.isArray(parsedProducts) && parsedProducts.length > 0) {
           store.dispatch(setProduct(parsedProducts))
+          lastProductsRef.current = productsRaw
         }
       }
     } catch {
       // Ignore malformed local cache and continue.
     }
 
-    // Always refresh products in background so pages survive refresh and data stays current.
-    fetch('/api/products')
-      .then(r => r.json())
-      .then(d => {
-        const products = Array.isArray(d?.products) ? d.products : []
-        if (products.length > 0) {
-          store.dispatch(setProduct(products))
-        }
-      })
-      .catch(() => {})
+    const hasCachedProducts = lastProductsRef.current !== '[]'
+    if (!hasCachedProducts) {
+      const refreshProducts = () => {
+        fetch('/api/products')
+          .then(r => r.json())
+          .then(d => {
+            const products = Array.isArray(d?.products) ? d.products : []
+            if (products.length > 0) {
+              store.dispatch(setProduct(products))
+            }
+          })
+          .catch(() => {})
+      }
+
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        idleHandle = window.requestIdleCallback(refreshProducts, { timeout: 2000 })
+      } else {
+        idleHandle = window.setTimeout(refreshProducts, 250)
+      }
+    }
 
     const unsubscribe = store.subscribe(() => {
-      const state = store.getState()
-      try {
-        localStorage.setItem('tekpik_wishlist_ids', JSON.stringify(state.wishlist?.ids || []))
-        localStorage.setItem('tekpik_products', JSON.stringify(state.product?.list || []))
-      } catch {
-        // Ignore storage write errors.
-      }
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+
+      persistTimerRef.current = setTimeout(() => {
+        const state = store.getState()
+        try {
+          const wishlistJson = JSON.stringify(state.wishlist?.ids || [])
+          if (wishlistJson !== lastWishlistRef.current) {
+            localStorage.setItem('tekpik_wishlist_ids', wishlistJson)
+            lastWishlistRef.current = wishlistJson
+          }
+
+          const productsList = Array.isArray(state.product?.list) ? state.product.list : []
+          const productsJson = JSON.stringify(productsList)
+          if (productsJson !== lastProductsRef.current) {
+            localStorage.setItem('tekpik_products', productsJson)
+            lastProductsRef.current = productsJson
+          }
+        } catch {
+          // Ignore storage write errors.
+        }
+      }, 250)
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribe()
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+      if (idleHandle !== null) {
+        if (typeof window !== 'undefined' && 'cancelIdleCallback' in window && typeof window.cancelIdleCallback === 'function') {
+          window.cancelIdleCallback(idleHandle)
+        } else {
+          clearTimeout(idleHandle)
+        }
+      }
+    }
   }, [])
 
   return <Provider store={storeRef.current}>{children}</Provider>

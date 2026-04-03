@@ -1,10 +1,9 @@
 import BannerCarousel from "@/components/BannerCarousel";
 import Hero from "@/components/Hero";
-import OurSpecs from "@/components/OurSpec";
 import Newsletter from "@/components/Newsletter";
 import LatestProducts from "@/components/LatestProducts";
 import BestSelling from "@/components/BestSelling";
-import BestPicksForYou from "@/components/BestPicksForYou";
+import PersonalizedTopFeed from "@/components/PersonalizedTopFeed";
 import PromoSection from "@/components/PromoSection";
 import PromoGridSection from "@/components/PromoGridSection";
 import { dbAdmin, timestampToJSON } from "@/lib/firebase-admin";
@@ -17,7 +16,6 @@ const DEFAULT_SECTIONS = [
     { id: 'latestProducts', type: 'core', label: 'Latest Products', enabled: true },
     { id: 'hero', type: 'core', label: 'Hero Grid', enabled: true },
     { id: 'bestSelling', type: 'core', label: 'Best Selling', enabled: true },
-    { id: 'specs', type: 'core', label: 'Store Highlights', enabled: true },
     { id: 'newsletter', type: 'core', label: 'Newsletter', enabled: true },
 ]
 
@@ -36,6 +34,7 @@ const mergeWithCoreSections = (sections = []) => {
     const extras = safeSections.filter(section => {
         if (!section || !section.id) return false
         if (CORE_SECTION_IDS.has(section.id)) return false
+        if (section.id === 'specs') return false
         return section.type !== 'promoGrid'
     })
 
@@ -96,39 +95,44 @@ export default async function Home() {
     const promoGridFromList = Array.isArray(rawSections)
         ? rawSections.find(section => section?.type === 'promoGrid')
         : null
-    const effectivePromoGrid = settings.promoGridSection || promoGridFromList
+    const rawPromoGrid = settings.promoGridSection || promoGridFromList
+    const isPromoGridEnabled = !(rawPromoGrid?.enabled === false || rawPromoGrid?.enabled === 'false')
+    const effectivePromoGrid = isPromoGridEnabled ? rawPromoGrid : null
     const heroSection = mergedSections.find(section => section?.id === 'hero')
     const isHeroEnabled = !(heroSection?.enabled === false || heroSection?.enabled === 'false')
     const sections = effectivePromoGrid
         ? [...mergedSections, effectivePromoGrid]
         : mergedSections
 
+    const heroBannersFromPromoGrid = effectivePromoGrid
+        ? [
+            {
+                imageUrl: effectivePromoGrid.bigImageUrl,
+                link: effectivePromoGrid.bigLink,
+                title: effectivePromoGrid.bigTitle,
+            },
+            {
+                imageUrl: effectivePromoGrid.topImageUrl,
+                link: effectivePromoGrid.topLink,
+                title: effectivePromoGrid.topTitle,
+            },
+            {
+                imageUrl: effectivePromoGrid.bottomImageUrl,
+                link: effectivePromoGrid.bottomLink,
+                title: effectivePromoGrid.bottomTitle,
+            },
+        ]
+        : null
+    const heroSettings = heroBannersFromPromoGrid
+        ? { ...settings, heroBanners: heroBannersFromPromoGrid }
+        : settings
+
     const renderSection = (section) => {
         const isEnabled = !(section?.enabled === false || section?.enabled === 'false')
         if (!isEnabled) return null
         if (section.type === 'promoGrid') {
-            // Keep Hero as the primary core module and prevent duplicate hero-like grids.
-            if (isHeroEnabled) return null
-            return (
-                <PromoGridSection
-                    key={section.id}
-                    bigTitle={section.bigTitle}
-                    bigCtaText={section.bigCtaText}
-                    bigLink={section.bigLink}
-                    bigImageUrl={section.bigImageUrl}
-                    bigBgColor={section.bigBgColor}
-                    topTitle={section.topTitle}
-                    topCtaText={section.topCtaText}
-                    topLink={section.topLink}
-                    topImageUrl={section.topImageUrl}
-                    topBgColor={section.topBgColor}
-                    bottomTitle={section.bottomTitle}
-                    bottomCtaText={section.bottomCtaText}
-                    bottomLink={section.bottomLink}
-                    bottomImageUrl={section.bottomImageUrl}
-                    bottomBgColor={section.bottomBgColor}
-                />
-            )
+            // Use promo grid data to drive the Hero layout instead of rendering a duplicate section.
+            return null
         }
         if (section.type === 'promo') {
             return (
@@ -147,15 +151,13 @@ export default async function Home() {
             case 'bannerCarousel':
                 return <BannerCarousel key={section.id} banners={banners} settings={settings} />
             case 'bestPicks':
-                return <BestPicksForYou key={section.id} />
+                return <PersonalizedTopFeed key={section.id} />
             case 'latestProducts':
                 return <LatestProducts key={section.id} />
             case 'hero':
-                return <Hero key={section.id} settings={settings} categories={categories} />
+                return <Hero key={section.id} settings={heroSettings} categories={categories} />
             case 'bestSelling':
                 return <BestSelling key={section.id} />
-            case 'specs':
-                return <OurSpecs key={section.id} />
             case 'newsletter':
                 return <Newsletter key={section.id} />
             default:

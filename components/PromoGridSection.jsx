@@ -7,18 +7,18 @@ function PromoCard({ title, ctaText, link, imageUrl, bgColor, compact = false })
 
     return (
         <div
-            className={`rounded-[2rem] sm:rounded-[2.6rem] border border-slate-200 px-6 sm:px-8 lg:px-10 py-6 sm:py-8 lg:py-10 ${bgClass} ${compact ? 'min-h-[190px] sm:min-h-[255px]' : 'min-h-[300px] sm:min-h-[420px] lg:min-h-[520px]'} relative overflow-hidden`}
+            className={`rounded-[1.8rem] sm:rounded-[2.6rem] border border-slate-200 px-5 sm:px-8 lg:px-10 py-6 sm:py-8 lg:py-10 ${bgClass} ${compact ? 'min-h-[170px] sm:min-h-[255px]' : 'min-h-[260px] sm:min-h-[420px] lg:min-h-[520px]'} relative overflow-hidden`}
             style={bgStyle}
         >
-            <div className="max-w-[72%] sm:max-w-[70%]">
-                <h3 className={`${compact ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-4xl sm:text-5xl lg:text-7xl'} font-serif font-semibold text-slate-900 leading-[0.95]`}>
+            <div className="max-w-[85%] sm:max-w-[70%]">
+                <h3 className={`${compact ? 'text-2xl sm:text-4xl lg:text-5xl' : 'text-3xl sm:text-5xl lg:text-7xl'} font-serif font-semibold text-slate-900 leading-[0.95]`}>
                     {title || 'Promo title'}
                 </h3>
 
                 {ctaText && link && (
                     <Link
                         href={link}
-                        className="inline-flex items-center gap-2 mt-6 sm:mt-10 text-[11px] sm:text-[12px] tracking-[0.25em] sm:tracking-[0.35em] uppercase font-mono text-slate-900"
+                        className="inline-flex items-center gap-2 mt-4 sm:mt-10 text-[10px] sm:text-[12px] tracking-[0.2em] sm:tracking-[0.35em] uppercase font-mono text-slate-900"
                     >
                         {ctaText}
                         <span aria-hidden="true">&rarr;</span>
@@ -67,7 +67,7 @@ export default function PromoGridSection({
                     bgColor={bigBgColor || 'bg-[#A9E6BD]'}
                 />
 
-                <div className="grid gap-8">
+                <div className="grid gap-4 sm:gap-8">
                     <PromoCard
                         title={topTitle || 'Best products'}
                         ctaText={topCtaText || 'View more'}

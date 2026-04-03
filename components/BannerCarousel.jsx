@@ -5,34 +5,45 @@ import Link from 'next/link'
 
 export default function BannerCarousel({ banners = [], settings = {} }) {
     const [currentIndex, setCurrentIndex] = useState(0)
+    const [isVisible, setIsVisible] = useState(true)
 
     const duration = settings.carouselDuration || 5000
     const animationType = settings.carouselAnimation || 'slide' // 'slide' or 'flip'
 
     useEffect(() => {
-        if (!banners?.length || banners.length <= 1) return
+        if (!banners?.length || banners.length <= 1 || !isVisible) return
+        if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return
+
         const timer = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % banners.length)
         }, duration)
         return () => clearInterval(timer)
-    }, [banners, duration])
+    }, [banners, duration, isVisible])
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return
+
+        const handleVisibility = () => setIsVisible(!document.hidden)
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => document.removeEventListener('visibilitychange', handleVisibility)
+    }, [])
 
     const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % banners.length)
     const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length)
 
     if (!banners || banners.length === 0) {
         return (
-            <div className="relative w-full max-w-7xl mx-auto my-8 aspect-[21/6] sm:aspect-[21/5] bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-medium border border-slate-200 shadow-sm">
+            <div className="relative w-full max-w-7xl mx-auto my-8 aspect-[16/9] sm:aspect-[21/6] lg:aspect-[21/5] bg-slate-100 rounded-none sm:rounded-xl flex items-center justify-center text-slate-400 font-medium border border-slate-200 shadow-sm">
                 No active promotional banners
             </div>
         )
     }
 
     return (
-        <div className="relative w-full max-w-7xl mx-auto mt-4 sm:mt-12 mb-8 overflow-hidden rounded-xl shadow-lg bg-slate-100 group [perspective:1000px]">
+        <div className="relative w-full max-w-7xl mx-auto mt-4 sm:mt-12 mb-8 overflow-hidden rounded-none sm:rounded-xl shadow-sm sm:shadow-lg bg-slate-100 group [perspective:1000px]">
             {/* Carousel Container */}
             <div 
-                className={`w-full aspect-[21/6] sm:aspect-[21/5] relative ${animationType === 'slide' ? 'flex transition-transform duration-700 ease-in-out' : ''}`}
+                className={`w-full aspect-[16/9] sm:aspect-[21/6] lg:aspect-[21/5] relative ${animationType === 'slide' ? 'flex transition-transform duration-700 ease-in-out' : ''}`}
                 style={animationType === 'slide' ? { transform: `translateX(-${currentIndex * 100}%)` } : {}}
             >
                 {banners.map((banner, index) => {
@@ -44,7 +55,7 @@ export default function BannerCarousel({ banners = [], settings = {} }) {
                                 <img 
                                     src={banner.imageUrl} 
                                     alt={banner.title || `Banner ${index + 1}`} 
-                                    className="w-full h-full object-cover sm:object-fill"
+                                    className="w-full h-full object-contain sm:object-fill bg-white"
                                 />
                             ) : (
                                 <div className="text-slate-400 font-medium">Image not available</div>
@@ -92,24 +103,24 @@ export default function BannerCarousel({ banners = [], settings = {} }) {
                 <>
                     <button 
                         onClick={prevSlide}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-white/30 hover:bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-800 shadow-sm opacity-0 group-hover:opacity-100 transition-all z-20"
+                        className="hidden sm:flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-white/70 sm:bg-white/30 hover:bg-white/90 sm:hover:bg-white/80 backdrop-blur-sm rounded-full items-center justify-center text-slate-800 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all z-20"
                     >
                         <ChevronLeft size={24} />
                     </button>
                     <button 
                         onClick={nextSlide}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-white/30 hover:bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-800 shadow-sm opacity-0 group-hover:opacity-100 transition-all z-20"
+                        className="hidden sm:flex absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-white/70 sm:bg-white/30 hover:bg-white/90 sm:hover:bg-white/80 backdrop-blur-sm rounded-full items-center justify-center text-slate-800 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all z-20"
                     >
                         <ChevronRight size={24} />
                     </button>
 
                     {/* Indicators */}
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                    <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
                         {banners.map((_, i) => (
                             <button
                                 key={i}
                                 onClick={() => setCurrentIndex(i)}
-                                className={`h-2 rounded-full transition-all ${currentIndex === i ? 'w-6 bg-white shadow-md' : 'w-2 bg-white/50 hover:bg-white/80'}`}
+                                className={`h-2 rounded-full transition-all ${currentIndex === i ? 'w-6 bg-white shadow-md' : 'w-2 bg-white/60 hover:bg-white/90'}`}
                             />
                         ))}
                     </div>

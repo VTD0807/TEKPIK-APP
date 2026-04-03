@@ -37,7 +37,7 @@ export default async function ShopPage({ searchParams }) {
     }
 
     return (
-        <div className="min-h-[70vh] mx-6">
+        <div className="min-h-[70vh] px-3 sm:px-6">
             <div className="max-w-7xl mx-auto">
                 <div className="my-6">
                     <Link href="/shop" className="text-2xl text-slate-500 flex items-center gap-2 hover:text-slate-700 transition group">
@@ -51,7 +51,7 @@ export default async function ShopPage({ searchParams }) {
                     )}
                 </div>
 
-                <div className="grid grid-cols-2 sm:flex flex-wrap gap-6 xl:gap-12 mx-auto mb-32">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mx-auto mb-20 sm:mb-32">
                     {hasProducts ? (
                         products.map((product) => (
                             <ProductCard key={product.id} product={product} />

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { buildProductFeatureVector } from '@/lib/recommendation-features'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,6 +88,12 @@ export async function POST(req) {
 
         const docRef = await dbAdmin.collection('products').add(newProduct)
         const docSnap = await docRef.get()
+
+        await dbAdmin.collection('analytics_product_feature_vectors').doc(docRef.id).set({
+            productId: docRef.id,
+            features: buildProductFeatureVector({ id: docRef.id, ...newProduct }),
+            updatedAt: now,
+        }, { merge: true })
         
         const createdProduct = {
             id: docSnap.id,

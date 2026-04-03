@@ -10,7 +10,7 @@ export default function WishlistPage() {
     const saved = allProducts.filter(p => wishlistIds.includes(p.id))
 
     return (
-        <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-6">
             <div className="flex items-center gap-2 text-red-500">
                 <Heart size={22} fill="currentColor" />
                 <h1 className="text-2xl font-semibold text-slate-800">Your Wishlist</h1>
@@ -25,7 +25,7 @@ export default function WishlistPage() {
                     </Link>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:flex flex-wrap gap-6 xl:gap-10">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-10">
                     {saved.map(p => <ProductCard key={p.id} product={p} />)}
                 </div>
             )}

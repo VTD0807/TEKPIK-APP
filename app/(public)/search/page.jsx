@@ -12,13 +12,16 @@ function SearchContent() {
 
     const results = q
         ? products.filter(p =>
-            (p.title || p.name).toLowerCase().includes(q.toLowerCase()) ||
-            p.description?.toLowerCase().includes(q.toLowerCase())
+            (p.title || p.name || '').toLowerCase().includes(q.toLowerCase()) ||
+            p.description?.toLowerCase().includes(q.toLowerCase()) ||
+            p.brand?.toLowerCase().includes(q.toLowerCase()) ||
+            p.categories?.name?.toLowerCase().includes(q.toLowerCase()) ||
+            (Array.isArray(p.tags) && p.tags.some(tag => tag.toLowerCase().includes(q.toLowerCase())))
         )
         : []
 
     return (
-        <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-6">
             <div className="flex items-center gap-2 text-slate-600">
                 <Search size={20} />
                 <h1 className="text-xl font-semibold text-slate-800">
@@ -34,7 +37,7 @@ function SearchContent() {
             )}
 
             {results.length > 0 && (
-                <div className="grid grid-cols-2 sm:flex flex-wrap gap-6 xl:gap-10">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-10">
                     {results.map(p => <ProductCard key={p.id} product={p} />)}
                 </div>
             )}

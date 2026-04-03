@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { buildProductFeatureVector } from '@/lib/recommendation-features'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,12 @@ export async function PUT(req, { params }) {
 
         await dbAdmin.collection('products').doc(id).update(updateData)
         const docSnap = await dbAdmin.collection('products').doc(id).get()
+
+        await dbAdmin.collection('analytics_product_feature_vectors').doc(id).set({
+            productId: id,
+            features: buildProductFeatureVector({ id, ...docSnap.data() }),
+            updatedAt: new Date(),
+        }, { merge: true })
         
         let product = { id: docSnap.id, ...docSnap.data() }
         product.createdAt = timestampToJSON(product.createdAt)
@@ -70,6 +77,7 @@ export async function DELETE(req, { params }) {
 
     try {
         await dbAdmin.collection('products').doc(id).delete()
+        await dbAdmin.collection('analytics_product_feature_vectors').doc(id).delete().catch(() => {})
         return NextResponse.json({ success: true })
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })

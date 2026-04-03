@@ -17,7 +17,7 @@ export default function AiAnalysis({ analysis }) {
 
     return (
         <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2 text-slate-900 font-semibold">
                     <Stars size={18} />
                     AI Analysis

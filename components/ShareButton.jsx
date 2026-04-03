@@ -2,7 +2,7 @@
 import { Share } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 
-export default function ShareButton({ title }) {
+export default function ShareButton({ title, className = '' }) {
     const handleShare = async () => {
         const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
         try {
@@ -20,11 +20,11 @@ export default function ShareButton({ title }) {
     return (
         <button
             onClick={handleShare}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition"
+            className={`inline-flex items-center justify-center gap-2 min-w-0 px-4 py-2.5 rounded-full border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition ${className}`}
             aria-label="Share product"
         >
             <Share size={15} />
-            <span>Share</span>
+            <span className="truncate">Share</span>
         </button>
     )
 }

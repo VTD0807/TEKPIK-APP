@@ -27,11 +27,14 @@ const ProductImage = ({ src, alt, className }) => {
 }
 
 const ScoreBadge = ({ score }) => {
-    if (!score) return null
-    const color = score >= 8 ? 'bg-green-500' : score >= 6 ? 'bg-amber-500' : 'bg-red-500'
+    if (typeof score !== 'number' || !Number.isFinite(score)) return null
     return (
-        <span className={`absolute top-2 right-2 ${color} text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow`}>
-            {score}
+        <span className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center">
+            <span className="absolute inset-0 rounded-full bg-purple-500/15 blur-[2px]" />
+            <span className="absolute inset-0 rounded-full ring-1 ring-purple-400/60" />
+            <span className="relative bg-white/70 text-purple-700 text-[11px] font-semibold w-7 h-7 rounded-full flex items-center justify-center shadow-sm" title="AI Score">
+                {Math.round(score)}
+            </span>
         </span>
     )
 }
@@ -51,37 +54,43 @@ const ProductCard = ({ product }) => {
         })
     }
 
-    const rating = product.reviews?.length
-        ? Math.round(product.reviews.reduce((a, r) => a + r.rating, 0) / product.reviews.length)
-        : product.amazonRating || 0
+    const rating = typeof product.reviewSummary?.averageRating === 'number'
+        ? Math.round(product.reviewSummary.averageRating)
+        : product.reviews?.length
+            ? Math.round(product.reviews.reduce((a, r) => a + r.rating, 0) / product.reviews.length)
+            : product.amazonRating || 0
+    const reviewCount = product.reviewSummary?.count ?? product.reviews?.length ?? 0
 
     const discount = product.discount || (product.originalPrice && product.price
         ? Math.round((1 - product.price / product.originalPrice) * 100)
         : 0)
 
     const imgSrc = product.imageUrls?.[0] || product.images?.[0] || product.image_urls?.[0]
+    const aiScore = typeof product.ai_analysis?.score === 'number'
+        ? product.ai_analysis.score
+        : (typeof product.aiAnalysis?.score === 'number' ? product.aiAnalysis.score : null)
 
     return (
-        <div className="group relative max-xl:mx-auto flex flex-col w-full sm:w-auto">
+        <div className="group relative flex flex-col w-full min-w-0">
             {/* Image */}
             <Link href={`/products/${product.id}`} className="block">
-                <div className="relative bg-[#F5F5F5] h-44 w-full sm:w-60 sm:h-64 rounded-lg flex items-center justify-center overflow-hidden">
+                <div className="relative bg-[#F5F5F5] h-32 sm:h-64 w-full rounded-lg flex items-center justify-center overflow-hidden">
                     <ProductImage
                         src={imgSrc}
                         alt={product.title || product.name}
-                        className="max-h-32 sm:max-h-44 w-auto group-hover:scale-110 transition duration-300 object-contain"
+                        className="max-h-24 sm:max-h-44 w-auto group-hover:scale-110 transition duration-300 object-contain"
                     />
                     {discount > 0 && (
                         <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
                             -{discount}%
                         </span>
                     )}
-                    <ScoreBadge score={product.aiAnalysis?.score || product.ai_analysis?.score} />
+                    <ScoreBadge score={aiScore} />
                 </div>
             </Link>
 
             {/* Info */}
-            <div className="flex justify-between gap-2 text-sm text-slate-800 pt-2 sm:max-w-60">
+            <div className="flex justify-between gap-2 text-xs sm:text-sm text-slate-800 pt-2">
                 <div className="flex-1 min-w-0">
                     <Link href={`/products/${product.id}`}>
                         <p className="truncate hover:text-indigo-600 transition">{product.title || product.name}</p>
@@ -93,6 +102,7 @@ const ProductCard = ({ product }) => {
                                     ? <StarFill key={i} size={12} className="text-emerald-500" />
                                     : <Star key={i} size={12} className="text-slate-300" />
                             ))}
+                            {reviewCount > 0 && <span className="ml-1 text-[11px] text-slate-400">({reviewCount})</span>}
                         </div>
                     )}
                 </div>
@@ -105,13 +115,13 @@ const ProductCard = ({ product }) => {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 mt-2 sm:max-w-60">
+            <div className="flex items-center gap-1.5 mt-2">
                 <a
                     href={product.affiliateUrl || product.affiliate_url || '#'}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
                     onClick={handleAmazonClick}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-[11px] sm:text-xs bg-amber-400 hover:bg-amber-500 transition text-slate-900 font-semibold py-2 sm:py-1.5 rounded-full"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1 text-[10px] sm:text-xs bg-amber-400 hover:bg-amber-500 transition text-slate-900 font-semibold py-2 sm:py-1.5 rounded-full"
                 >
                     <BoxArrowUpRight size={12} />
                     View on Amazon
@@ -124,7 +134,7 @@ const ProductCard = ({ product }) => {
                             source: 'product_card',
                         })
                     }}
-                    className={`p-1.5 rounded-full border transition ${isWishlisted ? 'bg-red-50 border-red-300' : 'bg-white border-slate-300 hover:border-red-300'}`}
+                    className={`p-1.5 rounded-full border transition shrink-0 ${isWishlisted ? 'bg-red-50 border-red-300' : 'bg-white border-slate-300 hover:border-red-300'}`}
                     aria-label="Toggle wishlist"
                     title={isWishlisted ? 'Saved to wishlist' : 'Save to wishlist'}
                 >

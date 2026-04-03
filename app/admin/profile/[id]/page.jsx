@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Shield, Person, Star, Heart, BoxSeam, BoxArrowUpRight, Calendar, Envelope } from 'react-bootstrap-icons'
+import { ArrowLeft, Shield, Person, Star, Heart, BoxSeam, BoxArrowUpRight, Calendar, Envelope, Cpu, GeoAlt } from 'react-bootstrap-icons'
 import Link from 'next/link'
 
 export default function AdminUserProfile() {
@@ -50,7 +50,7 @@ export default function AdminUserProfile() {
         )
     }
 
-    const { user, reviews, wishlists } = data
+    const { user, reviews, wishlists, analytics } = data
 
     return (
         <div className="text-slate-600 space-y-6 pb-20 max-w-4xl">
@@ -80,7 +80,7 @@ export default function AdminUserProfile() {
                     </div>
                     <div className="flex items-center gap-4 flex-wrap text-sm text-slate-500">
                         <span className="flex items-center gap-1.5"><Envelope size={13} /> {user.email}</span>
-                        <span className="flex items-center gap-1.5"><Calendar size={13} /> Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <span className="flex items-center gap-1.5"><Calendar size={13} /> Joined {new Date(user.createdAt || user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </div>
                 </div>
                 <div className="flex gap-4 sm:gap-6 text-center">
@@ -91,6 +91,70 @@ export default function AdminUserProfile() {
                     <div>
                         <p className="text-2xl font-bold text-slate-800">{wishlists?.length || 0}</p>
                         <p className="text-[11px] text-slate-400 uppercase tracking-wider">Wishlisted</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm space-y-4">
+                <div className="flex items-center gap-2">
+                    <Cpu size={15} className="text-slate-500" />
+                    <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Device Identity</h2>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                    <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 space-y-1">
+                        <p className="text-xs text-slate-400 uppercase tracking-wider">Primary Device ID</p>
+                        <p className="font-mono text-slate-800 break-all">{user.deviceId || '—'}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 space-y-1">
+                        <p className="text-xs text-slate-400 uppercase tracking-wider">Known Device IDs</p>
+                        <p className="font-mono text-slate-800 break-all">{Array.isArray(user.deviceIds) && user.deviceIds.length > 0 ? user.deviceIds.join(', ') : '—'}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm space-y-5">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <GeoAlt size={15} className="text-slate-500" />
+                        <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Location & Device Analytics</h2>
+                    </div>
+                    <p className="text-sm text-slate-400 mt-1">Latest IP-based location and device data captured from user activity.</p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <AnalyticsCard label="Total Visits" value={analytics?.totalVisits || 0} />
+                    <AnalyticsCard label="Top Phone" value={analytics?.topPhones?.[0]?.name || '—'} />
+                    <AnalyticsCard label="Top Browser" value={analytics?.topBrowsers?.[0]?.name || '—'} />
+                    <AnalyticsCard label="Top OS" value={analytics?.topOs?.[0]?.name || '—'} />
+                </div>
+
+                <div className="grid lg:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-slate-700">India Region Map</h3>
+                        <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-sky-50 to-white p-4 min-h-[280px] flex flex-col justify-center">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {(analytics?.topRegions || []).length > 0 ? analytics.topRegions.map((item, index) => (
+                                    <div key={`${item.name}-${index}`} className="rounded-xl border border-slate-200 bg-white/80 p-3">
+                                        <p className="text-[10px] uppercase tracking-wider text-slate-400 truncate">{item.name}</p>
+                                        <p className="text-lg font-bold text-slate-800">{item.count}</p>
+                                    </div>
+                                )) : <p className="text-sm text-slate-400">No region analytics captured yet.</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-slate-700">Device / Location Details</h3>
+                        <div className="space-y-3">
+                            <InfoRow label="Last Known IP" value={user.lastKnownIp || '—'} />
+                            <InfoRow label="Country" value={user.lastKnownCountry || '—'} />
+                            <InfoRow label="Region" value={user.lastKnownRegion || '—'} />
+                            <InfoRow label="City" value={user.lastKnownCity || '—'} />
+                            <InfoRow label="Phone Model" value={user.lastKnownPhoneModel || analytics?.topPhones?.[0]?.name || '—'} />
+                            <InfoRow label="Browser" value={user.lastKnownBrowser || analytics?.topBrowsers?.[0]?.name || '—'} />
+                            <InfoRow label="Operating System" value={user.lastKnownOs || analytics?.topOs?.[0]?.name || '—'} />
+                            <InfoRow label="Device Type" value={user.lastKnownDeviceType || '—'} />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -179,6 +243,24 @@ export default function AdminUserProfile() {
                     )}
                 </div>
             )}
+        </div>
+    )
+}
+
+function AnalyticsCard({ label, value }) {
+    return (
+        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-[10px] uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="mt-1 text-base font-semibold text-slate-800 break-words">{String(value)}</p>
+        </div>
+    )
+}
+
+function InfoRow({ label, value }) {
+    return (
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+            <p className="text-xs uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="text-sm font-medium text-slate-800 text-right break-all">{value}</p>
         </div>
     )
 }

@@ -24,7 +24,7 @@ export default function StoreShop() {
     }, [])
 
     return !loading ? (
-        <div className="min-h-[70vh] mx-6">
+        <div className="min-h-[70vh] px-3 sm:px-6">
 
             {/* Store Info Banner */}
             {storeInfo && (
@@ -58,7 +58,7 @@ export default function StoreShop() {
             {/* Products */}
             <div className=" max-w-7xl mx-auto mb-40">
                 <h1 className="text-2xl mt-12">Shop <span className="text-slate-800 font-medium">Products</span></h1>
-                <div className="mt-5 grid grid-cols-2 sm:flex flex-wrap gap-6 xl:gap-12 mx-auto">
+                <div className="mt-5 grid grid-cols-1 min-[460px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mx-auto">
                     {products.map((product) => <ProductCard key={product.id} product={product} />)}
                 </div>
             </div>

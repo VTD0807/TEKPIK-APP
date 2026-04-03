@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
 import OrdersAreaChart from '@/components/OrdersAreaChart'
-import { Stars, Basket, Clock, Heart, Star, Plus, CheckSquare } from 'react-bootstrap-icons'
+import { Stars, Basket, Clock, Heart, Star, Plus, CheckSquare, Eye } from 'react-bootstrap-icons'
 import Link from 'next/link'
 
 export default function AdminDashboard() {
@@ -18,6 +18,8 @@ export default function AdminDashboard() {
                     pendingReviews: d.pendingReviews,
                     aiCoverage: d.aiCoverage,
                     wishlistSaves: d.wishlistSaves,
+                    uniqueVisitors: d.uniqueVisitors,
+                    uniquePageVisitors: d.uniquePageVisitors,
                     allOrders: [],
                     recentActivity: [
                         { type: 'review', text: 'New review submitted', time: 'just now' },
@@ -28,20 +30,23 @@ export default function AdminDashboard() {
             })
             .catch(() => {
                 // fallback to zeros if DB not connected yet
-                setData({ totalProducts: 0, pendingReviews: 0, aiCoverage: { analysed: 0, total: 0 }, wishlistSaves: 0, allOrders: [], recentActivity: [] })
+                setData({ totalProducts: 0, pendingReviews: 0, aiCoverage: { analysed: 0, total: 0 }, wishlistSaves: 0, uniqueVisitors: 0, uniquePageVisitors: 0, allOrders: [], recentActivity: [] })
                 setLoading(false)
             })
     }, [])
 
     if (loading) return <Loading />
 
-    const aiPct = Math.round((data.aiCoverage.analysed / data.aiCoverage.total) * 100)
+    const aiTotal = Number(data?.aiCoverage?.total) || 0
+    const aiAnalysed = Number(data?.aiCoverage?.analysed) || 0
+    const aiPct = aiTotal > 0 ? Math.round((aiAnalysed / aiTotal) * 100) : 0
 
     const statCards = [
         { title: 'Total Products', value: data.totalProducts, icon: Basket, sub: '+2 this week', color: 'text-slate-900 bg-slate-100' },
         { title: 'Pending Reviews', value: data.pendingReviews, icon: Clock, sub: data.pendingReviews > 0 ? 'Needs attention' : 'All clear', color: data.pendingReviews > 0 ? 'text-slate-800 bg-slate-100' : 'text-slate-800 bg-slate-100' },
         { title: 'AI Coverage', value: `${data.aiCoverage.analysed}/${data.aiCoverage.total}`, icon: Stars, sub: `${aiPct}% analysed`, color: 'text-slate-900 bg-slate-100' },
         { title: 'Wishlist Saves', value: data.wishlistSaves, icon: Heart, sub: '+5 this week', color: 'text-slate-700 bg-slate-100' },
+        { title: 'Unique Visitors', value: data.uniqueVisitors || 0, icon: Eye, sub: `${data.uniquePageVisitors || 0} strict unique page views`, color: 'text-slate-800 bg-slate-100' },
     ]
 
     const activityIcons = { review: Star, product: Basket, ai: Stars, wishlist: Heart }
@@ -51,7 +56,7 @@ export default function AdminDashboard() {
             <h1 className="text-2xl text-slate-500">Admin <span className="text-slate-800 font-medium">Dashboard</span></h1>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 {statCards.map((card, i) => (
                     <div key={i} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm space-y-2">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.color}`}>
@@ -118,6 +123,9 @@ export default function AdminDashboard() {
                     </Link>
                     <Link href="/admin/ai-analysis" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
                         <Stars size={14} /> Run AI Analysis
+                    </Link>
+                    <Link href="/admin/data" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                        <Eye size={14} /> Product Analytics
                     </Link>
                 </div>
             </div>

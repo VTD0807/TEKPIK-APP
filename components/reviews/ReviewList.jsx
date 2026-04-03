@@ -22,6 +22,7 @@ export default function ReviewList({ reviews = [], productId }) {
     const [localReviews, setLocalReviews] = useState(reviews)
     const [selectedReview, setSelectedReview] = useState(null)
     const [selectedMedia, setSelectedMedia] = useState('')
+    const [showAll, setShowAll] = useState(false)
 
     useEffect(() => {
         setLocalReviews(reviews)
@@ -40,6 +41,7 @@ export default function ReviewList({ reviews = [], productId }) {
     const avg = localReviews.length
         ? (localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length).toFixed(1)
         : null
+    const visibleReviews = showAll ? sorted : sorted.slice(0, 3)
 
     const applyActionResult = (reviewId, payload) => {
         setLocalReviews(prev => prev.map(r => r.id === reviewId
@@ -89,14 +91,19 @@ export default function ReviewList({ reviews = [], productId }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <p className="font-semibold text-slate-800">
                         Community Reviews {avg && <span className="text-amber-500 ml-1"> {avg}</span>}
                         <span className="text-slate-400 font-normal text-sm ml-2">({localReviews.length})</span>
                     </p>
+                    {localReviews.length > 3 && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                            Showing {showAll ? localReviews.length : 3} of {localReviews.length}
+                        </p>
+                    )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <select value={sort} onChange={e => setSort(e.target.value)} className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 outline-none">
                         {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -119,8 +126,8 @@ export default function ReviewList({ reviews = [], productId }) {
             {sorted.length === 0 ? (
                 <div className="text-center py-10 text-slate-400 text-sm">No reviews yet. Be the first!</div>
             ) : (
-                <div className="space-y-3">
-                    {sorted.map(r => (
+                <div className="space-y-2">
+                    {visibleReviews.map(r => (
                         <ReviewCard
                             key={r.id}
                             review={r}
@@ -134,6 +141,17 @@ export default function ReviewList({ reviews = [], productId }) {
                             }}
                         />
                     ))}
+                </div>
+            )}
+            {sorted.length > 3 && (
+                <div className="pt-1">
+                    <button
+                        type="button"
+                        onClick={() => setShowAll(v => !v)}
+                        className="text-xs text-slate-600 hover:text-slate-800 underline underline-offset-4"
+                    >
+                        {showAll ? 'Show less' : 'View all reviews'}
+                    </button>
                 </div>
             )}
 

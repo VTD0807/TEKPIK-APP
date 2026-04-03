@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Save, ArrowRepeat, Plus, X, Image } from 'react-bootstrap-icons'
+import { ArrowLeft, Save, ArrowRepeat, Plus, X, Image, ShieldCheck, PersonCheck, Flag, Clock } from 'react-bootstrap-icons'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -20,6 +20,12 @@ export default function CMSProductEditor() {
         categoryId: '', tags: '', isFeatured: false, isActive: true,
     })
     const [imageUrls, setImageUrls] = useState([''])
+    const [moderation, setModeration] = useState({
+        status: 'Draft',
+        reviewer: '',
+        priority: 'Normal',
+        notes: '',
+    })
 
     useEffect(() => {
         fetch('/api/admin/categories')
@@ -116,10 +122,17 @@ export default function CMSProductEditor() {
 
     const inputClass = "w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-slate-400 focus:ring-2 focus:ring-black/10 transition"
     const canViewAffiliate = !!form.affiliateUrl
+    const descriptionPlain = (form.description || '').replace(/<[^>]*>/g, '').trim()
+    const imageCount = imageUrls.filter(Boolean).length
+    const titleLength = (form.title || '').trim().length
+    const isPriceValid = Number(form.price) > 0
+    const isOriginalValid = !form.originalPrice || Number(form.originalPrice) >= Number(form.price || 0)
 
     return (
-        <div className="max-w-3xl space-y-6">
-            <div className="flex items-center gap-3">
+        <div className="max-w-6xl space-y-6">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+                <div className="space-y-6">
+                    <div className="flex items-center gap-3">
                 <Link href="/cms/products" className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
                     <ArrowLeft size={18} />
                 </Link>
@@ -294,6 +307,130 @@ export default function CMSProductEditor() {
                     </Link>
                 </div>
             </form>
+                </div>
+
+                <aside className="space-y-6 lg:sticky lg:top-6">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                <ShieldCheck size={14} className="text-slate-900" />
+                                Moderation
+                            </h3>
+                            <span className={`text-[11px] px-2 py-1 rounded-full border ${form.isActive ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 'border-slate-200 text-slate-500 bg-slate-50'}`}>
+                                {form.isActive ? 'Active' : 'Hidden'}
+                            </span>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Status</label>
+                            <select
+                                value={moderation.status}
+                                onChange={e => setModeration(m => ({ ...m, status: e.target.value }))}
+                                className={`${inputClass} bg-white`}
+                            >
+                                <option>Draft</option>
+                                <option>In Review</option>
+                                <option>Approved</option>
+                                <option>Published</option>
+                                <option>Archived</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Reviewer</label>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                                    <PersonCheck size={16} />
+                                </span>
+                                <input
+                                    value={moderation.reviewer}
+                                    onChange={e => setModeration(m => ({ ...m, reviewer: e.target.value }))}
+                                    placeholder="Assign reviewer"
+                                    className={inputClass}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Priority</label>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                                {['Low', 'Normal', 'High'].map(level => (
+                                    <button
+                                        type="button"
+                                        key={level}
+                                        onClick={() => setModeration(m => ({ ...m, priority: level }))}
+                                        className={`px-3 py-2 rounded-xl border transition ${moderation.priority === level ? 'border-slate-900 text-slate-900 bg-slate-50' : 'border-slate-200 text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {level}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Internal Notes</label>
+                            <textarea
+                                rows={3}
+                                value={moderation.notes}
+                                onChange={e => setModeration(m => ({ ...m, notes: e.target.value }))}
+                                placeholder="Add review notes..."
+                                className={`${inputClass} resize-none`}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                        <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                            <Flag size={14} className="text-slate-900" />
+                            Quality Checks
+                        </h3>
+                        <div className="space-y-3 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">Title length</span>
+                                <span className={`${titleLength >= 20 ? 'text-emerald-700' : 'text-amber-600'}`}>{titleLength} chars</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">Description</span>
+                                <span className={`${descriptionPlain.length >= 120 ? 'text-emerald-700' : 'text-amber-600'}`}>{descriptionPlain.length} chars</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">Images</span>
+                                <span className={`${imageCount >= 2 ? 'text-emerald-700' : 'text-amber-600'}`}>{imageCount} added</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">Price valid</span>
+                                <span className={`${isPriceValid ? 'text-emerald-700' : 'text-rose-600'}`}>{isPriceValid ? 'Yes' : 'No'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">Original &gt;= Price</span>
+                                <span className={`${isOriginalValid ? 'text-emerald-700' : 'text-rose-600'}`}>{isOriginalValid ? 'OK' : 'Fix'}</span>
+                            </div>
+                        </div>
+                        <button type="button" className="w-full mt-2 px-4 py-2.5 text-sm rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition">
+                            Run checklist
+                        </button>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                        <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                            <Clock size={14} className="text-slate-900" />
+                            Recent Activity
+                        </h3>
+                        <div className="space-y-3 text-xs text-slate-500">
+                            <div className="flex items-start gap-2">
+                                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                                <div>
+                                    <p className="text-slate-600">Listing opened for edit</p>
+                                    <p className="text-[11px] text-slate-400">Just now</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <span className="mt-1 h-2 w-2 rounded-full bg-slate-300" />
+                                <div>
+                                    <p className="text-slate-600">Last publish check passed</p>
+                                    <p className="text-[11px] text-slate-400">1 day ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
 
             <style jsx>{`
                 .ai-summary-roaming {

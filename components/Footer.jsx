@@ -28,8 +28,8 @@ const Footer = () => {
                 { text: "Affiliate Disclosure", path: '/disclosure', icon: null },
                 { text: "Privacy Policy", path: '/help', icon: null },
                 { text: "Help & Terms", path: '/help', icon: null },
-                { text: "About", path: '/', icon: null },
-                { text: "Contact", path: '/', icon: null },
+                { text: "About", path: '/about', icon: null },
+                { text: "Contact", path: '/help', icon: null },
             ]
         },
         {
@@ -50,7 +50,7 @@ const Footer = () => {
     ]
 
     return (
-        <footer className="mx-6 bg-white">
+        <footer className="mx-4 sm:mx-6 bg-white">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row items-start justify-between gap-10 py-10 border-b border-slate-500/30 text-slate-500">
                     <div>
@@ -66,7 +66,7 @@ const Footer = () => {
                             ))}
                         </div>
                     </div>
-                    <div className="flex flex-wrap justify-between w-full md:w-[45%] gap-5 text-sm ">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full md:w-[45%] text-sm">
                         {linkSections.map((section, index) => (
                             <div key={index}>
                                 <h3 className="font-medium text-slate-700 md:mb-5 mb-3">{section.title}</h3>

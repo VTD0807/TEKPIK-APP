@@ -12,8 +12,28 @@
 }
 
 @layer base {
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        background: #ffffff;
+    }
+
     button {
         cursor: pointer;
+    }
+
+    a,
+    button {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    img,
+    svg,
+    video,
+    canvas {
+        max-width: 100%;
     }
 }
 

@@ -16,7 +16,7 @@ export default function AiPicksPage() {
     const display = aiProducts.length > 0 ? aiProducts : products
 
     return (
-        <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-6">
             <div className="flex items-center gap-2 text-indigo-700">
                 <Stars size={22} />
                 <h1 className="text-2xl font-semibold">AI Picks</h1>
@@ -30,7 +30,7 @@ export default function AiPicksPage() {
             {display.length === 0 ? (
                 <div className="text-center py-20 text-slate-400">No AI-analysed products yet.</div>
             ) : (
-                <div className="grid grid-cols-2 sm:flex flex-wrap gap-6 xl:gap-10">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-10">
                     {display.map(p => <ProductCard key={p.id} product={p} />)}
                 </div>
             )}

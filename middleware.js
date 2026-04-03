@@ -4,7 +4,7 @@ export function middleware(request) {
     const { pathname } = request.nextUrl
     const token = request.cookies.get('fb-token')?.value
 
-    if ((pathname.startsWith('/admin') || pathname.startsWith('/cms')) && !token) {
+    if ((pathname.startsWith('/admin') || pathname.startsWith('/cms') || pathname.startsWith('/store')) && !token) {
         const loginUrl = new URL('/login', request.url)
         loginUrl.searchParams.set('redirect', pathname)
         return NextResponse.redirect(loginUrl)
@@ -14,5 +14,5 @@ export function middleware(request) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*', '/cms/:path*'],
+    matcher: ['/admin/:path*', '/cms/:path*', '/store/:path*'],
 }

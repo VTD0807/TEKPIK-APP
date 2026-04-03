@@ -1,97 +1,157 @@
 import React from 'react'
-import { cookies } from 'next/headers'
 import Title from './Title'
 import ProductCard from './ProductCard'
-import { dbAdmin, authAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
+import { dbAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
+import { getCached } from '@/lib/server-cache'
+
+const MAX_PRODUCTS = 80
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
+const toNumber = (value, fallback = 0) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const valueScoreMap = [
+    ['excellent', 10],
+    ['very good', 9],
+    ['great', 9],
+    ['high', 8],
+    ['good', 7],
+    ['fair', 5],
+    ['average', 5],
+    ['medium', 4],
+    ['low', 2],
+    ['poor', 1],
+]
+
+const getValueScore = (value) => {
+    const normalized = String(value || '').toLowerCase()
+    const matched = valueScoreMap.find(([label]) => normalized.includes(label))
+    return matched ? matched[1] : 5
+}
+
+const calculateOpinionScore = (reviews) => {
+    if (!reviews.length) return 0
+
+    const reviewCount = reviews.length
+    const totalRating = reviews.reduce((sum, review) => sum + toNumber(review.rating), 0)
+    const averageRating = totalRating / reviewCount
+    const helpfulVotes = reviews.reduce((sum, review) => {
+        const liked = Array.isArray(review.likedBy) ? review.likedBy.length : 0
+        const disliked = Array.isArray(review.dislikedBy) ? review.dislikedBy.length : 0
+        return sum + toNumber(review.helpful) + liked - disliked
+    }, 0)
+
+    const ratingScore = (averageRating / 5) * 100
+    const volumeScore = clamp((Math.log10(reviewCount + 1) / Math.log10(51)) * 100, 0, 100)
+    const helpfulScore = clamp((helpfulVotes / Math.max(reviewCount * 3, 1)) * 100, 0, 100)
+
+    return Math.round((ratingScore * 0.6) + (volumeScore * 0.2) + (helpfulScore * 0.2))
+}
+
+const calculateAnalysisScore = (analysis) => {
+    if (!analysis) return 0
+
+    const score = clamp(toNumber(analysis.score), 0, 10) * 10
+    const value = getValueScore(analysis.valueForMoney || analysis.value_for_money) * 10
+    const verdict = String(analysis.verdict || '').toLowerCase()
+    const verdictBonus = verdict.includes('recommend') || verdict.includes('best') ? 6 : verdict.includes('good') ? 3 : 0
+
+    return Math.round((score * 0.7) + (value * 0.2) + verdictBonus)
+}
 
 export default async function BestPicksForYou() {
-    // 1. Check if user is logged in
-    const cookieStore = await cookies()
-    const fbToken = cookieStore.get('fb-token')?.value
+    if (!dbAdmin) return null
 
-    if (!fbToken || !dbAdmin || !authAdmin) {
-        return null // Hide entirely
-    }
-
-    let userInterests = []
     let products = []
-    let errorMsg = null
 
     try {
-        // 2. Decode token to get UID
-        const decodedToken = await authAdmin.verifyIdToken(fbToken)
-        const uid = decodedToken.uid
+        const data = await getCached('best-picks:v1', 1000 * 60 * 5, async () => {
+            const [productsSnap, reviewsSnap, aiSnap, categoriesSnap] = await Promise.all([
+                dbAdmin.collection('products')
+                .where('isActive', '==', true)
+                .orderBy('createdAt', 'desc')
+                .limit(MAX_PRODUCTS)
+                .get(),
+                dbAdmin.collection('reviews').where('isApproved', '==', true).get(),
+                dbAdmin.collection('ai_analysis').get(),
+                dbAdmin.collection('categories').get(),
+            ])
 
-        // 3. Fetch User profile to get interests/measures
-        const userDoc = await dbAdmin.collection('users').doc(uid).get()
-        if (!userDoc.exists) return null
-
-        const userData = userDoc.data()
-        userInterests = userData.interests || [] 
-
-        // CRITICAL CONSTRAINT: Hide if exact measures haven't been analysed (empty array)
-        if (!Array.isArray(userInterests) || userInterests.length === 0) {
-            return null
-        }
-
-        // 4. Fetch Products and Match against Interests
-        // We fetch a decent pool of active products, then filter locally
-        // since Firestore doing a client-side 'array-contains-any' is limited to 10
-        const querySnap = await dbAdmin.collection('products')
-            .where('isActive', '==', true)
-            .orderBy('createdAt', 'desc')
-            .limit(50) 
-            .get()
-
-        const prodList = []
-        querySnap.forEach(doc => prodList.push(sanitizeFirestoreData({ id: doc.id, ...doc.data() })))
-
-        if (prodList.length > 0) {
-            // Get categories map to attach slugs
-            const catSnap = await dbAdmin.collection('categories').get()
             const catMap = {}
-            catSnap.forEach(doc => catMap[doc.id] = doc.data())
+            categoriesSnap.forEach(doc => {
+                catMap[doc.id] = doc.data()
+            })
 
-            // Filter products that match user interests via Tags or Category Name
-            const matchedProducts = prodList.filter(p => {
-                const catName = catMap[p.categoryId]?.name?.toLowerCase() || ''
-                const pTags = (p.tags || []).map(t => t.toLowerCase())
-                
-                return userInterests.some(interest => {
-                    const term = interest.toLowerCase()
-                    return catName.includes(term) || pTags.some(t => t.includes(term))
+            const reviewMap = new Map()
+            reviewsSnap.forEach(doc => {
+                const review = sanitizeFirestoreData({ id: doc.id, ...doc.data() })
+                const list = reviewMap.get(review.productId) || []
+                list.push(review)
+                reviewMap.set(review.productId, list)
+            })
+
+            const analysisMap = new Map()
+            aiSnap.forEach(doc => {
+                const analysis = sanitizeFirestoreData({ id: doc.id, ...doc.data() })
+                analysisMap.set(analysis.productId, analysis)
+            })
+
+            const rankedProducts = []
+            productsSnap.forEach(doc => {
+                const product = sanitizeFirestoreData({ id: doc.id, ...doc.data() })
+                const reviews = reviewMap.get(product.id) || []
+                const analysis = analysisMap.get(product.id) || null
+                const opinionScore = calculateOpinionScore(reviews)
+                const analysisScore = calculateAnalysisScore(analysis)
+                const hasSignals = opinionScore > 0 || analysisScore > 0
+
+                if (!hasSignals) return
+
+                const combinedScore = opinionScore > 0 && analysisScore > 0
+                    ? Math.round((opinionScore * 0.58) + (analysisScore * 0.42))
+                    : opinionScore || analysisScore
+
+                const reviewCount = reviews.length
+                const averageRating = reviewCount
+                    ? reviews.reduce((sum, review) => sum + toNumber(review.rating), 0) / reviewCount
+                    : 0
+
+                rankedProducts.push({
+                    ...product,
+                    reviewSummary: reviewCount > 0 ? { count: reviewCount, averageRating } : null,
+                    reviews,
+                    ai_analysis: analysis,
+                    categories: catMap[product.categoryId] ? { name: catMap[product.categoryId].name, slug: catMap[product.categoryId].slug } : null,
+                    _rankingScore: combinedScore,
                 })
             })
 
-            // Limit to top 4 recommendations
-            products = matchedProducts.slice(0, 4).map(p => ({
-                ...p,
-                categories: catMap[p.categoryId] ? { name: catMap[p.categoryId].name, slug: catMap[p.categoryId].slug } : null
-            }))
-        }
-        
+            return rankedProducts
+                .sort((a, b) => b._rankingScore - a._rankingScore)
+                .slice(0, 4)
+        })
+
+        products = data
     } catch (e) {
-        // Silently fail authentication issues and simply hide the section
         console.warn('BestPicksForYou error:', e.message)
         return null
     }
 
-    // Hide if no products matched their exact measures
     if (products.length === 0) {
         return null 
     }
 
     return (
-        <div className='px-6 my-20 max-w-6xl mx-auto'>
-            <div className="flex items-center gap-2 mb-2">
-                <div className="w-2.5 h-8 bg-black rounded-full"></div>
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Best Picks For You ✨</h2>
-                    <p className="text-sm text-slate-500 mt-0.5">Highly personalized selections based on your exact measures.</p>
-                </div>
+        <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-6xl mx-auto'>
+            <div className="mb-3">
+                <h2 className="text-xl font-semibold text-slate-800">Best Picks For You</h2>
+                <p className="text-sm text-slate-500 mt-1">Ranked using community opinion and AI analysis.</p>
             </div>
             
-            <div className='mt-8 grid grid-cols-2 sm:flex flex-wrap gap-6 justify-between'>
+            <div className='mt-6 sm:mt-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6'>
                 {products.map((product, index) => (
                     <ProductCard key={product.id || index} product={product} />
                 ))}
@@ -99,4 +159,5 @@ export default async function BestPicksForYou() {
         </div>
     )
 }
+
 

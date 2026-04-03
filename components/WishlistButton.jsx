@@ -20,11 +20,11 @@ export default function WishlistButton({ productId, className = '' }) {
     return (
         <button
             onClick={handleToggle}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition ${isWishlisted ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-300 text-slate-700 hover:border-red-300 hover:text-red-500'} ${className}`}
+            className={`inline-flex items-center justify-center gap-2 min-w-0 px-4 py-2.5 rounded-full border text-sm font-medium transition ${isWishlisted ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-300 text-slate-700 hover:border-red-300 hover:text-red-500'} ${className}`}
             aria-label={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
         >
             <HeartFill size={16} className={isWishlisted ? 'text-red-500' : 'text-slate-400'} />
-            <span>{isWishlisted ? 'Saved' : 'Save'}</span>
+            <span className="truncate">{isWishlisted ? 'Saved' : 'Save'}</span>
         </button>
     )
 }
