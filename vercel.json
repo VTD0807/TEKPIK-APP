@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/telegram-price-tracker",
-      "schedule": "0 */3 * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/price-history-sync",
-      "schedule": "30 15 * * *"
+      "schedule": "30 1 * * *"
     }
   ]
 }
