@@ -7,6 +7,7 @@ export default async function sitemap() {
     const staticPages = [
         '',
         '/shop',
+        '/ask-ai',
         '/ai-picks',
         '/about',
         '/help',

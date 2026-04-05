@@ -1,72 +1,39 @@
 'use client'
-import { ArrowRight, Star } from 'react-bootstrap-icons'
-import Image from "next/image"
-import Link from "next/link"
-import { useState } from "react"
-import { sanitizeDescriptionHtml } from '@/lib/description-html'
+import { ChevronDown, ChevronUp } from 'react-bootstrap-icons'
+import { useState } from 'react'
 
-const ProductDescription = ({ product }) => {
+export default function ProductDescription({ html }) {
+    const [expanded, setExpanded] = useState(false)
 
-    const [selectedTab, setSelectedTab] = useState('Description')
-    const descriptionHtml = sanitizeDescriptionHtml(product?.description)
+    if (!html) {
+        return <p className="text-slate-500 text-sm leading-relaxed break-words">No description available.</p>
+    }
 
     return (
-        <div className="my-18 text-sm text-slate-600">
-
-            {/* Tabs */}
-            <div className="flex border-b border-slate-200 mb-6 max-w-2xl">
-                {['Description', 'Reviews'].map((tab, index) => (
-                    <button className={`${tab === selectedTab ? 'border-b-[1.5px] font-semibold' : 'text-slate-400'} px-3 py-2 font-medium`} key={index} onClick={() => setSelectedTab(tab)}>
-                        {tab}
-                    </button>
-                ))}
-            </div>
-
-            {/* Description */}
-            {selectedTab === "Description" && (
-                descriptionHtml ? (
-                    <div
-                        className="max-w-xl [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1"
-                        dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                    />
+        <div className="space-y-2">
+            <div
+                className={`text-slate-600 text-sm leading-relaxed break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 transition-all ${
+                    expanded ? '' : 'line-clamp-4'
+                }`}
+                dangerouslySetInnerHTML={{ __html: html }}
+            />
+            <button
+                type="button"
+                onClick={() => setExpanded(!expanded)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition"
+            >
+                {expanded ? (
+                    <>
+                        <ChevronUp size={14} />
+                        Show Less
+                    </>
                 ) : (
-                    <p className="max-w-xl">No description available.</p>
-                )
-            )}
-
-            {/* Reviews */}
-            {selectedTab === "Reviews" && (
-                <div className="flex flex-col gap-3 mt-14">
-                    {product.rating?.map((item,index) => (
-                        <div key={index} className="flex gap-5 mb-10">
-                            <Image src={item.user.image} alt="" className="size-10 rounded-full" width={100} height={100} />
-                            <div>
-                                <div className="flex items-center" >
-                                    {Array(5).fill('').map((_, index) => (
-                                        <Star key={index} size={18} className='text-transparent mt-0.5' fill={item.rating >= index + 1 ? "#00C950" : "#D1D5DB"} />
-                                    ))}
-                                </div>
-                                <p className="text-sm max-w-lg my-4">{item.review}</p>
-                                <p className="font-medium text-slate-800">{item.user.name}</p>
-                                <p className="mt-3 font-light">{new Date(item.createdAt).toDateString()}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Store Page */}
-            {product.store && (
-                <div className="flex gap-3 mt-14">
-                    <Image src={product.store.logo} alt="" className="size-11 rounded-full ring ring-slate-400" width={100} height={100} />
-                    <div>
-                        <p className="font-medium text-slate-600">Product by {product.store.name}</p>
-                        <Link href={`/shop/${product.store.username}`} className="flex items-center gap-1.5 text-green-500"> view store <ArrowRight size={14} /></Link>
-                    </div>
-                </div>
-            )}
+                    <>
+                        <ChevronDown size={14} />
+                        Show More
+                    </>
+                )}
+            </button>
         </div>
     )
 }
-
-export default ProductDescription

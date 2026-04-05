@@ -1,0 +1,16 @@
+name = "tekpik-edge-cache"
+main = "edge-cache-worker.js"
+compatibility_date = "2026-04-04"
+workers_dev = true
+
+# Set this to your production zone route after first test deploy.
+# Example:
+# routes = [
+#   { pattern = "tekpik.in/*", zone_name = "tekpik.in" }
+# ]
+
+[observability]
+enabled = true
+
+[vars]
+APP_NAME = "TEKPIK"

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 export function middleware(request) {
     const { pathname } = request.nextUrl
     const token = request.cookies.get('fb-token')?.value
-    const isProtectedRoute = pathname.startsWith('/admin') || pathname.startsWith('/cms') || pathname.startsWith('/store')
+    const isProtectedRoute = pathname.startsWith('/admin') || pathname.startsWith('/cms') || pathname.startsWith('/store') || pathname.startsWith('/e')
     const isAuthRoute = pathname === '/login' || pathname === '/register' || pathname === '/signin' || pathname === '/sign-in'
 
     if (isProtectedRoute && !token) {
@@ -20,5 +20,5 @@ export function middleware(request) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*', '/cms/:path*', '/store/:path*', '/login', '/register', '/signin', '/sign-in'],
+    matcher: ['/admin/:path*', '/cms/:path*', '/store/:path*', '/e/:path*', '/login', '/register', '/signin', '/sign-in'],
 }

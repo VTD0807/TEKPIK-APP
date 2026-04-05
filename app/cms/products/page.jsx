@@ -2,14 +2,20 @@
 import { useEffect, useState } from 'react'
 import CMSDataTable from '@/components/cms/CMSDataTable'
 import CMSModal from '@/components/cms/CMSModal'
-import { Plus, PencilSquare, Trash, Stars, BoxArrowUpRight, ToggleOff, ToggleOn } from 'react-bootstrap-icons'
+import { Plus, PencilSquare, Trash, Stars, BoxArrowUpRight, ToggleOff, ToggleOn, Upload, FiletypeCsv, ArrowRepeat } from 'react-bootstrap-icons'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/lib/auth-context'
 
 export default function CMSProducts() {
+    const { user } = useAuth()
     const [products, setProducts] = useState([])
     const [loading, setLoading] = useState(true)
     const [deleteTarget, setDeleteTarget] = useState(null)
+    const [importOpen, setImportOpen] = useState(false)
+    const [importFile, setImportFile] = useState(null)
+    const [importing, setImporting] = useState(false)
+    const [importResult, setImportResult] = useState(null)
 
     const fetchProducts = () => {
         fetch('/api/admin/products')
@@ -49,6 +55,44 @@ export default function CMSProducts() {
             toast.error(e.message, { id: toastId })
         } finally {
             setDeleteTarget(null)
+        }
+    }
+
+    const handleImport = async () => {
+        if (!importFile) {
+            toast.error('Choose a CSV file first')
+            return
+        }
+
+        setImporting(true)
+        const toastId = toast.loading('Importing CSV...')
+
+        try {
+            const csvText = await importFile.text()
+            const headers = user ? { Authorization: `Bearer ${await user.getIdToken()}` } : {}
+            const res = await fetch('/api/admin/products/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...headers,
+                },
+                body: JSON.stringify({ csvText }),
+            })
+
+            const payload = await res.json().catch(() => ({}))
+            if (!res.ok || payload?.success === false) {
+                throw new Error(payload?.error || 'CSV import failed')
+            }
+
+            setImportResult(payload)
+            setImportFile(null)
+            setImportOpen(false)
+            fetchProducts()
+            toast.success(`Imported ${payload.created || 0} products`, { id: toastId })
+        } catch (error) {
+            toast.error(error.message || 'CSV import failed', { id: toastId })
+        } finally {
+            setImporting(false)
         }
     }
 
@@ -174,12 +218,72 @@ export default function CMSProducts() {
                 searchPlaceholder="Search products by name, brand..."
                 onRowClick={(row) => window.location.href = `/cms/products/${row.id}`}
                 actions={
-                    <Link href="/cms/products/new" className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-xl shadow-lg shadow-black/10 hover:scale-105 transition-transform duration-200">
-                        <Plus size={15} />
-                        Add Product
-                    </Link>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setImportOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition"
+                        >
+                            <FiletypeCsv size={15} />
+                            Import CSV
+                        </button>
+                        <Link href="/cms/products/new" className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-xl shadow-lg shadow-black/10 hover:scale-105 transition-transform duration-200">
+                            <Plus size={15} />
+                            Add Product
+                        </Link>
+                    </div>
                 }
             />
+
+            <CMSModal isOpen={importOpen} onClose={() => setImportOpen(false)} title="Import Products via CSV" size="md">
+                <div className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 space-y-2">
+                        <p className="font-medium text-slate-800">Expected columns</p>
+                        <p>Required: title, price, affiliateUrl, categoryId or category</p>
+                        <p>Optional: description, originalPrice, discount, asin, brand, tags, imageUrls, isFeatured, isActive, slug</p>
+                        <p className="text-xs text-slate-500">Use commas inside quotes. For image URLs, separate multiple values with semicolons.</p>
+                        <a
+                            href="/templates/product-import-template.csv"
+                            download
+                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-900 hover:underline"
+                        >
+                            <FiletypeCsv size={12} />
+                            Download CSV template
+                        </a>
+                    </div>
+
+                    <label className="block space-y-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">CSV File</span>
+                        <input
+                            type="file"
+                            accept=",.csv,text/csv"
+                            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                            className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-black file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-black/90"
+                        />
+                    </label>
+
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs text-slate-500">
+                            {importFile ? `Selected: ${importFile.name}` : 'No file selected'}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleImport}
+                            disabled={!importFile || importing}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white text-sm font-medium hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {importing ? <ArrowRepeat size={14} className="animate-spin" /> : <Upload size={14} />}
+                            {importing ? 'Importing...' : 'Import Products'}
+                        </button>
+                    </div>
+
+                    {importResult && (
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                            Imported {importResult.created || 0} products. {importResult.failed || 0} rows failed.
+                        </div>
+                    )}
+                </div>
+            </CMSModal>
 
             <CMSModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Product" size="sm">
                 <div className="space-y-4">

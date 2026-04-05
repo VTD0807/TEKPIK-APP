@@ -20,10 +20,12 @@ import { isAdminEmail } from '@/lib/admin'
 import toast from 'react-hot-toast'
 import { usePostHog } from 'posthog-js/react'
 import { getDeviceId } from '@/lib/device'
+import { formatPrice } from '@/lib/currency'
 
 const MOBILE_NAV = [
     { href: '/', label: 'Home', icon: House },
     { href: '/shop', label: 'Shop', icon: Grid },
+    { href: '/ask-ai', label: 'Ask AI', icon: Stars },
     { href: '/ai-picks', label: 'AI', icon: Stars },
     { href: '/disclosure', label: 'Info', icon: InfoCircle },
 ]
@@ -54,8 +56,37 @@ const Navbar = () => {
     const name = user?.displayName || user?.email?.split('@')[0] || ''
     const avatar = user?.photoURL
     const isAdmin = user ? isAdminEmail(user.email) : false
+    const [canSeeDashboard, setCanSeeDashboard] = useState(false)
     const deferredSearch = useDeferredValue(search)
     const normalizedSearch = deferredSearch.trim().toLowerCase()
+
+    useEffect(() => {
+        if (!user) {
+            setCanSeeDashboard(false)
+            return
+        }
+        if (isAdmin) {
+            setCanSeeDashboard(true)
+            return
+        }
+
+        let cancelled = false
+        fetch('/api/me/dashboard-access', { cache: 'no-store' })
+            .then(async (res) => {
+                const payload = await res.json().catch(() => ({}))
+                if (!res.ok) return
+                if (!cancelled) {
+                    setCanSeeDashboard(Boolean(payload?.canViewDashboard))
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setCanSeeDashboard(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [user, isAdmin])
 
     const suggestions = useMemo(() => {
         if (!searchOpen) return []
@@ -186,6 +217,7 @@ const Navbar = () => {
                         <div className="hidden sm:flex items-center gap-4 lg:gap-6 text-slate-600">
                             <Link href="/" className="hover:text-slate-900 transition text-sm">Home</Link>
                             <Link href="/shop" className="hover:text-slate-900 transition text-sm">Shop</Link>
+                            <Link href="/ask-ai" className="hover:text-indigo-600 transition text-sm font-medium">Ask AI</Link>
                             <Link href="/ai-picks" className="flex items-center gap-1 hover:text-indigo-600 transition text-sm"><Stars size={14} /> AI Picks</Link>
                             <Link href="/disclosure" className="hover:text-slate-900 transition text-sm">Disclosure</Link>
 
@@ -238,6 +270,7 @@ const Navbar = () => {
                                                 <p className="text-xs font-semibold text-slate-700 truncate">{name}</p>
                                                 <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
                                             </div>
+                                            {canSeeDashboard && <Link href="/e/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition"><Grid size={14} /> Dashboard</Link>}
                                             <Link href="/wishlist" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition"><Heart size={14} /> Wishlist</Link>
                                             {isAdmin && <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50 transition"><Person size={14} /> Admin Panel</Link>}
                                             <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition"><BoxArrowRight size={14} /> Sign Out</button>
@@ -254,6 +287,7 @@ const Navbar = () => {
                                 <Heart size={18} className="text-slate-700" />
                                 {wishlistCount > 0 && <span className="absolute -top-1 -right-1 text-[8px] text-white bg-red-500 w-4 h-4 rounded-full flex items-center justify-center">{wishlistCount}</span>}
                             </Link>
+                            {canSeeDashboard && <Link href="/e/dashboard" className="px-2.5 py-1.5 text-[11px] border border-slate-300 text-slate-700 rounded-full">Dashboard</Link>}
                             {isAdmin && <Link href="/admin" className="px-2.5 py-1.5 text-[11px] border border-indigo-300 text-indigo-600 rounded-full">Admin</Link>}
                             {user ? (
                                 <button onClick={handleSignOut} className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-red-500 border border-red-200 rounded-full">
@@ -299,7 +333,7 @@ const Navbar = () => {
             </nav>
 
             <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-2 pb-[calc(env(safe-area-inset-bottom)+6px)] pt-2">
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-5 gap-1">
                     {MOBILE_NAV.map(item => {
                         const active = item.href === '/' ? pathname === '/' : pathname?.startsWith(item.href)
                         const Icon = item.icon
@@ -335,19 +369,19 @@ function SuggestionDropdown({
 
     return (
         <>
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-white">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200">
+                <p className="text-xs font-semibold text-slate-600">
                     Search suggestions
                 </p>
                 {normalizedSearch && suggestions.length > 0 && (
-                    <button type="button" onClick={() => handleSearch({ preventDefault() {} })} className="text-[11px] text-indigo-600 hover:text-indigo-700">
-                        Search all
+                    <button type="button" onClick={() => handleSearch({ preventDefault() {} })} className="text-xs text-slate-600 hover:text-slate-900">
+                        View all
                     </button>
                 )}
             </div>
 
             {suggestions.length > 0 ? (
-                <div className="max-h-80 overflow-auto py-1">
+                <div className="max-h-80 overflow-auto">
                     {suggestions.map(({ product }) => {
                         const title = product.title || product.name || 'Untitled product'
                         const image = product.imageUrls?.[0] || product.images?.[0] || product.image_urls?.[0]
@@ -356,25 +390,25 @@ function SuggestionDropdown({
                                 key={product.id}
                                 type="button"
                                 onClick={() => openSuggestion(product)}
-                                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition"
+                                className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
                             >
-                                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
-                                    {image ? <img src={image} alt={title} className="h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" /> : <span className="text-[10px] text-slate-400 uppercase">No image</span>}
-                                </div>
+                                {image && (
+                                    <div className="h-10 w-10 shrink-0 overflow-hidden flex items-center justify-center bg-slate-50">
+                                        <img src={image} alt={title} className="h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                                    </div>
+                                )}
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-slate-800">{title}</p>
-                                    <p className="truncate text-xs text-slate-400">{product.brand || product.categories?.name || 'Suggested product'}</p>
+                                    <p className="truncate text-sm text-slate-800">{title}</p>
+                                    <p className="truncate text-xs text-slate-500">{product.brand || 'Product'}</p>
                                 </div>
-                                <div className="shrink-0 text-right">
-                                    <p className="text-sm font-semibold text-slate-900">₹{product.price}</p>
-                                </div>
+                                <p className="shrink-0 text-sm text-slate-700">{formatPrice(Number(product.price || 0), 'INR', 'en-IN')}</p>
                             </button>
                         )
                     })}
                 </div>
             ) : (
-                <div className="px-4 py-5 text-sm text-slate-400">
-                    {normalizedSearch ? 'No matching products found.' : 'Type to search products.'}
+                <div className="px-4 py-4 text-sm text-slate-500">
+                    {normalizedSearch ? 'No products found.' : 'Type to search products.'}
                 </div>
             )}
 

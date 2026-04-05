@@ -23,6 +23,64 @@ const nextConfig = {
     },
     // Compress responses
     compress: true,
+    async headers() {
+        return [
+            {
+                source: '/_next/static/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+                ],
+            },
+            {
+                source: '/assets/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+                ],
+            },
+            {
+                source: '/api/products',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, s-maxage=120, stale-while-revalidate=300' },
+                ],
+            },
+            {
+                source: '/api/products/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, s-maxage=120, stale-while-revalidate=300' },
+                ],
+            },
+            {
+                source: '/api/recommendations/feed',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, s-maxage=120, stale-while-revalidate=300' },
+                ],
+            },
+            {
+                source: '/admin/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+                ],
+            },
+            {
+                source: '/cms/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+                ],
+            },
+            {
+                source: '/store/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+                ],
+            },
+            {
+                source: '/e/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+                ],
+            },
+        ]
+    },
 }
 
 export default nextConfig

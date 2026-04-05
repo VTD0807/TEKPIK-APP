@@ -1,0 +1,2 @@
+title,price,affiliateUrl,categoryId,description,originalPrice,discount,asin,brand,tags,imageUrls,isFeatured,isActive,slug
+Sample Product,1999,https://www.amazon.in/dp/B0EXAMPLE?tag=yourtag-21,categories/sample,"Short description for the product",2499,20,B0EXAMPLE,Sample Brand,"wireless;gadget;premium","https://example.com/image-1.jpg;https://example.com/image-2.jpg",true,true,sample-product

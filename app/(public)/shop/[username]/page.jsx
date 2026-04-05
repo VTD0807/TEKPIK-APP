@@ -1,67 +1,58 @@
-'use client'
-import ProductCard from "@/components/ProductCard"
-import { useParams } from "next/navigation"
-import { useEffect, useState } from "react"
-import { Envelope, GeoAlt } from 'react-bootstrap-icons'
-import Loading from "@/components/Loading"
-import Image from "next/image"
-export default function StoreShop() {
+import StoreShopClient from './StoreShopClient'
+import { dbAdmin } from '@/lib/firebase-admin'
+import { absoluteUrl } from '@/lib/seo'
 
-    const { username } = useParams()
-    const [products, setProducts] = useState([])
-    const [storeInfo, setStoreInfo] = useState(null)
-    const [loading, setLoading] = useState(true)
+const STORE_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
 
-    const fetchStoreData = async () => {
-        // In a real app, fetch from /api/store/[username]
-        setStoreInfo(null)
-        setProducts([])
-        setLoading(false)
+const humanizeSlug = (value = '') => String(value)
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase())
+
+export async function generateMetadata({ params }) {
+    const { username } = await params
+    let categoryName = humanizeSlug(username)
+
+    if (dbAdmin) {
+        try {
+            const snap = await dbAdmin.collection('categories').where('slug', '==', username).limit(1).get()
+            if (!snap.empty) {
+                const data = snap.docs[0].data() || {}
+                categoryName = String(data.name || categoryName)
+            }
+        } catch (_) {
+            // Keep slug-based fallback.
+        }
     }
 
-    useEffect(() => {
-        fetchStoreData()
-    }, [])
+    const title = `Best ${categoryName} in India 2026 | ${STORE_NAME}`
+    const description = `Compare the best ${categoryName} options in India with updated prices, ratings, and affiliate picks on ${STORE_NAME}.`
+    const canonical = absoluteUrl(`/shop/${encodeURIComponent(username)}`)
+    const ogImage = absoluteUrl('/logo-tekpik.png')
 
-    return !loading ? (
-        <div className="min-h-[70vh] px-3 sm:px-6">
+    return {
+        title,
+        description,
+        alternates: {
+            canonical,
+        },
+        openGraph: {
+            title,
+            description,
+            url: canonical,
+            type: 'website',
+            images: [{ url: ogImage }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [ogImage],
+        },
+    }
+}
 
-            {/* Store Info Banner */}
-            {storeInfo && (
-                <div className="max-w-7xl mx-auto bg-slate-50 rounded-xl p-6 md:p-10 mt-6 flex flex-col md:flex-row items-center gap-6 shadow-xs">
-                    <Image
-                        src={storeInfo.logo}
-                        alt={storeInfo.name}
-                        className="size-32 sm:size-38 object-cover border-2 border-slate-100 rounded-md"
-                        width={200}
-                        height={200}
-                    />
-                    <div className="text-center md:text-left">
-                        <h1 className="text-3xl font-semibold text-slate-800">{storeInfo.name}</h1>
-                        <p className="text-sm text-slate-600 mt-2 max-w-lg">{storeInfo.description}</p>
-                        <div className="text-xs text-slate-500 mt-4 space-y-1"></div>
-                        <div className="space-y-2 text-sm text-slate-500">
-                            <div className="flex items-center">
-                                <GeoAlt className="w-4 h-4 text-gray-500 mr-2" />
-                                <span>{storeInfo.address}</span>
-                            </div>
-                            <div className="flex items-center">
-                                <Envelope className="w-4 h-4 text-gray-500 mr-2" />
-                                <span>{storeInfo.email}</span>
-                            </div>
-                           
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Products */}
-            <div className=" max-w-7xl mx-auto mb-40">
-                <h1 className="text-2xl mt-12">Shop <span className="text-slate-800 font-medium">Products</span></h1>
-                <div className="mt-5 grid grid-cols-1 min-[460px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mx-auto">
-                    {products.map((product) => <ProductCard key={product.id} product={product} />)}
-                </div>
-            </div>
-        </div>
-    ) : <Loading />
+export default function StoreShop() {
+    return <StoreShopClient />
 }

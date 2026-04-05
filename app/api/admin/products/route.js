@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { dbAdmin, authAdmin, timestampToJSON } from '@/lib/firebase-admin'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
 
 export const dynamic = 'force-dynamic'
@@ -59,6 +59,19 @@ export async function POST(req) {
         const resolvedIsFeatured = body.isFeatured ?? body.is_featured ?? false
         const resolvedIsActive = body.isActive ?? body.is_active ?? body.public ?? body.isPublic ?? true
         
+        // Get current user for tracking who created this product
+        let createdBy = null
+        const authHeader = req.headers.get('Authorization') || ''
+        if (authHeader.startsWith('Bearer ') && authAdmin) {
+            try {
+                const token = authHeader.slice('Bearer '.length)
+                const decoded = await authAdmin.verifyIdToken(token)
+                createdBy = decoded.uid
+            } catch (err) {
+                // If auth fails, continue without createdBy - not critical for creation
+            }
+        }
+        
         const newProduct = {
             title: body.title,
             slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -84,6 +97,7 @@ export async function POST(req) {
             public: !!resolvedIsActive,
             createdAt: now,
             updatedAt: now,
+            ...(createdBy && { createdBy }),
         }
 
         const docRef = await dbAdmin.collection('products').add(newProduct)

@@ -7,10 +7,22 @@ function PromoCard({ title, ctaText, link, imageUrl, bgColor, compact = false })
 
     return (
         <div
-            className={`rounded-[1.8rem] sm:rounded-[2.6rem] border border-slate-200 px-5 sm:px-8 lg:px-10 py-6 sm:py-8 lg:py-10 ${bgClass} ${compact ? 'min-h-[170px] sm:min-h-[255px]' : 'min-h-[260px] sm:min-h-[420px] lg:min-h-[520px]'} relative overflow-hidden`}
+            className={`rounded-[1.8rem] sm:rounded-[2.6rem] px-5 sm:px-8 lg:px-10 py-6 sm:py-8 lg:py-10 ${bgClass} ${compact ? 'min-h-[170px] sm:min-h-[255px]' : 'min-h-[260px] sm:min-h-[420px] lg:min-h-[520px]'} relative overflow-hidden`}
             style={bgStyle}
         >
-            <div className="max-w-[85%] sm:max-w-[70%]">
+            {imageUrl && (
+                <img
+                    src={imageUrl}
+                    alt={title || 'Promo'}
+                    className="absolute inset-0 w-full h-full object-cover"
+                />
+            )}
+
+            {imageUrl && (
+                <div className="absolute inset-0 bg-gradient-to-r from-white/92 via-white/80 to-white/10" />
+            )}
+
+            <div className="relative z-10 max-w-[85%] sm:max-w-[70%]">
                 <h3 className={`${compact ? 'text-2xl sm:text-4xl lg:text-5xl' : 'text-3xl sm:text-5xl lg:text-7xl'} font-serif font-semibold text-slate-900 leading-[0.95]`}>
                     {title || 'Promo title'}
                 </h3>
@@ -24,16 +36,6 @@ function PromoCard({ title, ctaText, link, imageUrl, bgColor, compact = false })
                         <span aria-hidden="true">&rarr;</span>
                     </Link>
                 )}
-            </div>
-
-            <div className="absolute right-5 sm:right-8 top-5 sm:top-8 text-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-28 lg:h-28 rounded-full border border-dashed border-slate-700/30 flex items-center justify-center text-[9px] sm:text-[10px] lg:text-[12px] tracking-[0.25em] sm:tracking-[0.3em] uppercase font-mono text-slate-800/70 bg-white/20 overflow-hidden">
-                    {imageUrl ? (
-                        <img src={imageUrl} alt={title || 'Promo'} className="w-full h-full object-cover" />
-                    ) : (
-                        'IMG'
-                    )}
-                </div>
             </div>
         </div>
     )

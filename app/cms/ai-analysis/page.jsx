@@ -46,6 +46,16 @@ export default function CMSAIAnalysis() {
         }
     }
 
+    const runReanalyseAll = async () => {
+        const ok = window.confirm('Re-analyse all products with new scoring? This may take several minutes.')
+        if (!ok) return
+
+        toast.success(`Starting re-analysis for ${products.length} products...`)
+        for (const product of products) {
+            await runAnalysis(product.id)
+        }
+    }
+
     const analysed = products.filter(p => p.ai_analysis)
     const unanalysed = products.filter(p => !p.ai_analysis)
     const pct = products.length > 0 ? Math.round((analysed.length / products.length) * 100) : 0
@@ -72,11 +82,18 @@ export default function CMSAIAnalysis() {
                     <p className="text-sm text-slate-500 mt-1">{analysed.length} of {products.length} products analysed</p>
                 </div>
                 {unanalysed.length > 0 && (
-                    <button onClick={runBulkAnalysis}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-xl shadow-lg shadow-black/10 hover:scale-105 transition-transform duration-200">
-                        <Play size={15} />
-                        Analyse All ({unanalysed.length})
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <button onClick={runBulkAnalysis}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-xl shadow-lg shadow-black/10 hover:scale-105 transition-transform duration-200">
+                            <Play size={15} />
+                            Analyse Missing ({unanalysed.length})
+                        </button>
+                        <button onClick={runReanalyseAll}
+                            className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 bg-white text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition">
+                            <ArrowRepeat size={15} />
+                            Re-analyse All
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -103,7 +120,7 @@ export default function CMSAIAnalysis() {
                     const score = p.ai_analysis?.score
 
                     return (
-                        <div key={p.id} className={`flex items-center gap-4 p-4 rounded-2xl border shadow-sm transition ${hasAnalysis ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
+                        <div key={p.id} className={`grid grid-cols-[48px_minmax(0,1fr)] lg:grid-cols-[56px_minmax(0,1fr)_220px] items-start lg:items-center gap-3 lg:gap-4 p-4 rounded-2xl border shadow-sm transition ${hasAnalysis ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
                             <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
                                 {p.image_urls?.[0] ? (
                                     <img src={p.image_urls[0]} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" onError={e => e.target.style.display = 'none'} />
@@ -112,23 +129,25 @@ export default function CMSAIAnalysis() {
                                 )}
                             </div>
 
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm text-slate-800 font-semibold truncate">{p.title}</p>
+                            <div className="min-w-0">
+                                <p className="text-sm text-slate-800 font-semibold leading-5 whitespace-normal break-words">{p.title}</p>
                                 <p className="text-xs text-slate-500">{p.brand || 'No brand'} · ₹{p.price}</p>
                             </div>
 
-                            {hasAnalysis && score != null && (
-                                <div className={`text-center px-3 py-1.5 rounded-xl border ${score >= 8 ? 'bg-slate-100 border-slate-200 text-slate-800' : score >= 6 ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
-                                    <p className="text-lg font-bold">{score}</p>
-                                    <p className="text-[10px] opacity-70">/10</p>
-                                </div>
-                            )}
+                            <div className="col-span-2 lg:col-span-1 flex items-center justify-end gap-2 sm:gap-3 shrink-0 w-full lg:w-auto mt-1 lg:mt-0">
+                                {hasAnalysis && score != null && (
+                                    <div className={`text-center px-3 py-1.5 rounded-xl border ${score >= 8 ? 'bg-slate-100 border-slate-200 text-slate-800' : score >= 6 ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
+                                        <p className="text-lg font-bold">{score}</p>
+                                        <p className="text-[10px] opacity-70">/10</p>
+                                    </div>
+                                )}
 
-                            <button onClick={() => runAnalysis(p.id)} disabled={isRunning}
-                                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl transition shrink-0 ${hasAnalysis ? 'text-slate-600 hover:text-slate-800 bg-slate-50 border border-slate-200 hover:bg-slate-100' : 'text-white bg-black shadow-lg shadow-black/10'}`}>
-                                {isRunning ? <ArrowRepeat size={13} className="animate-spin" /> : hasAnalysis ? <ArrowRepeat size={13} /> : <Stars size={13} />}
-                                {isRunning ? 'Analysing...' : hasAnalysis ? 'Regenerate' : 'Analyse'}
-                            </button>
+                                <button onClick={() => runAnalysis(p.id)} disabled={isRunning}
+                                    className={`inline-flex items-center justify-center gap-1.5 min-w-[112px] px-3 py-2 text-xs font-medium rounded-xl transition shrink-0 ${hasAnalysis ? 'text-slate-600 hover:text-slate-800 bg-slate-50 border border-slate-200 hover:bg-slate-100' : 'text-white bg-black shadow-lg shadow-black/10'}`}>
+                                    {isRunning ? <ArrowRepeat size={13} className="animate-spin" /> : hasAnalysis ? <ArrowRepeat size={13} /> : <Stars size={13} />}
+                                    {isRunning ? 'Analysing...' : hasAnalysis ? 'Regenerate' : 'Analyse'}
+                                </button>
+                            </div>
                         </div>
                     )
                 })}

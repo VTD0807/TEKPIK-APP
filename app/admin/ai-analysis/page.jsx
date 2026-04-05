@@ -41,6 +41,11 @@ export default function AdminAiAnalysis() {
         setBulkRunning(true)
         setProgress(0)
         const unanalysed = products.filter(p => !p.aiAnalysis)
+        if (unanalysed.length === 0) {
+            setBulkRunning(false)
+            toast('All products already have analysis')
+            return
+        }
         for (let i = 0; i < unanalysed.length; i++) {
             await analyseOne(unanalysed[i].id)
             setProgress(Math.round(((i + 1) / unanalysed.length) * 100))
@@ -48,6 +53,30 @@ export default function AdminAiAnalysis() {
         }
         setBulkRunning(false)
         toast.success('Bulk analysis complete!')
+    }
+
+    const runReanalyseAll = async () => {
+        const ok = window.confirm('Re-analyse all products with new scoring? This may take several minutes.')
+        if (!ok) return
+
+        setBulkRunning(true)
+        setProgress(0)
+
+        const list = [...products]
+        if (list.length === 0) {
+            setBulkRunning(false)
+            toast('No products found')
+            return
+        }
+
+        for (let i = 0; i < list.length; i++) {
+            await analyseOne(list[i].id)
+            setProgress(Math.round(((i + 1) / list.length) * 100))
+            await new Promise(r => setTimeout(r, 1500))
+        }
+
+        setBulkRunning(false)
+        toast.success('Re-analysis complete with new scoring')
     }
 
     const analysed = products.filter(p => p.aiAnalysis).length
@@ -58,9 +87,14 @@ export default function AdminAiAnalysis() {
         <div className="text-slate-500 mb-28 space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <h1 className="text-2xl text-slate-500">AI <span className="text-slate-800 font-medium">Analysis</span></h1>
-                <button onClick={runBulk} disabled={bulkRunning} className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 disabled:opacity-60 text-white text-sm rounded-lg transition">
-                    <Stars size={14} /> {bulkRunning ? `Running... ${progress}%` : 'Bulk Analyse All'}
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={runBulk} disabled={bulkRunning} className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 disabled:opacity-60 text-white text-sm rounded-lg transition">
+                        <Stars size={14} /> {bulkRunning ? `Running... ${progress}%` : 'Bulk Analyse Missing'}
+                    </button>
+                    <button onClick={runReanalyseAll} disabled={bulkRunning} className="flex items-center gap-2 px-4 py-2 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm rounded-lg transition">
+                        <ArrowRepeat size={14} /> {bulkRunning ? `Running... ${progress}%` : 'Re-analyse All (New Scoring)'}
+                    </button>
+                </div>
             </div>
 
             {/* Coverage */}
@@ -82,12 +116,12 @@ export default function AdminAiAnalysis() {
             {/* Product list */}
             <div className="space-y-2">
                 {products.map(p => (
-                    <div key={p.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-sm">
-                        <div>
-                            <p className="text-sm font-medium text-slate-700">{p.title}</p>
+                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-sm">
+                        <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-700 leading-5 truncate sm:max-w-[48vw]">{p.title}</p>
                             <p className="text-xs text-slate-400">{p.category}</p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
                             {p.aiAnalysis
                                 ? <span className="text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-medium">Score: {p.aiAnalysis.score}/10</span>
                                 : <span className="text-xs text-slate-300">Not analysed</span>

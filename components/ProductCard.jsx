@@ -1,12 +1,73 @@
 'use client'
 import { Heart, HeartFill, Star, StarFill, BoxArrowUpRight } from 'react-bootstrap-icons'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useDispatch, useSelector } from 'react-redux'
 import { toggleWishlistItem } from '@/lib/features/wishlist/wishlistSlice'
 import { usePostHog } from 'posthog-js/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { getDeviceId } from '@/lib/device'
+import { formatPrice } from '@/lib/currency'
+
+const viewsTodayCache = new Map()
+const viewsTodaySubscribers = new Map()
+let viewsBatchTimer = null
+
+const flushViewsBatch = async () => {
+    viewsBatchTimer = null
+    const pendingIds = Array.from(viewsTodaySubscribers.keys()).filter((id) => !viewsTodayCache.has(id))
+    if (!pendingIds.length) return
+
+    try {
+        const response = await fetch('/api/analytics/posthog/views-today', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productIds: pendingIds }),
+        })
+
+        const data = await response.json().catch(() => ({}))
+        const countMap = data?.counts && typeof data.counts === 'object' ? data.counts : {}
+
+        pendingIds.forEach((id) => {
+            const rawCount = Number(countMap[id])
+            const resolved = Number.isFinite(rawCount) && rawCount > 0 ? rawCount : null
+            viewsTodayCache.set(id, resolved)
+
+            const listeners = viewsTodaySubscribers.get(id) || []
+            listeners.forEach((setValue) => setValue(resolved))
+        })
+    } catch {
+        pendingIds.forEach((id) => {
+            viewsTodayCache.set(id, null)
+            const listeners = viewsTodaySubscribers.get(id) || []
+            listeners.forEach((setValue) => setValue(null))
+        })
+    }
+}
+
+const subscribeViewsToday = (productId, setValue) => {
+    if (!productId) return () => {}
+
+    const cached = viewsTodayCache.get(productId)
+    if (cached !== undefined) {
+        setValue(cached)
+    } else {
+        const listeners = viewsTodaySubscribers.get(productId) || []
+        viewsTodaySubscribers.set(productId, [...listeners, setValue])
+
+        if (!viewsBatchTimer) {
+            viewsBatchTimer = setTimeout(flushViewsBatch, 35)
+        }
+    }
+
+    return () => {
+        const listeners = viewsTodaySubscribers.get(productId) || []
+        const next = listeners.filter((listener) => listener !== setValue)
+        if (next.length) viewsTodaySubscribers.set(productId, next)
+        else viewsTodaySubscribers.delete(productId)
+    }
+}
 
 const ProductImage = ({ src, alt, className }) => {
     const [error, setError] = useState(false)
@@ -42,11 +103,28 @@ const ScoreBadge = ({ score }) => {
 }
 
 const ProductCard = ({ product }) => {
+    const router = useRouter()
     const dispatch = useDispatch()
     const posthog = usePostHog()
     const { user } = useAuth()
     const wishlistIds = useSelector(state => state.wishlist.ids)
     const isWishlisted = wishlistIds.includes(product.id)
+    const [todayViews, setTodayViews] = useState(() => {
+        const direct = Number(product.todayViews)
+        if (Number.isFinite(direct) && direct > 0) return direct
+        return null
+    })
+
+    useEffect(() => {
+        const direct = Number(product.todayViews)
+        if (Number.isFinite(direct) && direct > 0) {
+            viewsTodayCache.set(product.id, direct)
+            setTodayViews(direct)
+            return
+        }
+
+        return subscribeViewsToday(product.id, setTodayViews)
+    }, [product.id, product.todayViews])
 
     const trackInteraction = async (eventType) => {
         const deviceId = getDeviceId()
@@ -100,16 +178,45 @@ const ProductCard = ({ product }) => {
     const aiScore = typeof product.ai_analysis?.score === 'number'
         ? product.ai_analysis.score
         : (typeof product.aiAnalysis?.score === 'number' ? product.aiAnalysis.score : null)
+    const currentPrice = Number(product.price)
+    const originalPrice = Number(product.originalPrice || product.original_price)
+    const showAnchoredMrp = Number.isFinite(originalPrice)
+        && Number.isFinite(currentPrice)
+        && originalPrice > 0
+        && originalPrice > currentPrice
+    const lastUpdatedDate = (() => {
+        const raw = product.lastUpdated
+        if (!raw) return null
+        if (typeof raw === 'string' || typeof raw === 'number') {
+            const parsed = new Date(raw)
+            return Number.isNaN(parsed.getTime()) ? null : parsed
+        }
+        if (typeof raw?.toDate === 'function') {
+            const parsed = raw.toDate()
+            return Number.isNaN(parsed?.getTime?.()) ? null : parsed
+        }
+        return null
+    })()
+    const verifiedHours = lastUpdatedDate
+        ? Math.max(0, Math.round((Date.now() - lastUpdatedDate.getTime()) / (1000 * 60 * 60)))
+        : null
+    const freshnessClass = verifiedHours === null
+        ? 'text-slate-400'
+        : verifiedHours > 24
+            ? 'text-amber-600'
+            : verifiedHours < 6
+                ? 'text-emerald-600'
+                : 'text-slate-500'
 
     return (
-        <div className="group relative flex flex-col w-full min-w-0">
+        <div className="group relative flex flex-col w-full min-w-0 bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
             {/* Image */}
-            <Link href={`/products/${product.id}`} className="block">
-                <div className="relative bg-[#F5F5F5] h-28 sm:h-44 w-full rounded-lg flex items-center justify-center overflow-hidden">
+            <Link href={`/products/${product.id}`} className="block -mx-4 -mt-4 mb-3">
+                <div className="relative bg-white h-32 sm:h-44 w-full flex items-center justify-center overflow-hidden rounded-t-xl">
                     <ProductImage
                         src={imgSrc}
                         alt={product.title || product.name}
-                        className="max-h-20 sm:max-h-32 w-auto group-hover:scale-110 transition duration-300 object-contain"
+                        className="h-[92%] w-[92%] group-hover:scale-105 transition duration-300 object-contain"
                     />
                     {discount > 0 && (
                         <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
@@ -121,11 +228,14 @@ const ProductCard = ({ product }) => {
             </Link>
 
             {/* Info */}
-            <div className="flex justify-between gap-2 text-xs sm:text-sm text-slate-800 pt-2">
+            <div className="flex justify-between gap-2 text-xs sm:text-sm text-slate-800 mt-2 mb-2">
                 <div className="flex-1 min-w-0">
                     <Link href={`/products/${product.id}`}>
                         <p className="truncate hover:text-indigo-600 transition">{product.title || product.name}</p>
                     </Link>
+                    {typeof todayViews === 'number' && todayViews > 0 && (
+                        <p className="text-[11px] text-slate-500 mt-0.5">{todayViews} people viewed today</p>
+                    )}
                     {rating > 0 && (
                         <div className="flex mt-0.5">
                             {Array(5).fill('').map((_, i) => (
@@ -138,28 +248,33 @@ const ProductCard = ({ product }) => {
                     )}
                 </div>
                 <div className="text-right shrink-0">
-                    <p className="font-medium">₹{product.price}</p>
-                    {(product.originalPrice || product.original_price) && (
-                        <p className="text-xs text-slate-400 line-through">₹{product.originalPrice || product.original_price}</p>
+                    <p className="font-medium">{formatPrice(currentPrice, 'INR', 'en-IN')}</p>
+                    {showAnchoredMrp && (
+                        <p className="text-xs text-slate-400 line-through">{formatPrice(originalPrice, 'INR', 'en-IN')}</p>
+                    )}
+                    {verifiedHours !== null && (
+                        <p className={`text-[11px] mt-0.5 font-medium ${freshnessClass}`}>
+                            Price verified {verifiedHours} hour{verifiedHours === 1 ? '' : 's'} ago
+                        </p>
                     )}
                 </div>
             </div>
 
+            {/* Description */}
+            
             {/* Actions */}
-            <div className="flex items-center gap-1.5 mt-2">
-                <a
-                    href={product.affiliateUrl || product.affiliate_url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow sponsored"
+            <div className="flex items-center gap-1.5 mt-auto pt-3 border-t border-slate-100">
+                <button
                     onClick={() => {
                         handleAmazonClick()
                         trackInteraction('amazon_click')
+                        router.push(`/products/${product.id}`)
                     }}
-                    className="flex-1 min-w-0 flex items-center justify-center gap-1 text-[10px] sm:text-xs bg-amber-400 hover:bg-amber-500 transition text-slate-900 font-semibold py-2 sm:py-1.5 rounded-full"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1 text-[10px] sm:text-xs bg-[#00A8A8] hover:bg-[#008888] transition text-white font-semibold py-2 sm:py-1.5 rounded-full"
                 >
                     <BoxArrowUpRight size={12} />
-                    View on Amazon
-                </a>
+                    Check It →
+                </button>
                 <button
                     onClick={() => {
                         dispatch(toggleWishlistItem(product.id))

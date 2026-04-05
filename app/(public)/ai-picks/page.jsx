@@ -1,39 +1,36 @@
-'use client'
-import { Stars } from 'react-bootstrap-icons'
-import { useSelector } from 'react-redux'
-import ProductCard from '@/components/ProductCard'
-import AffiliateDisclosure from '@/components/AffiliateDisclosure'
+import AiPicksClient from './AiPicksClient'
+import { absoluteUrl } from '@/lib/seo'
+
+const STORE_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
+
+export async function generateMetadata() {
+    const title = `AI-Recommended Products | ${STORE_NAME}`
+    const description = `Explore AI-ranked recommendations and product picks for Indian shoppers on ${STORE_NAME}.`
+    const canonical = absoluteUrl('/ai-picks')
+    const ogImage = absoluteUrl('/logo-tekpik.png')
+
+    return {
+        title,
+        description,
+        alternates: {
+            canonical,
+        },
+        openGraph: {
+            title,
+            description,
+            url: canonical,
+            type: 'website',
+            images: [{ url: ogImage }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [ogImage],
+        },
+    }
+}
 
 export default function AiPicksPage() {
-    const products = useSelector(state => state.product.list)
-
-    // Products with AI analysis, sorted by score desc
-    const aiProducts = products
-        .filter(p => p.aiAnalysis?.score)
-        .sort((a, b) => b.aiAnalysis.score - a.aiAnalysis.score)
-
-    // If no AI analyses yet, show all products
-    const display = aiProducts.length > 0 ? aiProducts : products
-
-    return (
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-6">
-            <div className="flex items-center gap-2 text-indigo-700">
-                <Stars size={22} />
-                <h1 className="text-2xl font-semibold">AI Picks</h1>
-            </div>
-            <p className="text-slate-500 text-sm max-w-xl">
-                Products curated and scored by our AI analyser. Higher scores mean better value, quality, and honest pros/cons breakdowns.
-            </p>
-
-            <AffiliateDisclosure />
-
-            {display.length === 0 ? (
-                <div className="text-center py-20 text-slate-400">No AI-analysed products yet.</div>
-            ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-10">
-                    {display.map(p => <ProductCard key={p.id} product={p} />)}
-                </div>
-            )}
-        </div>
-    )
+    return <AiPicksClient />
 }

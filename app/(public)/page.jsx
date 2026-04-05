@@ -5,8 +5,39 @@ import BestSelling from "@/components/BestSelling";
 import PersonalizedTopFeed from "@/components/PersonalizedTopFeed";
 import PromoSection from "@/components/PromoSection";
 import { dbAdmin, timestampToJSON } from "@/lib/firebase-admin";
+import { absoluteUrl } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
+const STORE_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
+const HOME_TAGLINE = 'Best Products at Best Prices in India'
+
+export async function generateMetadata() {
+    const title = `${STORE_NAME} - ${HOME_TAGLINE}`
+    const description = `Discover AI-curated gadgets, accessories, and top deals in India with ${STORE_NAME}. Compare, shortlist, and buy smarter.`
+    const canonical = absoluteUrl('/')
+    const ogImage = absoluteUrl('/logo-tekpik.png')
+
+    return {
+        title,
+        description,
+        alternates: {
+            canonical,
+        },
+        openGraph: {
+            title,
+            description,
+            url: canonical,
+            type: 'website',
+            images: [{ url: ogImage }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [ogImage],
+        },
+    }
+}
 
 const DEFAULT_SECTIONS = [
     { id: 'bannerCarousel', type: 'core', label: 'Banner Carousel', enabled: true },

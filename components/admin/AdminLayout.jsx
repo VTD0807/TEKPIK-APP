@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import Loading from "../Loading"
 import AdminNavbar from "./AdminNavbar"
 import AdminSidebar from "./AdminSidebar"
@@ -13,33 +13,41 @@ import { isAdminEmail } from "@/lib/admin"
 export default function AdminLayout({ children }) {
     const { user, loading: authLoading } = useAuth()
     const [status, setStatus] = useState('checking')
-    const router = useRouter()
+    const pathname = usePathname()
 
     useEffect(() => {
         if (authLoading) return
         if (!user) { setStatus('noauth'); return }
 
-        if (isAdminEmail(user.email)) {
-            sessionStorage.setItem(`role_${user.uid}`, 'ADMIN')
-            setStatus('admin')
+        if (isAdminEmail(user.email) && canAccessPath(pathname, { role: 'ADMIN', dashboardAccess: {} })) {
+            sessionStorage.setItem(`admin_profile_${user.uid}`, JSON.stringify({ role: 'ADMIN', dashboardAccess: {} }))
+            setStatus('allowed')
             return
         }
 
-        const cached = sessionStorage.getItem(`role_${user.uid}`)
+        const cached = sessionStorage.getItem(`admin_profile_${user.uid}`)
         if (cached) {
-            setStatus(cached === 'ADMIN' ? 'admin' : 'denied')
-            return
+            try {
+                const profile = JSON.parse(cached)
+                setStatus(canAccessPath(pathname, profile) ? 'allowed' : 'denied')
+                return
+            } catch {
+                sessionStorage.removeItem(`admin_profile_${user.uid}`)
+            }
         }
 
         getDoc(doc(db, 'users', user.uid))
             .then(docSnap => {
-                const role = docSnap.exists() ? docSnap.data().role : 'USER'
-                const effectiveRole = isAdminEmail(user.email) ? 'ADMIN' : role
-                sessionStorage.setItem(`role_${user.uid}`, effectiveRole)
-                setStatus(effectiveRole === 'ADMIN' ? 'admin' : 'denied')
+                const data = docSnap.exists() ? docSnap.data() : {}
+                const profile = {
+                    role: isAdminEmail(user.email) ? 'ADMIN' : (data.role || 'USER'),
+                    dashboardAccess: normalizeDashboardAccess(data.dashboardAccess),
+                }
+                sessionStorage.setItem(`admin_profile_${user.uid}`, JSON.stringify(profile))
+                setStatus(canAccessPath(pathname, profile) ? 'allowed' : 'denied')
             })
             .catch(() => setStatus('denied'))
-    }, [user, authLoading])
+    }, [user, authLoading, pathname])
 
     if (authLoading || status === 'checking') return <Loading />
 
@@ -57,8 +65,8 @@ export default function AdminLayout({ children }) {
     if (status === 'denied') return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
             <div className="text-center space-y-3">
-                <p className="text-2xl"></p>
                 <p className="text-slate-700 font-medium">Access Denied</p>
+                <p className="text-sm text-slate-400">Your account does not have permission for this admin module.</p>
                 <Link href="/" className="inline-block px-6 py-2 border border-slate-200 text-slate-600 text-sm rounded-full">Go Home</Link>
             </div>
         </div>
@@ -75,5 +83,48 @@ export default function AdminLayout({ children }) {
             </div>
         </div>
     )
+}
+
+function canAccessPath(pathname, profile = {}) {
+    const role = profile.role || 'USER'
+    if (role === 'ADMIN') return true
+
+    const access = normalizeDashboardAccess(profile.dashboardAccess)
+    if (!access.admin) return false
+
+    const moduleKey = moduleForPath(pathname)
+    if (!moduleKey) return true
+    return Boolean(access[moduleKey])
+}
+
+function moduleForPath(pathname = '') {
+    if (pathname.startsWith('/admin/employees/access')) return 'users'
+    if (pathname.startsWith('/admin/employees')) return 'employees'
+    if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/profile')) return 'users'
+    if (pathname.startsWith('/admin/data')) return 'analytics'
+    if (pathname.startsWith('/admin/price-history')) return 'analytics'
+    if (pathname.startsWith('/admin/integrations')) return 'integrations'
+    if (pathname.startsWith('/admin/reviews')) return 'reviews'
+    if (pathname.startsWith('/admin/notifications')) return 'notifications'
+    if (pathname.startsWith('/admin/categories') || pathname.startsWith('/admin/products')) return 'products'
+    if (pathname.startsWith('/admin/settings')) return 'settings'
+    return null
+}
+
+function normalizeDashboardAccess(value = {}) {
+    const source = value && typeof value === 'object' ? value : {}
+    return {
+        admin: Boolean(source.admin),
+        cms: Boolean(source.cms),
+        store: Boolean(source.store),
+        analytics: Boolean(source.analytics),
+        users: Boolean(source.users),
+        employees: Boolean(source.employees),
+        reviews: Boolean(source.reviews),
+        products: Boolean(source.products),
+        integrations: Boolean(source.integrations),
+        notifications: Boolean(source.notifications),
+        settings: Boolean(source.settings),
+    }
 }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbAdmin, firebaseAdminStatus } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +12,10 @@ export async function GET() {
             uniqueVisitors: 0,
             uniquePageVisitors: 0,
             aiCoverage: { analysed: 0, total: 0 },
+            _meta: {
+                dbReady: false,
+                reason: firebaseAdminStatus.error,
+            },
         })
     }
 
@@ -39,6 +43,9 @@ export async function GET() {
             uniqueVisitors,
             uniquePageVisitors,
             aiCoverage: { analysed: analysedProducts, total: totalProducts },
+            _meta: {
+                dbReady: true,
+            },
         })
     } catch (err) {
         console.error('[analytics]', err)
@@ -49,6 +56,10 @@ export async function GET() {
             uniqueVisitors: 0,
             uniquePageVisitors: 0,
             aiCoverage: { analysed: 0, total: 0 },
+            _meta: {
+                dbReady: false,
+                reason: err?.message || 'Analytics query failed',
+            },
         })
     }
 }

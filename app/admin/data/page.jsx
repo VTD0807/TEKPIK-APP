@@ -2,10 +2,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Loading from '@/components/Loading'
+import { usePathname } from 'next/navigation'
 
 export default function DataPage() {
     const [loading, setLoading] = useState(true)
     const [rows, setRows] = useState([])
+    const pathname = usePathname()
+    const analyticsBasePath = pathname?.startsWith('/e') ? '/e/analytics' : '/admin/data'
 
     useEffect(() => {
         fetch('/api/admin/analytics/products', { cache: 'no-store' })
@@ -61,7 +64,7 @@ export default function DataPage() {
                         {rows.length > 0 ? rows.map((row) => (
                             <tr key={row.productId} className="border-t border-slate-100 hover:bg-slate-50">
                                 <td className="px-4 py-3">
-                                    <Link href={`/admin/data/${row.productId}`} className="flex items-center gap-3 group">
+                                    <Link href={`${analyticsBasePath}/${row.productId}`} className="flex items-center gap-3 group">
                                         <div className="w-10 h-10 rounded-md bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
                                             {row.imageUrl
                                                 ? <img src={row.imageUrl} alt={row.title} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
@@ -81,7 +84,7 @@ export default function DataPage() {
                                 </td>
                                 <td className="px-4 py-3 text-right text-slate-700">{row.price != null ? `₹${row.price}` : '—'}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                                    <Link href={`/admin/data/${row.productId}`} className="hover:underline">{row.uniqueDeviceViews || 0}</Link>
+                                    <Link href={`${analyticsBasePath}/${row.productId}`} className="hover:underline">{row.uniqueDeviceViews || 0}</Link>
                                 </td>
                                 <td className="px-4 py-3 text-slate-500">{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '—'}</td>
                             </tr>

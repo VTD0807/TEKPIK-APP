@@ -4,16 +4,31 @@ import Loading from '@/components/Loading'
 import Link from 'next/link'
 import { Plus, PencilSquare, Trash, Stars } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
+import { usePathname } from 'next/navigation'
 
 export default function AdminProducts() {
     const [products, setProducts] = useState([])
     const [loading, setLoading] = useState(true)
+    const pathname = usePathname()
+    const productsBasePath = pathname?.startsWith('/e') ? '/e/products' : '/admin/products'
 
     useEffect(() => {
-        fetch('/api/admin/products')
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 7000)
+
+        fetch('/api/admin/products', { signal: controller.signal, cache: 'no-store' })
             .then(r => r.json())
-            .then(d => { setProducts(d.products || []); setLoading(false) })
-            .catch(() => setLoading(false))
+            .then(d => { setProducts(d.products || []) })
+            .catch(() => setProducts([]))
+            .finally(() => {
+                clearTimeout(timeout)
+                setLoading(false)
+            })
+
+        return () => {
+            controller.abort()
+            clearTimeout(timeout)
+        }
     }, [])
 
     const handleAnalyse = async (productId) => {
@@ -38,7 +53,7 @@ export default function AdminProducts() {
         <div className="text-slate-500 mb-28 space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl text-slate-500">Manage <span className="text-slate-800 font-medium">Products</span></h1>
-                <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                <Link href={`${productsBasePath}/new`} className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
                     <Plus size={14} /> Add Product
                 </Link>
             </div>
@@ -82,7 +97,7 @@ export default function AdminProducts() {
                                         <button onClick={() => handleAnalyse(p.id)} className="p-1.5 text-slate-900 hover:bg-slate-100 rounded transition" title="Generate AI Analysis">
                                             <Stars size={15} />
                                         </button>
-                                        <Link href={`/admin/products/${p.id}/edit`} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition">
+                                        <Link href={`${productsBasePath}/${p.id}/edit`} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition">
                                             <PencilSquare size={15} />
                                         </Link>
                                         <button className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition">

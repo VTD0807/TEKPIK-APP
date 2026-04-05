@@ -1,12 +1,24 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, PencilSquare, Trash, ArrowRepeat } from 'react-bootstrap-icons'
+import {
+    Plus,
+    PencilSquare,
+    Trash,
+    ArrowRepeat,
+    Tag,
+    Basket,
+    Eye,
+    Stars,
+    GeoAlt,
+    Bell,
+    Gear,
+} from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 
 export default function AdminCategories() {
     const [categories, setCategories] = useState([])
     const [loading, setLoading] = useState(true)
-    const [form, setForm] = useState({ name: '', slug: '', icon: '️' })
+    const [form, setForm] = useState({ name: '', slug: '' })
     const [adding, setAdding] = useState(false)
 
     useEffect(() => {
@@ -45,7 +57,7 @@ export default function AdminCategories() {
         if (res.ok) {
             const newCat = await res.json()
             setCategories(prev => [...prev, { ...newCat, products: 0 }])
-            setForm({ name: '', slug: '', icon: '️' })
+            setForm({ name: '', slug: '' })
             setAdding(false)
             toast.success('Category added')
         } else {
@@ -80,10 +92,6 @@ export default function AdminCategories() {
 
             {adding && (
                 <form onSubmit={handleAdd} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-end">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs text-slate-400">Icon (emoji)</label>
-                        <input value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} className="w-16 border border-slate-200 rounded-lg px-2 py-2 text-center text-lg outline-none" />
-                    </div>
                     <div className="flex flex-col gap-1 flex-1 min-w-32">
                         <label className="text-xs text-slate-400">Name</label>
                         <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })} placeholder="e.g. Laptops" className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-slate-400" />
@@ -110,7 +118,9 @@ export default function AdminCategories() {
                     <tbody>
                         {(Array.isArray(categories) ? categories : []).map(cat => (
                             <tr key={cat.id} className="border-t border-slate-100 hover:bg-slate-50">
-                                <td className="px-4 py-3 text-xl">{cat.icon}</td>
+                                <td className="px-4 py-3">
+                                    <CategoryIcon category={cat} />
+                                </td>
                                 <td className="px-4 py-3 font-medium text-slate-700">{cat.name}</td>
                                 <td className="px-4 py-3 text-slate-400">{cat.slug}</td>
                                 <td className="px-4 py-3">{cat.products}</td>
@@ -126,5 +136,23 @@ export default function AdminCategories() {
                 </table>
             </div>
         </div>
+    )
+}
+
+function CategoryIcon({ category }) {
+    const key = `${category?.slug || ''} ${category?.name || ''}`.toLowerCase()
+
+    let Icon = Tag
+    if (key.includes('audio') || key.includes('sound') || key.includes('speaker')) Icon = Bell
+    else if (key.includes('camera') || key.includes('photo')) Icon = Eye
+    else if (key.includes('game')) Icon = Stars
+    else if (key.includes('home') || key.includes('kitchen')) Icon = Basket
+    else if (key.includes('phone') || key.includes('laptop') || key.includes('tablet')) Icon = Gear
+    else if (key.includes('travel') || key.includes('location')) Icon = GeoAlt
+
+    return (
+        <span className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-slate-100 text-slate-600" title={category?.name || 'Category'}>
+            <Icon size={16} />
+        </span>
     )
 }

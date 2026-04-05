@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
 import OrdersAreaChart from '@/components/OrdersAreaChart'
-import { Stars, Basket, Clock, Heart, Star, Plus, CheckSquare, Eye } from 'react-bootstrap-icons'
+import { Stars, Basket, Clock, Heart, Star, Plus, CheckSquare, Eye, SendFill } from 'react-bootstrap-icons'
 import Link from 'next/link'
 
 export default function AdminDashboard() {
@@ -10,29 +10,39 @@ export default function AdminDashboard() {
     const [data, setData] = useState(null)
 
     useEffect(() => {
-        fetch('/api/admin/analytics')
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 7000)
+
+        fetch('/api/admin/analytics', { signal: controller.signal, cache: 'no-store' })
             .then(r => r.json())
             .then(d => {
                 setData({
-                    totalProducts: d.totalProducts,
-                    pendingReviews: d.pendingReviews,
-                    aiCoverage: d.aiCoverage,
-                    wishlistSaves: d.wishlistSaves,
-                    uniqueVisitors: d.uniqueVisitors,
-                    uniquePageVisitors: d.uniquePageVisitors,
+                    totalProducts: d.totalProducts ?? 0,
+                    pendingReviews: d.pendingReviews ?? 0,
+                    aiCoverage: d.aiCoverage ?? { analysed: 0, total: 0 },
+                    wishlistSaves: d.wishlistSaves ?? 0,
+                    uniqueVisitors: d.uniqueVisitors ?? 0,
+                    uniquePageVisitors: d.uniquePageVisitors ?? 0,
+                    _meta: d._meta,
                     allOrders: [],
                     recentActivity: [
                         { type: 'review', text: 'New review submitted', time: 'just now' },
                         { type: 'ai', text: 'AI analysis available', time: 'today' },
                     ],
                 })
-                setLoading(false)
             })
             .catch(() => {
-                // fallback to zeros if DB not connected yet
                 setData({ totalProducts: 0, pendingReviews: 0, aiCoverage: { analysed: 0, total: 0 }, wishlistSaves: 0, uniqueVisitors: 0, uniquePageVisitors: 0, allOrders: [], recentActivity: [] })
+            })
+            .finally(() => {
+                clearTimeout(timeout)
                 setLoading(false)
             })
+
+        return () => {
+            controller.abort()
+            clearTimeout(timeout)
+        }
     }, [])
 
     if (loading) return <Loading />
@@ -40,6 +50,8 @@ export default function AdminDashboard() {
     const aiTotal = Number(data?.aiCoverage?.total) || 0
     const aiAnalysed = Number(data?.aiCoverage?.analysed) || 0
     const aiPct = aiTotal > 0 ? Math.round((aiAnalysed / aiTotal) * 100) : 0
+    const dbUnavailable = data?._meta?.dbReady === false
+    const dbReason = data?._meta?.reason || 'Firebase Admin is not initialized in deployment environment.'
 
     const statCards = [
         { title: 'Total Products', value: data.totalProducts, icon: Basket, sub: '+2 this week', color: 'text-slate-900 bg-slate-100' },
@@ -54,6 +66,12 @@ export default function AdminDashboard() {
     return (
         <div className="text-slate-600 space-y-8 pb-20">
             <h1 className="text-2xl text-slate-500">Admin <span className="text-slate-800 font-medium">Dashboard</span></h1>
+
+            {dbUnavailable && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-900 p-3 text-sm whitespace-normal break-words">
+                    Data source is unavailable. Dashboard values are fallback zeros. Reason: {dbReason}
+                </div>
+            )}
 
             {/* Stat Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -126,6 +144,9 @@ export default function AdminDashboard() {
                     </Link>
                     <Link href="/admin/data" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
                         <Eye size={14} /> Product Analytics
+                    </Link>
+                    <Link href="/admin/integrations" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                        <SendFill size={14} /> Telegram Manager
                     </Link>
                 </div>
             </div>

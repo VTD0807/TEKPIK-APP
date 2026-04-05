@@ -65,14 +65,14 @@ export default function CMSLayout({ children }) {
     }
 
     return (
-        <div className="min-h-screen bg-white flex">
+        <div className="h-screen bg-white flex overflow-hidden">
             <CMSSidebar
                 collapsed={sidebarCollapsed}
                 onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
             />
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0">
                 <CMSHeader onMenuToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-                <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
+                <main className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-6">
                     {children}
                 </main>
             </div>

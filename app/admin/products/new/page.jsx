@@ -1,12 +1,14 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, Save, Plus, X, ArrowRepeat } from 'react-bootstrap-icons'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
 export default function NewProduct() {
     const router = useRouter()
+    const pathname = usePathname()
+    const productsBasePath = pathname?.startsWith('/e') ? '/e/products' : '/admin/products'
     const [saving, setSaving] = useState(false)
     const [categories, setCategories] = useState([])
     const [form, setForm] = useState({
@@ -60,7 +62,7 @@ export default function NewProduct() {
                 throw new Error(d.error || 'Failed')
             }
             toast.success(isDraft ? 'Draft saved!' : 'Product created!')
-            router.push('/admin/products')
+            router.push(productsBasePath)
         } catch (err) {
             toast.error(err.message)
         } finally {
@@ -87,7 +89,7 @@ export default function NewProduct() {
     return (
         <div className="max-w-3xl space-y-6 mb-28">
             <div className="flex items-center gap-3">
-                <Link href="/admin/products" className="p-1.5 text-slate-400 hover:text-slate-600 transition">
+                <Link href={productsBasePath} className="p-1.5 text-slate-400 hover:text-slate-600 transition">
                     <ArrowLeft size={18} />
                 </Link>
                 <h1 className="text-2xl text-slate-500">Add <span className="text-slate-800 font-medium">Product</span></h1>
@@ -177,7 +179,7 @@ export default function NewProduct() {
                             <><Save size={14} /> Create Product</>
                         )}
                     </button>
-                    <Link href="/admin/products" className="px-5 py-2 border border-slate-200 text-slate-500 text-sm rounded-lg hover:bg-slate-50 transition">
+                    <Link href={productsBasePath} className="px-5 py-2 border border-slate-200 text-slate-500 text-sm rounded-lg hover:bg-slate-50 transition">
                         Cancel
                     </Link>
                 </div>

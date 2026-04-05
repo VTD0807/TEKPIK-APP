@@ -5,10 +5,14 @@ import ReviewList from '@/components/reviews/ReviewList'
 import WishlistButton from '@/components/WishlistButton'
 import ShareButton from '@/components/ShareButton'
 import ProductImageGallery from '@/components/ProductImageGallery'
+import ProductPriceTrend from '@/components/ProductPriceTrend'
+import ProductDescription from '@/components/ProductDescription'
 import ProductCard from '@/components/ProductCard'
 import { dbAdmin, timestampToJSON, sanitizeFirestoreData } from '@/lib/firebase-admin'
 import { sanitizeDescriptionHtml, descriptionToPlainText } from '@/lib/description-html'
 import { absoluteUrl } from '@/lib/seo'
+import { formatPrice } from '@/lib/currency'
+import { getPriceHistorySeries } from '@/lib/price-history-tracker'
 import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -52,28 +56,85 @@ const scoreFromReviews = (reviews) => {
 
 export async function generateMetadata({ params }) {
     const { id } = await params
+    const storeName = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
+    const fallbackImage = absoluteUrl('/logo-tekpik.png')
     
-    if (!dbAdmin) return { title: 'Product Not Found' }
+    if (!dbAdmin) {
+        const title = `Product - Best Price in India | ${storeName}`
+        const description = `Explore products and compare prices in India on ${storeName}.`
+        return {
+            title,
+            description,
+            alternates: { canonical: absoluteUrl(`/products/${id}`) },
+            openGraph: {
+                title,
+                description,
+                url: absoluteUrl(`/products/${id}`),
+                type: 'website',
+                images: [{ url: fallbackImage }],
+            },
+            twitter: {
+                card: 'summary_large_image',
+                title,
+                description,
+                images: [fallbackImage],
+            },
+        }
+    }
 
     const snap = await dbAdmin.collection('products').doc(id).get()
-    if (!snap.exists) return { title: 'Product Not Found' }
+    if (!snap.exists) {
+        const title = `Product - Best Price in India | ${storeName}`
+        const description = `Explore products and compare prices in India on ${storeName}.`
+        return {
+            title,
+            description,
+            alternates: { canonical: absoluteUrl(`/products/${id}`) },
+            openGraph: {
+                title,
+                description,
+                url: absoluteUrl(`/products/${id}`),
+                type: 'website',
+                images: [{ url: fallbackImage }],
+            },
+            twitter: {
+                card: 'summary_large_image',
+                title,
+                description,
+                images: [fallbackImage],
+            },
+        }
+    }
 
     const product = snap.data()
     const descriptionText = descriptionToPlainText(product.description)
     const canonicalPath = `/products/${id}`
     const image = product.imageUrls?.[0] || product.image_urls?.[0] || ''
+    const productName = String(product.title || product.name || 'Product').trim()
+    const productBrand = String(product.brand || storeName).trim()
+    const title = `${productName} - Best Price in India | ${productBrand}`
+    const description = descriptionText.slice(0, 160) || `${productName} deals, reviews, and best price in India on ${storeName}.`
+    const canonical = absoluteUrl(canonicalPath)
+    const resolvedImage = image || fallbackImage
 
     return {
-        title: `${product.title} - TEKPIK`,
-        description: descriptionText.slice(0, 160),
+        title,
+        description,
         alternates: {
-            canonical: canonicalPath,
+            canonical,
         },
         openGraph: {
-            title: product.title,
-            description: descriptionText.slice(0, 160),
-            url: absoluteUrl(canonicalPath),
-            images: image ? [{ url: image }] : undefined,
+            title,
+            description,
+            url: canonical,
+            type: 'website',
+            images: [{ url: resolvedImage }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [resolvedImage],
         },
     }
 }
@@ -114,6 +175,12 @@ export default async function ProductPage({ params }) {
 
     const product = productData
     const descriptionHtml = sanitizeDescriptionHtml(product.description)
+    let priceHistorySeries = []
+    try {
+        priceHistorySeries = await getPriceHistorySeries(product.id, 60)
+    } catch (error) {
+        console.warn('Price history series load error:', error.message)
+    }
 
     const images = product.imageUrls || []
     const rating = product.reviews?.length
@@ -122,6 +189,28 @@ export default async function ProductPage({ params }) {
     const productUrl = absoluteUrl(`/products/${product.id}`)
     const schemaImage = images[0] || null
     const numericPrice = Number(product.price)
+    const numericOriginalPrice = Number(product.original_price || product.originalPrice)
+    const showAnchoredMrp = Number.isFinite(numericOriginalPrice)
+        && Number.isFinite(numericPrice)
+        && numericOriginalPrice > 0
+        && numericOriginalPrice > numericPrice
+    const lastUpdatedDate = (() => {
+        const raw = product.lastUpdated
+        if (!raw) return null
+        if (typeof raw?.toDate === 'function') return raw.toDate()
+        const parsed = new Date(raw)
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    })()
+    const verifiedHours = lastUpdatedDate
+        ? Math.max(0, Math.round((Date.now() - lastUpdatedDate.getTime()) / (1000 * 60 * 60)))
+        : null
+    const freshnessClass = verifiedHours === null
+        ? 'text-slate-400'
+        : verifiedHours > 24
+            ? 'text-amber-600'
+            : verifiedHours < 6
+                ? 'text-emerald-600'
+                : 'text-slate-500'
     const schemaData = {
         '@context': 'https://schema.org',
         '@type': 'Product',
@@ -233,7 +322,7 @@ export default async function ProductPage({ params }) {
     }
 
     return (
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-10 space-y-6 sm:space-y-10">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-10 pb-28 sm:pb-10 space-y-6 sm:space-y-10">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
@@ -262,14 +351,19 @@ export default async function ProductPage({ params }) {
                     )}
 
                     <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-2xl sm:text-3xl font-bold text-slate-800">₹{product.price}</span>
-                        {(product.original_price || product.originalPrice) && (
+                        <span className="text-2xl sm:text-3xl font-bold text-slate-800">{formatPrice(numericPrice, 'INR', 'en-IN')}</span>
+                        {showAnchoredMrp && (
                             <>
-                                <span className="text-sm sm:text-lg text-slate-400 line-through">₹{product.original_price || product.originalPrice}</span>
+                                <span className="text-sm sm:text-lg text-slate-400 line-through">{formatPrice(numericOriginalPrice, 'INR', 'en-IN')}</span>
                                 {(product.discount || 0) > 0 && <span className="text-sm bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">-{product.discount}%</span>}
                             </>
                         )}
                     </div>
+                    {verifiedHours !== null && (
+                        <p className={`text-xs font-medium ${freshnessClass}`}>
+                            Price verified {verifiedHours} hour{verifiedHours === 1 ? '' : 's'} ago
+                        </p>
+                    )}
                     <p className="text-xs text-slate-400">Price may vary. Check current price on Amazon.</p>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
@@ -277,10 +371,10 @@ export default async function ProductPage({ params }) {
                             href={product.affiliate_url || product.affiliateUrl || '#'}
                             target="_blank"
                             rel="noopener noreferrer nofollow sponsored"
-                            className="flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 font-semibold rounded-full"
+                            className="hidden sm:flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
                         >
                             <BoxArrowUpRight size={16} />
-                            View on Amazon
+                            Buy on Amazon →
                         </a>
                         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                             <WishlistButton productId={product.id} className="w-auto min-w-[96px] justify-center px-3 py-2 text-xs sm:text-sm" />
@@ -289,10 +383,7 @@ export default async function ProductPage({ params }) {
                     </div>
 
                     {descriptionHtml ? (
-                        <div
-                            className="text-slate-600 text-sm leading-relaxed break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1"
-                            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                        />
+                        <ProductDescription html={descriptionHtml} />
                     ) : (
                         <p className="text-slate-500 text-sm leading-relaxed break-words">No description available.</p>
                     )}
@@ -300,8 +391,23 @@ export default async function ProductPage({ params }) {
                 </div>
             </div>
 
+            <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+10px)] shadow-[0_-10px_30px_rgba(15,23,42,0.12)]">
+                <a
+                    href={product.affiliate_url || product.affiliateUrl || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow sponsored"
+                    className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
+                >
+                    <BoxArrowUpRight size={16} />
+                    Buy on Amazon →
+                </a>
+            </div>
+
             {/* AI Analysis */}
             {product.ai_analysis && <AiAnalysis analysis={product.ai_analysis} />}
+
+            {/* Product Price Trend (Secondary Firestore) */}
+            <ProductPriceTrend history={priceHistorySeries} />
 
             {/* Reviews */}
             <ReviewList reviews={product.reviews || []} productId={product.id} />

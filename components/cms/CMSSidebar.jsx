@@ -1,6 +1,7 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useEffect, useRef } from 'react'
 import { 
     Grid1x2, BoxSeam, Link45deg, Tags, Images,
     Star, Robot, People, Gear,
@@ -9,6 +10,7 @@ import {
 
 const navItems = [
     { name: 'Dashboard', href: '/cms', icon: Grid1x2 },
+    { name: 'Reports', href: '/cms/reports', icon: ClockHistory },
     { name: 'Products', href: '/cms/products', icon: BoxSeam },
     { name: 'Affiliate Links', href: '/cms/affiliate-links', icon: Link45deg },
     { name: 'Categories', href: '/cms/categories', icon: Tags },
@@ -23,6 +25,12 @@ const navItems = [
 
 export default function CMSSidebar({ collapsed, onToggle }) {
     const pathname = usePathname()
+    const navRef = useRef(null)
+
+    useEffect(() => {
+        if (!navRef.current) return
+        navRef.current.scrollTop = 0
+    }, [pathname])
 
     const isActive = (href) => {
         if (href === '/cms') return pathname === '/cms'
@@ -37,7 +45,7 @@ export default function CMSSidebar({ collapsed, onToggle }) {
             )}
 
             <aside className={`
-                fixed lg:sticky top-0 left-0 z-50 h-screen
+                relative lg:sticky top-0 left-0 z-50 h-screen max-h-screen overflow-hidden
                 bg-white border-r border-slate-200
                 flex flex-col
                 transition-all duration-300 ease-in-out
@@ -78,7 +86,7 @@ export default function CMSSidebar({ collapsed, onToggle }) {
                 </div>
 
                 {/* Nav */}
-                <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto no-scrollbar">
+                <nav ref={navRef} className="flex-1 min-h-0 py-3 px-2 space-y-0.5 overflow-y-auto overscroll-contain no-scrollbar">
                     {navItems.map((item) => {
                         const active = isActive(item.href)
                         const Icon = item.icon

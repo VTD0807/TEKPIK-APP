@@ -1,50 +1,45 @@
-'use client'
-import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { useSelector } from 'react-redux'
-import ProductCard from '@/components/ProductCard'
-import { Search } from 'react-bootstrap-icons'
+import ShopCatalogClient from '@/components/ShopCatalogClient'
+import { absoluteUrl } from '@/lib/seo'
 
-function SearchContent() {
-    const searchParams = useSearchParams()
-    const q = searchParams.get('q') || ''
-    const products = useSelector(state => state.product.list)
+const STORE_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
 
-    const results = q
-        ? products.filter(p =>
-            (p.title || p.name || '').toLowerCase().includes(q.toLowerCase()) ||
-            p.description?.toLowerCase().includes(q.toLowerCase()) ||
-            p.brand?.toLowerCase().includes(q.toLowerCase()) ||
-            p.categories?.name?.toLowerCase().includes(q.toLowerCase()) ||
-            (Array.isArray(p.tags) && p.tags.some(tag => tag.toLowerCase().includes(q.toLowerCase())))
-        )
-        : []
+export async function generateMetadata({ searchParams }) {
+    const params = await searchParams
+    const q = String(params?.q || '').trim()
+    const title = q
+        ? `Search results for ${q} | ${STORE_NAME}`
+        : `Search results | ${STORE_NAME}`
+    const description = q
+        ? `Find the best ${q} deals, recommendations, and comparisons in India on ${STORE_NAME}.`
+        : `Search products, compare options, and discover top prices in India on ${STORE_NAME}.`
+    const canonical = q
+        ? absoluteUrl(`/search?q=${encodeURIComponent(q)}`)
+        : absoluteUrl('/search')
+    const ogImage = absoluteUrl('/logo-tekpik.png')
 
-    return (
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-6">
-            <div className="flex items-center gap-2 text-slate-600">
-                <Search size={20} />
-                <h1 className="text-xl font-semibold text-slate-800">
-                    {q ? `Results for "${q}"` : 'Search Products'}
-                </h1>
-                {q && <span className="text-slate-400 text-sm">({results.length} found)</span>}
-            </div>
-
-            {!q && <p className="text-slate-400 text-sm">Enter a search term in the navbar to find products.</p>}
-
-            {q && results.length === 0 && (
-                <div className="text-center py-20 text-slate-400">No products found for "{q}".</div>
-            )}
-
-            {results.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-10">
-                    {results.map(p => <ProductCard key={p.id} product={p} />)}
-                </div>
-            )}
-        </div>
-    )
+    return {
+        title,
+        description,
+        alternates: {
+            canonical,
+        },
+        openGraph: {
+            title,
+            description,
+            url: canonical,
+            type: 'website',
+            images: [{ url: ogImage }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [ogImage],
+        },
+    }
 }
 
-export default function SearchPage() {
-    return <Suspense fallback={<div className="p-10 text-slate-400">Searching...</div>}><SearchContent /></Suspense>
+export default async function SearchPage({ searchParams }) {
+    const params = await searchParams
+    return <ShopCatalogClient initialSearch={params?.q || ''} mode="search" />
 }

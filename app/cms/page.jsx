@@ -17,7 +17,7 @@ function SkeletonCard() {
     )
 }
 
-function QuickAction({ href, icon: Icon, label, color }) {
+function QuickAction({ href, icon: Icon, label }) {
     return (
         <Link href={href}
             className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-xl shadow-lg hover:bg-black/90 transition duration-200"
@@ -83,6 +83,8 @@ export default function CMSDashboard() {
     const aiPct = data.aiCoverage?.total > 0
         ? Math.round((data.aiCoverage.analysed / data.aiCoverage.total) * 100)
         : 0
+    const dbUnavailable = data?._meta?.dbReady === false
+    const dbReason = data?._meta?.reason || 'Firebase Admin is not initialized in deployment environment.'
 
     return (
         <div className="space-y-6">
@@ -96,6 +98,12 @@ export default function CMSDashboard() {
                     {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
             </div>
+
+            {dbUnavailable && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-900 p-3 text-sm whitespace-normal break-words">
+                    Data source is unavailable. Dashboard values are fallback zeros. Reason: {dbReason}
+                </div>
+            )}
 
             {/* Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -117,6 +125,11 @@ export default function CMSDashboard() {
                     <QuickAction href="/cms/storefront" icon={Gear} label="Storefront Sections" color="purple" />
                     <QuickAction href="/cms/categories" icon={BoxSeam} label="Manage Categories" color="emerald" />
                 </div>
+                <div className="grid sm:grid-cols-3 gap-3 mt-3">
+                    <MiniLink href="/cms/reports" title="Operational Reports" text="Review content health, backlog, and coverage." />
+                    <MiniLink href="/cms/product-updater" title="Product Updater" text="Run the Amazon updater and monitor sync work." />
+                    <MiniLink href="/cms/product-updater/logs" title="Updater Logs" text="Inspect recent runs and failures fast." />
+                </div>
             </div>
 
             {/* AI Coverage */}
@@ -134,6 +147,20 @@ export default function CMSDashboard() {
                 <p className="text-xs text-slate-500 mt-2">{data.aiCoverage?.analysed || 0} of {data.aiCoverage?.total || 0} products have AI-generated analysis</p>
             </div>
         </div>
+    )
+}
+
+function MiniLink({ href, title, text }) {
+    return (
+        <Link href={href} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 hover:bg-slate-50 transition block">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-slate-800">{title}</p>
+                    <p className="text-xs text-slate-500 mt-1">{text}</p>
+                </div>
+                <ArrowUpRight size={14} className="text-slate-400 shrink-0 mt-0.5" />
+            </div>
+        </Link>
     )
 }
 
