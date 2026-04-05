@@ -204,6 +204,7 @@ export default function TelegramManagerPanel() {
         tags: '',
         isFeatured: false,
         isActive: true,
+        sendToTelegram: false,
     })
     const [newTemplate, setNewTemplate] = useState({ key: '', label: '', body: '' })
     const [manualSend, setManualSend] = useState({
@@ -346,10 +347,11 @@ export default function TelegramManagerPanel() {
             tags: importForm.tags,
             isFeatured: importForm.isFeatured,
             isActive: importForm.isActive,
+            sendToTelegram: importForm.sendToTelegram,
         }, 'Importing product from link...')
 
         if (result?.success) {
-            setImportForm((prev) => ({ ...prev, url: '', title: '', brand: '', tags: '' }))
+            setImportForm((prev) => ({ ...prev, url: '', title: '', brand: '', tags: '', sendToTelegram: false }))
         }
     }
 
@@ -370,25 +372,69 @@ export default function TelegramManagerPanel() {
             return
         }
 
-        setConfig((prev) => ({
-            ...prev,
+        const updatedConfig = {
+            ...config,
             templates: {
-                ...(prev.templates || {}),
+                ...(config.templates || {}),
                 customTemplates: [...current, { key, label: label || key, body }],
             },
-        }))
+        }
+
+        setConfig(updatedConfig)
         setNewTemplate({ key: '', label: '', body: '' })
+
+        // Auto-save template to database
+        setSaving(true)
+        fetch('/api/admin/telegram-manager', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedConfig),
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.config) {
+                    setConfig({ ...DEFAULT_CONFIG, ...(data.config || {}) })
+                    toast.success(`Template "${label}" saved`)
+                }
+            })
+            .catch((error) => {
+                toast.error('Failed to save template')
+                console.error(error)
+            })
+            .finally(() => setSaving(false))
     }
 
     const removeCustomTemplate = (key) => {
         const current = Array.isArray(config?.templates?.customTemplates) ? config.templates.customTemplates : []
-        setConfig((prev) => ({
-            ...prev,
+        const updatedConfig = {
+            ...config,
             templates: {
-                ...(prev.templates || {}),
+                ...(config.templates || {}),
                 customTemplates: current.filter((item) => item.key !== key),
             },
-        }))
+        }
+
+        setConfig(updatedConfig)
+
+        // Auto-save removal to database
+        setSaving(true)
+        fetch('/api/admin/telegram-manager', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedConfig),
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.config) {
+                    setConfig({ ...DEFAULT_CONFIG, ...(data.config || {}) })
+                    toast.success('Template removed')
+                }
+            })
+            .catch((error) => {
+                toast.error('Failed to remove template')
+                console.error(error)
+            })
+            .finally(() => setSaving(false))
     }
 
     const insertShortcutToTemplate = (target, tokenName) => {
@@ -598,7 +644,7 @@ export default function TelegramManagerPanel() {
                                 </label>
                             </div>
 
-                            <div className="grid gap-3 md:grid-cols-2">
+                            <div className="grid gap-3 md:grid-cols-3">
                                 <label className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3">
                                     <div>
                                         <p className="text-sm font-medium text-slate-800">Featured</p>
@@ -612,6 +658,13 @@ export default function TelegramManagerPanel() {
                                         <p className="text-xs text-slate-400">Visible on site</p>
                                     </div>
                                     <input type="checkbox" checked={importForm.isActive} onChange={(e) => setImportForm((prev) => ({ ...prev, isActive: e.target.checked }))} className="h-4 w-4" />
+                                </label>
+                                <label className="flex items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-800">Send to Telegram</p>
+                                        <p className="text-xs text-slate-400">Auto-post to channel</p>
+                                    </div>
+                                    <input type="checkbox" checked={importForm.sendToTelegram} onChange={(e) => setImportForm((prev) => ({ ...prev, sendToTelegram: e.target.checked }))} className="h-4 w-4" />
                                 </label>
                             </div>
 

@@ -291,6 +291,35 @@ export async function POST(req) {
                 createdAt: now,
             })
 
+            // Auto-send Telegram message if enabled
+            let telegramSent = false
+            let telegramError = null
+            if (body?.sendToTelegram === true && config.enabled && config.publishNewProducts) {
+                try {
+                    const msgResult = await sendTelegramManualMessage(config, {
+                        message: '',
+                        templateKey: 'catalog',
+                        product: { id: productId, ...payload },
+                        includeImage: true,
+                    })
+                    if (msgResult?.success) {
+                        telegramSent = true
+                        await dbAdmin.collection('telegram_channel_messages').add({
+                            type: 'auto_import',
+                            status: 'success',
+                            message: 'Auto-sent on product import from Telegram Manager',
+                            preview: String(msgResult?.message || '').slice(0, 500),
+                            templateKey: 'catalog',
+                            productId,
+                            imageSent: Boolean(msgResult?.usedImage),
+                            createdAt: now,
+                        })
+                    }
+                } catch (err) {
+                    telegramError = err.message
+                }
+            }
+
             return NextResponse.json({
                 success: true,
                 mode,
@@ -304,6 +333,10 @@ export async function POST(req) {
                     categoryId,
                     tags,
                     imageUrls,
+                },
+                telegram: {
+                    sent: telegramSent,
+                    error: telegramError || null,
                 },
             })
         }
