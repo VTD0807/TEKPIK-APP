@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { dbAdmin, authAdmin, timestampToJSON } from '@/lib/firebase-admin'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
+import { buildProductIdentity, findExistingProductByIdentity, getIdentityCollectionName } from '@/lib/product-identity'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,10 @@ export async function POST(req) {
                 created += 1
                 createdProducts.push(product)
             } catch (error) {
-                errors.push({ row: index + 2, error: error.message })
+                const message = error?.message === 'DUPLICATE_PRODUCT'
+                    ? 'duplicate product detected'
+                    : error?.message
+                errors.push({ row: index + 2, error: message })
             }
         }
 
@@ -150,37 +154,72 @@ async function createProductFromRow(row, { createdBy, categoryLookup }) {
     if (!categoryId) throw new Error(`categoryId required for ${title}`)
 
     const now = new Date()
-    const resolvedSlug = String(row.slug || title).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const identity = buildProductIdentity({
+        title,
+        slug: row.slug,
+        asin: row.asin,
+        affiliateUrl,
+    })
+
+    const existingProduct = await findExistingProductByIdentity(dbAdmin, identity)
+    if (existingProduct) {
+        throw new Error(`duplicate product exists (id: ${existingProduct.id || 'unknown'})`)
+    }
+
     const parsedOriginalPrice = parseOptionalNumber(row.originalprice || row.original_price)
     const parsedDiscount = parseOptionalNumber(row.discount || row.discount_percentage, 0)
+    const resolvedImageUrls = parseList(row.imageurls || row.image_urls || row.images || row.imageurl)
+    const resolvedIsFeatured = parseBoolean(row.isfeatured || row.is_featured)
+    const resolvedIsActive = parseBoolean(row.isactive ?? row.is_active ?? row.public ?? row.ispublic, true)
     const product = {
         title,
-        slug: resolvedSlug,
+        slug: identity.slug,
         description: String(row.description || '').trim(),
         price,
         originalPrice: parsedOriginalPrice,
         discount: parsedDiscount,
         affiliateUrl,
-        asin: String(row.asin || '').trim() || null,
+        affiliateUrlNormalized: identity.affiliateUrlNormalized,
+        asin: identity.asin || null,
         brand: String(row.brand || '').trim(),
-        imageUrls: parseList(row.imageurls || row.image_urls || row.images || row.imageurl),
-        isFeatured: parseBoolean(row.isfeatured || row.is_featured),
-        isActive: parseBoolean(row.isactive ?? row.is_active ?? row.public ?? row.ispublic, true),
+        imageUrls: resolvedImageUrls,
+        isFeatured: resolvedIsFeatured,
+        isActive: resolvedIsActive,
         categoryId,
         tags: parseList(row.tags),
+        identityKey: identity.identityKey,
         affiliate_url: affiliateUrl,
-        image_urls: parseList(row.imageurls || row.image_urls || row.images || row.imageurl),
+        image_urls: resolvedImageUrls,
         original_price: parsedOriginalPrice,
         category_id: categoryId,
-        is_featured: parseBoolean(row.isfeatured || row.is_featured),
-        is_active: parseBoolean(row.isactive ?? row.is_active ?? row.public ?? row.ispublic, true),
-        public: parseBoolean(row.isactive ?? row.is_active ?? row.public ?? row.ispublic, true),
+        is_featured: resolvedIsFeatured,
+        is_active: resolvedIsActive,
+        public: resolvedIsActive,
         createdAt: now,
         updatedAt: now,
         ...(createdBy && { createdBy }),
     }
 
-    const docRef = await dbAdmin.collection('products').add(product)
+    const docRef = dbAdmin.collection('products').doc()
+    const identityRef = dbAdmin.collection(getIdentityCollectionName()).doc(identity.identityKey)
+
+    await dbAdmin.runTransaction(async (tx) => {
+        const identitySnap = await tx.get(identityRef)
+        const identityOwner = String(identitySnap.data()?.productId || '')
+        if (identitySnap.exists && identityOwner && identityOwner !== docRef.id) {
+            throw new Error('DUPLICATE_PRODUCT')
+        }
+
+        tx.set(docRef, product)
+        tx.set(identityRef, {
+            productId: docRef.id,
+            slug: identity.slug,
+            asin: identity.asin,
+            affiliateUrlNormalized: identity.affiliateUrlNormalized,
+            updatedAt: now,
+        }, { merge: true })
+    })
+
     await dbAdmin.collection('analytics_product_feature_vectors').doc(docRef.id).set({
         productId: docRef.id,
         features: buildProductFeatureVector({ id: docRef.id, ...product }),

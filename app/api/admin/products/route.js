@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin, authAdmin, timestampToJSON } from '@/lib/firebase-admin'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
+import { buildProductIdentity, findExistingProductByIdentity, getIdentityCollectionName } from '@/lib/product-identity'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,21 +73,38 @@ export async function POST(req) {
             }
         }
         
+        const identity = buildProductIdentity({
+            title: body.title,
+            slug: body.slug,
+            asin: body.asin,
+            affiliateUrl: resolvedAffiliateUrl,
+        })
+
+        const existingProduct = await findExistingProductByIdentity(dbAdmin, identity)
+        if (existingProduct) {
+            return NextResponse.json({
+                error: 'Duplicate product detected',
+                duplicateProductId: existingProduct.id,
+            }, { status: 409 })
+        }
+
         const newProduct = {
             title: body.title,
-            slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            slug: identity.slug,
             description: body.description || '',
             price: Number.isFinite(parsedPrice) ? parsedPrice : 0,
             originalPrice: parsedOriginalPrice ? Number.parseFloat(parsedOriginalPrice) : null,
             discount: Number.parseInt(parsedDiscount) || 0,
             affiliateUrl: resolvedAffiliateUrl,
-            asin: body.asin || null,
+            affiliateUrlNormalized: identity.affiliateUrlNormalized,
+            asin: identity.asin || null,
             brand: body.brand || '',
             imageUrls: resolvedImageUrls,
             isFeatured: !!resolvedIsFeatured,
             isActive: !!resolvedIsActive,
             categoryId: resolvedCategoryId,
             tags: body.tags || [],
+            identityKey: identity.identityKey,
             // Keep legacy keys in sync for old pages still reading snake_case/public.
             affiliate_url: resolvedAffiliateUrl,
             image_urls: resolvedImageUrls,
@@ -100,7 +118,25 @@ export async function POST(req) {
             ...(createdBy && { createdBy }),
         }
 
-        const docRef = await dbAdmin.collection('products').add(newProduct)
+        const docRef = dbAdmin.collection('products').doc()
+        const identityRef = dbAdmin.collection(getIdentityCollectionName()).doc(identity.identityKey)
+        await dbAdmin.runTransaction(async (tx) => {
+            const identitySnap = await tx.get(identityRef)
+            const identityOwner = String(identitySnap.data()?.productId || '')
+            if (identitySnap.exists && identityOwner && identityOwner !== docRef.id) {
+                throw new Error('DUPLICATE_PRODUCT')
+            }
+
+            tx.set(docRef, newProduct)
+            tx.set(identityRef, {
+                productId: docRef.id,
+                slug: identity.slug,
+                asin: identity.asin,
+                affiliateUrlNormalized: identity.affiliateUrlNormalized,
+                updatedAt: now,
+            }, { merge: true })
+        })
+
         const docSnap = await docRef.get()
 
         await dbAdmin.collection('analytics_product_feature_vectors').doc(docRef.id).set({
@@ -118,6 +154,9 @@ export async function POST(req) {
 
         return NextResponse.json({ product: createdProduct }, { status: 201 })
     } catch (error) {
+        if (error?.message === 'DUPLICATE_PRODUCT') {
+            return NextResponse.json({ error: 'Duplicate product detected' }, { status: 409 })
+        }
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }

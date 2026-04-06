@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { dbAdmin } from '@/lib/firebase-admin'
 import { scrapeAmazonProduct } from '@/lib/amazon-scraper'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
+import { buildProductIdentity, findExistingProductByIdentity, getIdentityCollectionName } from '@/lib/product-identity'
 import {
     getTelegramManagerStats,
     normalizeTelegramManagerConfig,
@@ -215,20 +216,21 @@ export async function POST(req) {
                 ? scraped.imageUrls
                 : []
 
-            let existingRef = null
-            if (scraped.asin) {
-                const existingByAsin = await dbAdmin.collection('products').where('asin', '==', scraped.asin).limit(1).get()
-                if (!existingByAsin.empty) existingRef = existingByAsin.docs[0].ref
-            }
+            const identity = buildProductIdentity({
+                title,
+                slug: slugify(title),
+                asin: scraped.asin,
+                affiliateUrl,
+            })
 
-            if (!existingRef) {
-                const existingByAffiliate = await dbAdmin.collection('products').where('affiliateUrl', '==', affiliateUrl).limit(1).get()
-                if (!existingByAffiliate.empty) existingRef = existingByAffiliate.docs[0].ref
-            }
+            const existingProduct = await findExistingProductByIdentity(dbAdmin, identity)
+            const existingRef = existingProduct?.id
+                ? dbAdmin.collection('products').doc(existingProduct.id)
+                : null
 
             const payload = {
                 title,
-                slug: slugify(title),
+                slug: identity.slug,
                 description: scraped.descriptionHtml || '',
                 price: nextPrice,
                 originalPrice: nextOriginalPrice,
@@ -236,13 +238,15 @@ export async function POST(req) {
                 discount: nextDiscount,
                 affiliateUrl,
                 affiliate_url: affiliateUrl,
-                asin: scraped.asin || null,
+                affiliateUrlNormalized: identity.affiliateUrlNormalized,
+                asin: identity.asin || null,
                 brand,
                 imageUrls,
                 image_urls: imageUrls,
                 categoryId,
                 category_id: categoryId,
                 tags,
+                identityKey: identity.identityKey,
                 isFeatured: body?.isFeatured === true,
                 is_featured: body?.isFeatured === true,
                 isActive: body?.isActive !== false,
@@ -263,9 +267,37 @@ export async function POST(req) {
                 await existingRef.set(payload, { merge: true })
                 productId = existingRef.id
                 mode = 'updated'
+
+                const identityRef = dbAdmin.collection(getIdentityCollectionName()).doc(identity.identityKey)
+                await identityRef.set({
+                    productId,
+                    slug: identity.slug,
+                    asin: identity.asin,
+                    affiliateUrlNormalized: identity.affiliateUrlNormalized,
+                    updatedAt: now,
+                }, { merge: true })
             } else {
-                const created = await dbAdmin.collection('products').add({ ...payload, createdAt: now })
-                productId = created.id
+                const productRef = dbAdmin.collection('products').doc()
+                const identityRef = dbAdmin.collection(getIdentityCollectionName()).doc(identity.identityKey)
+
+                await dbAdmin.runTransaction(async (tx) => {
+                    const identitySnap = await tx.get(identityRef)
+                    const owner = String(identitySnap.data()?.productId || '')
+                    if (identitySnap.exists && owner && owner !== productRef.id) {
+                        throw new Error('DUPLICATE_PRODUCT')
+                    }
+
+                    tx.set(productRef, { ...payload, createdAt: now })
+                    tx.set(identityRef, {
+                        productId: productRef.id,
+                        slug: identity.slug,
+                        asin: identity.asin,
+                        affiliateUrlNormalized: identity.affiliateUrlNormalized,
+                        updatedAt: now,
+                    }, { merge: true })
+                })
+
+                productId = productRef.id
             }
 
             await dbAdmin.collection('analytics_product_feature_vectors').doc(productId).set({
@@ -299,7 +331,13 @@ export async function POST(req) {
                     const msgResult = await sendTelegramManualMessage(config, {
                         message: '',
                         templateKey: 'catalog',
-                        product: { id: productId, ...payload },
+                        product: {
+                            id: productId,
+                            ...payload,
+                            productUrl: sourceUrl,
+                            sourceUrl,
+                            importSourceUrl: sourceUrl,
+                        },
                         includeImage: true,
                     })
                     if (msgResult?.success) {
@@ -344,6 +382,9 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     } catch (error) {
         console.error('[telegram-manager:post]', error)
+        if (error?.message === 'DUPLICATE_PRODUCT') {
+            return NextResponse.json({ error: 'Duplicate product detected' }, { status: 409 })
+        }
         return NextResponse.json({ error: error.message || 'Telegram action failed' }, { status: 500 })
     }
 }
