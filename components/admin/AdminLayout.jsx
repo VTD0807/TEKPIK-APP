@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import Loading from "../Loading"
 import AdminNavbar from "./AdminNavbar"
 import AdminSidebar from "./AdminSidebar"
+import AdminMobileNav from "./AdminMobileNav"
 import { useAuth } from "@/lib/auth-context"
 import { db } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
@@ -73,14 +74,20 @@ export default function AdminLayout({ children }) {
     )
 
     return (
-        <div className="flex flex-col h-screen">
+        <div className="flex h-screen flex-col bg-slate-50">
             <AdminNavbar />
-            <div className="flex flex-1 items-start h-full overflow-y-scroll no-scrollbar">
-                <AdminSidebar />
-                <div className="flex-1 h-full p-5 lg:pl-12 lg:pt-12 overflow-y-scroll no-scrollbar">
-                    {children}
+
+            <div className="flex min-h-0 flex-1">
+                <div className="hidden lg:block">
+                    <AdminSidebar />
                 </div>
+
+                <main className="min-h-0 flex-1 overflow-y-auto no-scrollbar px-4 py-4 sm:px-5 sm:py-5 lg:pl-12 lg:pt-10 lg:pr-8 pb-28 lg:pb-8">
+                    {children}
+                </main>
             </div>
+
+            <AdminMobileNav />
         </div>
     )
 }
@@ -100,6 +107,7 @@ function canAccessPath(pathname, profile = {}) {
 function moduleForPath(pathname = '') {
     if (pathname.startsWith('/admin/employees/access')) return 'users'
     if (pathname.startsWith('/admin/employees')) return 'employees'
+    if (pathname.startsWith('/admin/work-assignments')) return 'employees'
     if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/profile')) return 'users'
     if (pathname.startsWith('/admin/data')) return 'analytics'
     if (pathname.startsWith('/admin/price-history')) return 'analytics'

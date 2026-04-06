@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import Loading from '@/components/Loading'
+import PersonalizedTopFeed from '@/components/PersonalizedTopFeed'
 import {
     Basket,
     Star,
@@ -36,6 +37,7 @@ export default function EmployeeDashboardPage() {
     const { user } = useAuth()
     const [modules, setModules] = useState([])
     const [report, setReport] = useState(null)
+    const [pendingAssignments, setPendingAssignments] = useState([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -46,7 +48,7 @@ export default function EmployeeDashboardPage() {
                 const token = user ? await user.getIdToken() : null
                 const controller = new AbortController()
                 const timeout = setTimeout(() => controller.abort(), 10000)
-                const [accessRes, reportRes] = await Promise.all([
+                const [accessRes, reportRes, workRes] = await Promise.allSettled([
                     fetch('/api/me/dashboard-access', {
                         cache: 'no-store',
                         signal: controller.signal,
@@ -57,16 +59,35 @@ export default function EmployeeDashboardPage() {
                         signal: controller.signal,
                         headers: token ? { Authorization: `Bearer ${token}` } : {},
                     }),
+                    fetch('/api/me/work-assignments', {
+                        cache: 'no-store',
+                        signal: controller.signal,
+                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    }),
                 ])
                 clearTimeout(timeout)
 
-                const payload = await accessRes.json().catch(() => ({}))
-                const reportPayload = await reportRes.json().catch(() => ({}))
-                if (!accessRes.ok) throw new Error(payload?.error || 'Failed')
-                if (!reportRes.ok) throw new Error(reportPayload?.error || 'Failed to load tracker')
+                if (accessRes.status !== 'fulfilled') throw new Error('Failed to load dashboard access')
+                if (reportRes.status !== 'fulfilled') throw new Error('Failed to load activity report')
+
+                const payload = await accessRes.value.json().catch(() => ({}))
+                const reportPayload = await reportRes.value.json().catch(() => ({}))
+                if (!accessRes.value.ok) throw new Error(payload?.error || 'Failed')
+                if (!reportRes.value.ok) throw new Error(reportPayload?.error || 'Failed to load tracker')
+
+                let pending = []
+                if (workRes.status === 'fulfilled') {
+                    const workPayload = await workRes.value.json().catch(() => ({}))
+                    if (workRes.value.ok) {
+                        const list = Array.isArray(workPayload?.assignments) ? workPayload.assignments : []
+                        pending = list.filter((item) => (item?.status || 'NOT_STARTED') !== 'COMPLETED')
+                    }
+                }
+
                 if (!cancelled) {
                     setModules(payload?.isAdmin ? Object.keys(META) : (payload?.modules || []).map((m) => m.key).filter((key) => META[key]))
                     setReport(reportPayload)
+                    setPendingAssignments(pending)
                 }
             } catch {
                 if (!cancelled) setModules([])
@@ -89,6 +110,13 @@ export default function EmployeeDashboardPage() {
     const trackerAnalytics = report?.analytics || {}
     const trackerFavorites = report?.favorites || {}
     const recentActivities = report?.recentActivities || []
+    const pendingByModule = useMemo(() => {
+        return pendingAssignments.reduce((acc, item) => {
+            const key = item.module || 'GENERAL'
+            acc[key] = (acc[key] || 0) + 1
+            return acc
+        }, {})
+    }, [pendingAssignments])
 
     return (
         <div className="space-y-6 pb-24">
@@ -133,6 +161,20 @@ export default function EmployeeDashboardPage() {
                         <div className="flex items-center gap-2">
                             <GraphUpArrow size={16} className="text-slate-600" />
                             <h2 className="text-lg font-semibold text-slate-800">Assigned Modules</h2>
+                        </div>
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-semibold text-amber-900">Pending Works</p>
+                                <Link href="/e/work" className="text-xs text-amber-800 underline">Open My Work</Link>
+                            </div>
+                            <p className="text-xs text-amber-800">Total pending: {pendingAssignments.length}</p>
+                            <div className="flex flex-wrap gap-2">
+                                {Object.entries(pendingByModule).length > 0 ? Object.entries(pendingByModule).map(([moduleName, count]) => (
+                                    <span key={moduleName} className="px-2 py-1 rounded-full bg-white border border-amber-200 text-xs text-amber-900">
+                                        {moduleName}: {count}
+                                    </span>
+                                )) : <span className="text-xs text-amber-700">No pending works.</span>}
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 gap-3">
                             {cards.map((card) => (
@@ -188,6 +230,8 @@ export default function EmployeeDashboardPage() {
                     ))}
                 </div>
             )}
+
+            {!loading && <PersonalizedTopFeed />}
         </div>
     )
 }

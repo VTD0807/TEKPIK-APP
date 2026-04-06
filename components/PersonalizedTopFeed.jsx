@@ -68,13 +68,6 @@ export default function PersonalizedTopFeed() {
         )
     }
 
-    const hasValidInterest = interestCategories.some((item) => {
-        if (!item || typeof item.name !== 'string') return false
-        return item.name.trim().length > 0 && Number(item.weight || 0) > 0
-    })
-
-    if (source !== 'personalized' || !hasValidInterest) return null
-
     if (!products.length) return null
 
     return (
@@ -84,7 +77,7 @@ export default function PersonalizedTopFeed() {
                 <p className='text-sm text-slate-500 mt-1'>{subtitle}</p>
             </div>
 
-            {interestCategories.length > 0 && (
+            {source === 'personalized' && interestCategories.length > 0 && (
                 <div className='mt-3 flex flex-wrap gap-2'>
                     {interestCategories.slice(0, 6).map((item) => (
                         <span
@@ -95,6 +88,10 @@ export default function PersonalizedTopFeed() {
                         </span>
                     ))}
                 </div>
+            )}
+
+            {source !== 'personalized' && (
+                <p className='text-xs text-slate-400 mt-3'>Showing trending picks while we build your profile.</p>
             )}
 
             <div className='mt-6 sm:mt-8 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>

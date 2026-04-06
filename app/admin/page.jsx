@@ -64,8 +64,8 @@ export default function AdminDashboard() {
     const activityIcons = { review: Star, product: Basket, ai: Stars, wishlist: Heart }
 
     return (
-        <div className="text-slate-600 space-y-8 pb-20">
-            <h1 className="text-2xl text-slate-500">Admin <span className="text-slate-800 font-medium">Dashboard</span></h1>
+        <div className="text-slate-600 space-y-6 sm:space-y-8">
+            <h1 className="text-xl sm:text-2xl text-slate-500">Admin <span className="text-slate-800 font-medium">Dashboard</span></h1>
 
             {dbUnavailable && (
                 <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-900 p-3 text-sm whitespace-normal break-words">
@@ -74,15 +74,15 @@ export default function AdminDashboard() {
             )}
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 {statCards.map((card, i) => (
-                    <div key={i} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm space-y-2">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.color}`}>
+                    <div key={i} className="bg-white border border-slate-100 rounded-xl p-3 sm:p-4 shadow-sm space-y-2">
+                        <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center ${card.color}`}>
                             <card.icon size={18} />
                         </div>
-                        <p className="text-2xl font-bold text-slate-800">{card.value}</p>
-                        <p className="text-sm text-slate-500">{card.title}</p>
-                        <p className="text-xs text-slate-400">{card.sub}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-slate-800">{card.value}</p>
+                        <p className="text-xs sm:text-sm text-slate-500">{card.title}</p>
+                        <p className="text-[11px] sm:text-xs text-slate-400">{card.sub}</p>
                     </div>
                 ))}
             </div>
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
                 <p className="text-xs text-slate-400 mt-1">{data.aiCoverage.analysed} of {data.aiCoverage.total} products have AI analysis</p>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Chart */}
                 <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
                     <p className="text-sm font-medium text-slate-700 mb-4">Click Activity (last 30 days)</p>
@@ -131,22 +131,22 @@ export default function AdminDashboard() {
             {/* Quick Actions */}
             <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
                 <p className="text-sm font-medium text-slate-700 mb-4">Quick Actions</p>
-                <div className="flex flex-wrap gap-3">
-                    <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3">
+                    <Link href="/admin/products/new" className="flex items-center justify-center gap-2 px-3 py-3 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition text-center">
                         <Plus size={14} /> Add Product
                     </Link>
-                    <Link href="/admin/reviews" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
+                    <Link href="/admin/reviews" className="flex items-center justify-center gap-2 px-3 py-3 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition text-center">
                         <CheckSquare size={14} /> Moderate Reviews
                         {data.pendingReviews > 0 && <span className="bg-white text-slate-800 text-xs font-bold px-1.5 rounded-full">{data.pendingReviews}</span>}
                     </Link>
-                    <Link href="/admin/ai-analysis" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
-                        <Stars size={14} /> Run AI Analysis
+                    <Link href="/admin/ai-analysis" className="flex items-center justify-center gap-2 px-3 py-3 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition text-center">
+                        <Stars size={14} /> Run AI
                     </Link>
-                    <Link href="/admin/data" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
-                        <Eye size={14} /> Product Analytics
+                    <Link href="/admin/data" className="flex items-center justify-center gap-2 px-3 py-3 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition text-center">
+                        <Eye size={14} /> Analytics
                     </Link>
-                    <Link href="/admin/integrations" className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition">
-                        <SendFill size={14} /> Telegram Manager
+                    <Link href="/admin/integrations" className="col-span-2 lg:col-span-1 flex items-center justify-center gap-2 px-3 py-3 bg-black hover:bg-black/90 text-white text-sm rounded-lg transition text-center">
+                        <SendFill size={14} /> Telegram
                     </Link>
                 </div>
             </div>

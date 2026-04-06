@@ -34,6 +34,7 @@ export const EMPLOYEE_MODULE_LINKS = [
     { key: 'analytics', label: 'Analytics', href: '/e/analytics' },
     { key: 'users', label: 'Users', href: '/e/users' },
     { key: 'employees', label: 'Employees', href: '/e/employees' },
+    { key: 'employees', label: 'My Work', href: '/e/work' },
     { key: 'settings', label: 'Settings', href: '/e/settings' },
     { key: 'cms', label: 'CMS', href: '/e/cms' },
     { key: 'store', label: 'Store', href: '/e/store' },

@@ -57,6 +57,28 @@ service cloud.firestore {
       allow read, write: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.userId);
     }
 
+    function isAssignmentOwner() {
+      return isSignedIn() && request.auth.uid == resource.data.employeeId;
+    }
+
+    function isAllowedEmployeeProgressUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        'status',
+        'progressPercent',
+        'notes',
+        'statusHistory',
+        'updatedAt',
+        'startedAt',
+        'completedAt'
+      ]);
+    }
+
+    match /work_assignments/{id} {
+      allow read: if isAdmin() || isAssignmentOwner();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isAssignmentOwner() && isAllowedEmployeeProgressUpdate());
+    }
+
     match /{document=**} {
       allow read, write: if isAdmin();
     }

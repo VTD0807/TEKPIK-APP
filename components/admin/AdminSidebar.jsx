@@ -21,6 +21,7 @@ const AdminSidebar = () => {
         { name: 'Users', href: '/admin/users', icon: PeopleFill },
         { name: 'Employee Access', href: '/admin/employees/access', icon: PeopleFill },
         { name: 'Employee Performance', href: '/admin/employees', icon: GraphUpArrow },
+        { name: 'Work Assignments', href: '/admin/work-assignments', icon: GraphUpArrow },
         { name: 'User Analytics', href: '/admin/user-analytics', icon: GeoAlt },
         { name: 'Notify Users', href: '/admin/notifications', icon: Megaphone },
         { name: 'Analytics', href: '/admin/data', icon: Database },
