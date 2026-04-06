@@ -56,6 +56,7 @@ export default function AdminPriceHistoryPage() {
     const [runs, setRuns] = useState([])
     const [selectedProductId, setSelectedProductId] = useState('')
     const [days, setDays] = useState(60)
+    const secondaryAdminMissing = String(status?.secondary?.error || '').includes('web config is present')
 
     const fetchModule = async (nextProductId = selectedProductId, nextDays = days) => {
         const query = new URLSearchParams()
@@ -243,6 +244,11 @@ export default function AdminPriceHistoryPage() {
                 <div className="space-y-6">
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Daily Sync Settings</p>
+                        {secondaryAdminMissing && (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                Secondary Firebase web config is loaded, but the Admin SDK credential is still missing in Vercel. Add one of the secondary service account env vars to enable price history writes.
+                            </div>
+                        )}
                         <div className="grid gap-3 md:grid-cols-2">
                             <label className="space-y-1 text-sm">
                                 <span className="text-xs uppercase tracking-[0.16em] text-slate-400">Enabled</span>
