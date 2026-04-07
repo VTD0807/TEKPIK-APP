@@ -195,7 +195,7 @@ export default async function ProductPage({ params }) {
         && numericOriginalPrice > 0
         && numericOriginalPrice > numericPrice
     const lastUpdatedDate = (() => {
-        const raw = product.lastUpdated
+        const raw = product.amazonSyncedAt || product.lastUpdated || product.updatedAt
         if (!raw) return null
         if (typeof raw?.toDate === 'function') return raw.toDate()
         const parsed = new Date(raw)

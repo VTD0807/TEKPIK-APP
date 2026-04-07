@@ -185,7 +185,7 @@ const ProductCard = ({ product }) => {
         && originalPrice > 0
         && originalPrice > currentPrice
     const lastUpdatedDate = (() => {
-        const raw = product.lastUpdated
+        const raw = product.amazonSyncedAt || product.lastUpdated || product.updatedAt
         if (!raw) return null
         if (typeof raw === 'string' || typeof raw === 'number') {
             const parsed = new Date(raw)

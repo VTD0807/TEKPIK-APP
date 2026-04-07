@@ -191,6 +191,7 @@ const buildUpdatePayload = (existingProduct, scraped) => {
             image_urls: nextImageUrls,
             amazonRatingText: nextValues.amazonRatingText,
             amazonReviewsText: nextValues.amazonReviewsText,
+            lastUpdated: now,
             updatedAt: now,
             amazonSyncedAt: now,
             amazonSyncSource: nextValues.amazonSyncSource,
@@ -324,6 +325,10 @@ export async function POST(req) {
 
                 try {
                     const scraped = await scrapeAmazonProduct(sourceUrl)
+                    const scrapedPrice = toNumberOrNull(scraped.price)
+                    if (!(scrapedPrice && scrapedPrice > 0)) {
+                        throw new Error('Scraper returned no valid current price.')
+                    }
                     const { updateData, changedFields } = buildUpdatePayload(product, scraped)
 
                     await dbAdmin.collection('products').doc(product.id).update(updateData)

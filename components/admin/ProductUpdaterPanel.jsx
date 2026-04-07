@@ -176,7 +176,7 @@ export default function ProductUpdaterPanel({ mode = 'full', title = 'Amazon Pro
                 body: JSON.stringify({
                     force: true,
                     runId,
-                    limit: settings.maxPerRun,
+                    limit: expectedCount,
                     delayMs: settings.delayMs,
                     batches: Array.isArray(settings.batches) ? settings.batches : [],
                 }),
