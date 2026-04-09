@@ -6,11 +6,11 @@ import { ArrowRepeat, ClockHistory, CheckCircleFill, XCircleFill, PlayFill, Gear
 
 const DEFAULT_SETTINGS = {
     enabled: false,
-    frequencyMinutes: 1440,
-    maxPerRun: 5,
+    frequencyMinutes: 360,
+    maxPerRun: 4,
     delayMs: 500,
     batches: [
-        { name: 'Batch 1', size: 5, delayMs: 500 },
+        { name: 'Batch 1', size: 4, delayMs: 500 },
     ],
 }
 
@@ -153,13 +153,10 @@ export default function ProductUpdaterPanel({ mode = 'full', title = 'Amazon Pro
 
     const handleRunNow = async () => {
         const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-        const expectedCount = (Array.isArray(settings.batches) && settings.batches.length > 0)
-            ? settings.batches.reduce((sum, batch) => sum + (Math.max(1, Number.parseInt(batch?.size, 10) || 1)), 0)
-            : Math.max(1, Number.parseInt(settings.maxPerRun, 10) || 1)
 
         setRunning(true)
         setActiveRunId(runId)
-        setRunTargetCount(expectedCount)
+        setRunTargetCount(0)
         setActiveRunLogs([])
         const toastId = toast.loading('Running sequential Amazon update...')
 
@@ -176,7 +173,7 @@ export default function ProductUpdaterPanel({ mode = 'full', title = 'Amazon Pro
                 body: JSON.stringify({
                     force: true,
                     runId,
-                    limit: expectedCount,
+                    runAll: true,
                     delayMs: settings.delayMs,
                     batches: Array.isArray(settings.batches) ? settings.batches : [],
                 }),
@@ -185,6 +182,7 @@ export default function ProductUpdaterPanel({ mode = 'full', title = 'Amazon Pro
             if (!res.ok) throw new Error(data?.error || 'Updater run failed')
 
             setSummary(data?.summary || summary)
+            setRunTargetCount(Number(data?.summary?.totalCandidates || 0))
             if (Array.isArray(data?.logs) && data.logs.length > 0) {
                 setLogs(prev => [...data.logs, ...prev].slice(0, 50))
                 const runLogs = data.logs

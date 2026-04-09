@@ -68,6 +68,66 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
+def extract_price_value(price_text):
+    """Extract numeric value from price text, handling various formats"""
+    if not price_text:
+        return None
+    # Remove currency symbols and whitespace, keep numbers and comma/period
+    price_text = re.sub(r'[^\d.,]', '', price_text.strip())
+    # Handle both comma and period as decimal separator
+    price_text = price_text.replace(',', '.')
+    # Get last occurrence (in case of multiple numbers)
+    numbers = re.findall(r'\d+\.\d+|\d+', price_text)
+    return numbers[-1] if numbers else None
+
+def get_current_price(soup):
+    """Extract current price with multiple fallback selectors"""
+    selectors = [
+        '.a-price-whole',
+        'span.a-price.a-text-price.a-size-medium.apexPriceToPay',
+        'span[data-a-color="price"]',
+        'span.a-price-symbol + span.a-price-whole',
+        '.a-price',
+        '#priceInsideBuyBox',
+    ]
+    
+    for selector in selectors:
+        elements = soup.select(selector)
+        if elements:
+            for elem in elements:
+                text = elem.get_text(strip=True)
+                if text and any(char.isdigit() for char in text):
+                    return f"₹{text}"
+    
+    return None
+
+def get_original_price(soup):
+    """Extract original/strikethrough price with multiple fallback selectors"""
+    selectors = [
+        '.basisPrice .a-offscreen',
+        '.a-price.basisPrice',
+        '.a-text-strike',
+        'span.a-offscreen' # Fallback for hidden price text
+    ]
+    
+    for selector in selectors:
+        elements = soup.select(selector)
+        if elements:
+            for elem in elements:
+                text = elem.get_text(strip=True)
+                # Check if it looks like a price (has numbers)
+                if text and any(char.isdigit() for char in text):
+                    # Avoid duplicate if same as current price
+                    return text
+    
+    # Try to find discount percentage - often near the price
+    discount_selectors = [
+        '.savingsPercentage',
+        'span:-soup-contains("%")',
+    ]
+    
+    return None
+
 def get_amazon_data(input_url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -92,19 +152,26 @@ def get_amazon_data(input_url):
 
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # 3. Scraping logic
+        # 3. Scraping logic with robust selectors
         title = soup.select_one('#productTitle')
-        price = soup.select_one('.a-price-whole')
-        original = soup.select_one('.basisPrice .a-offscreen') or soup.select_one('.a-text-strike')
+        price = get_current_price(soup)
+        original = get_original_price(soup)
         rating = soup.select_one('span.a-icon-alt')
         reviews = soup.select_one('#acrCustomerReviewText')
         img = soup.select_one('#landingImage') or soup.select_one('#imgBlkFront')
         desc = soup.select_one('#feature-bullets')
 
+        # Fallback: if no price found, try to extract from raw HTML
+        if not price:
+            all_text = soup.get_text()
+            price_matches = re.findall(r'₹[\d,]+(?:\.\d{2})?', all_text)
+            if price_matches:
+                price = price_matches[0]
+
         return {
             "title": title.get_text(strip=True) if title else "Product Not Found",
-            "price": f"₹{price.get_text(strip=True)}" if price else "Price Not Found",
-            "original": original.get_text(strip=True) if original else None,
+            "price": price or "Price Not Found",
+            "original": original,
             "rating": rating.get_text(strip=True) if rating else "No Ratings",
             "reviews": reviews.get_text(strip=True) if reviews else "0",
             "img": img['src'] if img else "",

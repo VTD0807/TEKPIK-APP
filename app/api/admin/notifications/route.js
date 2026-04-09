@@ -3,6 +3,9 @@ import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
+const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY || ''
+const ONESIGNAL_APP_ID = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
+
 const toJsonDate = (value) => {
     if (!value) return null
     return value?.toDate ? timestampToJSON(value) : value
@@ -12,6 +15,60 @@ const chunkArray = (arr, size) => {
     const chunks = []
     for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size))
     return chunks
+}
+
+/**
+ * Send OneSignal web push notifications
+ */
+const sendOneSignalPush = async (config = {}) => {
+    if (!ONESIGNAL_REST_API_KEY || !ONESIGNAL_APP_ID) {
+        console.warn('OneSignal credentials not configured, skipping web push')
+        return null
+    }
+
+    const payload = {
+        app_id: ONESIGNAL_APP_ID,
+        headings: { en: config.title },
+        contents: { en: config.message },
+        big_picture: config.imageUrl || undefined,
+        large_icon: config.imageUrl || undefined,
+        data: {
+            link: config.link || undefined,
+            productId: config.attachedProductId || undefined,
+        },
+        // Target segments or external IDs
+        ...(config.includeExternalIds && config.includeExternalIds.length > 0 ? {
+            include_external_user_ids: config.includeExternalIds,
+        } : config.targetSegment ? {
+            included_segments: [config.targetSegment],
+        } : {
+            included_segments: ['All'],
+        }),
+    }
+
+    try {
+        const response = await fetch('https://onesignal.com/api/v1/notifications', {
+            method: 'POST',
+            headers: {
+                Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
+                'Content-Type': 'application/json; charset=utf-8',
+            },
+            body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            const errorMsg = errorData.errors?.[0] || `OneSignal push failed: ${response.status}`
+            console.error('[OneSignal Error]', errorMsg)
+            return null
+        }
+
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error('[OneSignal Request Error]', error.message)
+        return null
+    }
 }
 
 export async function GET() {
@@ -112,9 +169,42 @@ export async function POST(req) {
             userId: targetType === 'user' ? userId : null,
             sentCount: recipients.length,
             createdAt,
+            onesignalStatus: 'pending',
         }
 
         await campaignRef.set(campaignPayload)
+
+        // Send OneSignal web push
+        let oneSignalResult = null
+        let oneSignalStatus = 'skipped'
+        try {
+            const pushConfig = {
+                title,
+                message,
+                imageUrl: attachedProduct?.imageUrl || undefined,
+                link: link || undefined,
+                attachedProductId: attachedProductId || undefined,
+                includeExternalIds: recipients.map(r => r.userId),
+                targetSegment: targetType === 'all' ? 'All' : (targetType === 'role' ? `role_${role}` : undefined),
+            }
+
+            oneSignalResult = await sendOneSignalPush(pushConfig)
+            if (oneSignalResult?.body?.notification_id) {
+                oneSignalStatus = 'success'
+                // Update campaign with OneSignal result
+                await campaignRef.update({
+                    onesignalStatus: 'success',
+                    onesignalNotificationId: oneSignalResult.body.notification_id,
+                })
+            } else {
+                oneSignalStatus = 'failed'
+                await campaignRef.update({ onesignalStatus: 'failed' })
+            }
+        } catch (osError) {
+            console.error('OneSignal push error:', osError)
+            oneSignalStatus = 'error'
+            await campaignRef.update({ onesignalStatus: 'error', onesignalError: osError.message })
+        }
 
         const batches = chunkArray(recipients, 400)
         for (const group of batches) {
@@ -135,7 +225,12 @@ export async function POST(req) {
             await batch.commit()
         }
 
-        return NextResponse.json({ success: true, sentCount: recipients.length })
+        return NextResponse.json({ 
+            success: true, 
+            sentCount: recipients.length,
+            onesignalStatus,
+            onesignalNotificationId: oneSignalResult?.body?.notification_id || null,
+        })
     } catch (error) {
         console.error('[admin-notifications:post]', error)
         return NextResponse.json({ error: 'Failed to send notification.' }, { status: 500 })

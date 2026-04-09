@@ -1,6 +1,26 @@
 {
   "crons": [
     {
+      "path": "/api/cron/product-updater",
+      "schedule": "30 23 * * *"
+    },
+    {
+      "path": "/api/cron/product-updater",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/product-updater",
+      "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/product-updater",
+      "schedule": "30 14 * * *"
+    },
+    {
+      "path": "/api/cron/product-updater",
+      "schedule": "30 17 * * *"
+    },
+    {
       "path": "/api/cron/telegram-price-tracker",
       "schedule": "0 0 * * *"
     },

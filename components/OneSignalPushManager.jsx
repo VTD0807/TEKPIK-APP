@@ -45,9 +45,9 @@ const initOneSignal = async () => {
                         promptOptions: {
                             slidedown: {
                                 enabled: true,
-                                autoPrompt: false,
-                                timeDelay: 5,
-                                pageViews: 1,
+                                autoPrompt: true,  // Auto-show permission prompt
+                                timeDelay: 2,      // Wait 2 seconds before showing
+                                pageViews: 1,      // Show on first page view
                             },
                         },
                     })
@@ -67,37 +67,50 @@ export default function OneSignalPushManager() {
     const promptedRef = useRef(false)
 
     useEffect(() => {
-        if (!ONESIGNAL_APP_ID) return
+        if (!ONESIGNAL_APP_ID) {
+            console.warn('OneSignal App ID not configured')
+            return
+        }
 
         let disposed = false
 
         const sync = async () => {
-            const OneSignal = await initOneSignal()
-            if (!OneSignal || disposed) return
-
             try {
-                if (user?.uid) {
-                    await OneSignal.login(user.uid)
-                } else {
-                    await OneSignal.logout()
-                }
-            } catch {
-                // Keep app flow resilient when OneSignal login/logout fails.
-            }
+                const OneSignal = await initOneSignal()
+                if (!OneSignal || disposed) return
 
-            if (promptedRef.current) return
-            if (typeof window === 'undefined') return
-            if (window.sessionStorage.getItem(PROMPT_SESSION_KEY) === '1') return
-
-            try {
-                const canPrompt = Notification.permission === 'default'
-                if (canPrompt) {
-                    await OneSignal.Slidedown.promptPush()
-                    window.sessionStorage.setItem(PROMPT_SESSION_KEY, '1')
-                    promptedRef.current = true
+                // Login/logout user
+                try {
+                    if (user?.uid) {
+                        await OneSignal.login(user.uid)
+                        console.log('OneSignal user logged in:', user.uid)
+                    } else {
+                        await OneSignal.logout()
+                    }
+                } catch (err) {
+                    console.debug('OneSignal login/logout:', err.message)
                 }
-            } catch {
-                // Ignore prompt errors to avoid impacting UX.
+
+                // Show prompt if needed (fallback for manual prompt)
+                if (!promptedRef.current && typeof window !== 'undefined' && !window.sessionStorage.getItem(PROMPT_SESSION_KEY)) {
+                    try {
+                        const permission = Notification.permission
+                        if (permission === 'default') {
+                            // Permission hasn't been asked yet, try manual prompt
+                            await OneSignal.Slidedown.promptPush()
+                            console.log('OneSignal prompt shown')
+                            window.sessionStorage.setItem(PROMPT_SESSION_KEY, '1')
+                            promptedRef.current = true
+                        } else if (permission === 'granted') {
+                            console.log('Notification permission already granted')
+                            promptedRef.current = true
+                        }
+                    } catch (promptErr) {
+                        console.debug('OneSignal prompt error:', promptErr.message)
+                    }
+                }
+            } catch (err) {
+                console.error('OneSignal initialization error:', err)
             }
         }
 

@@ -17,6 +17,7 @@ export default function StoreProvider({ children }) {
   useEffect(() => {
     const store = storeRef.current
     let idleHandle = null
+    let refreshInterval = null
 
     // Hydrate persisted client state.
     try {
@@ -34,21 +35,32 @@ export default function StoreProvider({ children }) {
     }
 
     const refreshProducts = () => {
-      fetch('/api/products?limit=160&page=1')
+      const ts = Date.now()
+      fetch(`/api/products?limit=160&page=1&_ts=${ts}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(d => {
           const products = Array.isArray(d?.products) ? d.products : []
-          if (products.length > 0) {
-            store.dispatch(setProduct(products))
-          }
+          store.dispatch(setProduct(products))
         })
         .catch(() => {})
+    }
+
+    const handleVisibilitySync = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        refreshProducts()
+      }
     }
 
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
       idleHandle = window.requestIdleCallback(refreshProducts, { timeout: 2000 })
     } else {
       idleHandle = window.setTimeout(refreshProducts, 250)
+    }
+
+    if (typeof window !== 'undefined') {
+      refreshInterval = window.setInterval(refreshProducts, 5 * 60 * 1000)
+      window.addEventListener('focus', refreshProducts)
+      document.addEventListener('visibilitychange', handleVisibilitySync)
     }
 
     const unsubscribe = store.subscribe(() => {
@@ -77,6 +89,11 @@ export default function StoreProvider({ children }) {
         } else {
           clearTimeout(idleHandle)
         }
+      }
+      if (typeof window !== 'undefined') {
+        if (refreshInterval) clearInterval(refreshInterval)
+        window.removeEventListener('focus', refreshProducts)
+        document.removeEventListener('visibilitychange', handleVisibilitySync)
       }
     }
   }, [])

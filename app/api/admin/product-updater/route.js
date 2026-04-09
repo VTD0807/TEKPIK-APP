@@ -2,16 +2,17 @@ import { NextResponse } from 'next/server'
 import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
 import { scrapeAmazonProduct } from '@/lib/amazon-scraper'
+import { notifyProductUpdate } from '@/lib/product-notification'
 
 export const dynamic = 'force-dynamic'
 
 const DEFAULT_UPDATER = {
     enabled: false,
-    frequencyMinutes: 1440,
-    maxPerRun: 5,
+    frequencyMinutes: 360,
+    maxPerRun: 4,
     delayMs: 500,
     batches: [
-        { name: 'Batch 1', size: 5, delayMs: 500 },
+        { name: 'Batch 1', size: 4, delayMs: 500 },
     ],
 }
 
@@ -252,6 +253,7 @@ export async function POST(req) {
         const delayMs = Number.parseInt(body.delayMs || '', 10)
         const requestedRunId = String(body.runId || '').trim()
         const requestBatches = body.batches
+        const runAll = body.runAll === true
 
         const config = await getUpdaterConfig()
         const effectiveLimit = Number.isFinite(runLimit) && runLimit > 0
@@ -268,7 +270,9 @@ export async function POST(req) {
         const products = await fetchProductsForRefresh()
         const effectiveBatches = normalizeBatches(requestBatches ?? config.batches, effectiveDelay)
         const totalTarget = effectiveBatches.reduce((sum, batch) => sum + batch.size, 0)
-        const hardLimit = Number.isFinite(runLimit) && runLimit > 0 ? runLimit : totalTarget
+        const hardLimit = runAll
+            ? products.length
+            : (Number.isFinite(runLimit) && runLimit > 0 ? runLimit : totalTarget)
         const candidates = products.slice(0, hardLimit)
 
         if (candidates.length === 0) {
@@ -299,11 +303,14 @@ export async function POST(req) {
         }
         const runLogs = []
         let cursor = 0
+        let batchCycleIndex = 0
 
-        for (let batchIndex = 0; batchIndex < effectiveBatches.length; batchIndex += 1) {
-            const batch = effectiveBatches[batchIndex]
+        while (cursor < candidates.length) {
+            const batchIndex = batchCycleIndex
+            const batch = effectiveBatches[batchIndex % effectiveBatches.length]
             const batchItems = candidates.slice(cursor, cursor + batch.size)
             cursor += batch.size
+            batchCycleIndex += 1
 
             if (batchItems.length === 0) break
 

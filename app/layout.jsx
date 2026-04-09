@@ -4,6 +4,7 @@ import StoreProvider from "@/app/StoreProvider";
 import { AuthProvider } from "@/lib/auth-context";
 import { PostHogProvider } from "./PostHogProvider";
 import PageViewTracker from "@/components/analytics/PageViewTracker.jsx";
+import OneSignalPushManager from "@/components/OneSignalPushManager.jsx";
 import { absoluteUrl, getSiteUrl } from "@/lib/seo";
 import "./globals.css";
 
@@ -102,6 +103,7 @@ export default function RootLayout({ children }) {
                 <PostHogProvider>
                     <StoreProvider>
                         <AuthProvider>
+                            <OneSignalPushManager />
                             <Toaster />
                             <PageViewTracker />
                             {children}
