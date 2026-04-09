@@ -33,7 +33,7 @@ The app logs OneSignal user with Firebase UID:
 This allows targeted push to known users.
 
 ## 6. Common Reasons Prompt Doesn't Show
-- Site is not HTTPS (except localhost development).
+- Site is not HTTPS.
 - Notification permission already denied.
 - Missing `NEXT_PUBLIC_ONESIGNAL_APP_ID`.
 - Service worker blocked by CSP or wrong path.

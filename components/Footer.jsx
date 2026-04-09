@@ -18,7 +18,6 @@ const Footer = () => {
             links: [
                 { text: "Home", path: '/', icon: null },
                 { text: "Shop", path: '/shop', icon: null },
-                { text: "AI Picks", path: '/ai-picks', icon: null },
                 { text: "Wishlist", path: '/wishlist', icon: null },
             ]
         },

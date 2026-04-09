@@ -42,7 +42,7 @@ This Telegram bot:
 - ✅ Firebase project configured
 - ✅ Amazon scraper working (we fixed this earlier)
 - ✅ Node.js and npm installed
-- ✅ A registered domain for production (or localhost for testing)
+- ✅ tekpik.in domain configured in production
 
 ---
 
@@ -203,46 +203,33 @@ GET /api/webhooks/telegram-import-bot?action=setup&webhookUrl=YOUR_URL
 
 ## Step 4: Deploy & Test
 
-### 4.1 Development Testing (Localhost)
+### 4.1 Deployment Testing
 
-For localhost testing, Telegram can't reach your computer directly. Use a tunneling service:
-
-**Option A: Use ngrok (Free)**
-
-1. Download ngrok: https://ngrok.com/download
-2. Run:
-   ```bash
-   ngrok http 3000
-   ```
-3. Copy the HTTPS URL: `https://xxxxx.ngrok.io`
-
-**Option B: Use Vercel (Production)**
-
-Deploy to Vercel and get your production URL.
+Use your production domain on Vercel for all webhook testing.
 
 ### 4.2 Set Webhook URL
 
-Replace `YOUR_URL` with your localhost/production URL:
+Use your production URL:
 
 **Using curl:**
 ```bash
-curl "http://localhost:3000/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://xxxxx.ngrok.io/api/webhooks/telegram-import-bot"
+curl "https://tekpik.in/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://tekpik.in/api/webhooks/telegram-import-bot"
 ```
 
 Or **POST to admin endpoint:**
 ```bash
-curl -X POST http://localhost:3000/api/admin/telegram-import-bot \
+curl -X POST https://tekpik.in/api/admin/telegram-import-bot \
   -H "Content-Type: application/json" \
   -d '{
     "action": "test-webhook",
-    "webhookUrl": "https://xxxxx.ngrok.io/api/webhooks/telegram-import-bot"
+    "webhookUrl": "https://tekpik.in/api/webhooks/telegram-import-bot"
   }'
 ```
 
 ### 4.3 Verify Webhook is Set
 
 ```bash
-curl "http://localhost:3000/api/webhooks/telegram-import-bot?action=info"
+curl "https://tekpik.in/api/webhooks/telegram-import-bot?action=info"
 ```
 
 You should see:
@@ -308,14 +295,14 @@ Returns:
 
 Clear logs:
 ```bash
-curl -X POST http://localhost:3000/api/admin/telegram-import-bot \
+curl -X POST https://tekpik.in/api/admin/telegram-import-bot \
   -H "Content-Type: application/json" \
   -d '{ "action": "clear-logs" }'
 ```
 
 Update webhook:
 ```bash
-curl -X POST http://localhost:3000/api/admin/telegram-import-bot \
+curl -X POST https://tekpik.in/api/admin/telegram-import-bot \
   -H "Content-Type: application/json" \
   -d '{
     "action": "test-webhook",
@@ -407,7 +394,7 @@ This allows admins to access `/api/admin/telegram-import-bot` easily.
 **Fix:**
 ```bash
 # Re-register webhook
-curl "http://localhost:3000/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://your-domain.com/api/webhooks/telegram-import-bot"
+curl "https://tekpik.in/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://tekpik.in/api/webhooks/telegram-import-bot"
 ```
 
 ### Issue: "Cannot fetch product"
@@ -503,7 +490,7 @@ Shows:
 
 Get import logs as JSON:
 ```bash
-curl http://localhost:3000/api/admin/telegram-import-bot > imports.json
+curl https://tekpik.in/api/admin/telegram-import-bot > imports.json
 ```
 
 ---

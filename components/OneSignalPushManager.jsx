@@ -40,7 +40,6 @@ const initOneSignal = async () => {
                         appId: ONESIGNAL_APP_ID,
                         serviceWorkerPath: '/OneSignalSDKWorker.js',
                         serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
-                        allowLocalhostAsSecureOrigin: true,
                         notifyButton: { enable: false },
                         promptOptions: {
                             slidedown: {

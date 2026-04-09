@@ -136,10 +136,10 @@ Same as before:
 
 ```bash
 # Setup webhook
-curl "http://localhost:3000/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://YOUR_DOMAIN/api/webhooks/telegram-import-bot"
+curl "https://tekpik.in/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://tekpik.in/api/webhooks/telegram-import-bot"
 
 # Check status
-curl "http://localhost:3000/api/webhooks/telegram-import-bot?action=info"
+curl "https://tekpik.in/api/webhooks/telegram-import-bot?action=info"
 ```
 
 ---

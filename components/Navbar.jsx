@@ -26,7 +26,6 @@ const MOBILE_NAV = [
     { href: '/', label: 'Home', icon: House },
     { href: '/shop', label: 'Shop', icon: Grid },
     { href: '/ask-ai', label: 'Ask AI', icon: Stars },
-    { href: '/ai-picks', label: 'AI', icon: Stars },
     { href: '/disclosure', label: 'Info', icon: InfoCircle },
 ]
 
@@ -218,7 +217,6 @@ const Navbar = () => {
                             <Link href="/" className="hover:text-slate-900 transition text-sm">Home</Link>
                             <Link href="/shop" className="hover:text-slate-900 transition text-sm">Shop</Link>
                             <Link href="/ask-ai" className="hover:text-indigo-600 transition text-sm font-medium">Ask AI</Link>
-                            <Link href="/ai-picks" className="flex items-center gap-1 hover:text-indigo-600 transition text-sm"><Stars size={14} /> AI Picks</Link>
                             <Link href="/disclosure" className="hover:text-slate-900 transition text-sm">Disclosure</Link>
 
                             <div ref={desktopSearchRef} className="relative hidden xl:block w-[28rem]">

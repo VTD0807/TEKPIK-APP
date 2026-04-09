@@ -35,7 +35,6 @@ export default function GoogleNavbar() {
 
     const navLinks = [
         { href: '/shop', label: 'Shop' },
-        { href: '/ai-picks', label: 'AI Picks' },
         { href: '/about', label: 'About' },
         { href: '/help', label: 'Help' },
     ]

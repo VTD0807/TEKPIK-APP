@@ -29,12 +29,12 @@ TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN_HERE
 
 Replace `WEBHOOK_URL` with your production URL:
 ```bash
-curl "http://localhost:3000/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://yourdomain.com/api/webhooks/telegram-import-bot"
+curl "https://tekpik.in/api/webhooks/telegram-import-bot?action=setup&webhookUrl=https://tekpik.in/api/webhooks/telegram-import-bot"
 ```
 
 Or use the admin endpoint:
 ```bash
-POST http://localhost:3000/api/admin/telegram-import-bot
+POST https://tekpik.in/api/admin/telegram-import-bot
 {
   "action": "test-webhook",
   "webhookUrl": "https://yourdomain.com/api/webhooks/telegram-import-bot"
@@ -44,7 +44,7 @@ POST http://localhost:3000/api/admin/telegram-import-bot
 ### 4. Check Webhook Status
 
 ```bash
-curl "http://localhost:3000/api/webhooks/telegram-import-bot?action=info"
+curl "https://tekpik.in/api/webhooks/telegram-import-bot?action=info"
 ```
 
 ---

@@ -42,7 +42,7 @@ export async function GET(req) {
                 '1. Hard refresh page (Ctrl+F5)',
                 '2. Check browser console for errors',
                 '3. Check OneSignal SDK loaded: window.OneSignal in console',
-                '4. Verify site is HTTPS (required except localhost)',
+                '4. Verify site is HTTPS',
                 '5. Verify service workers accessible: /OneSignalSDKWorker.js',
             ],
         },
@@ -77,7 +77,7 @@ export async function GET(req) {
             permissions: 'Notification.permission can be: "default", "granted", or "denied"',
             localStorage: 'OneSignal stores subscription in localStorage - check there if stuck',
             serviceWorker: 'Service worker must be accessible at exact path: /OneSignalSDKWorker.js',
-            https: 'Must use HTTPS in production (localhost is OK for testing)',
+            https: 'Must use HTTPS on tekpik.in',
         },
         debugCommands: {
             checkSDK: 'Run in browser console: window.OneSignal ? "loaded" : "not loaded"',

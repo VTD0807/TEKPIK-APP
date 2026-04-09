@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/app/StoreProvider";
 import { AuthProvider } from "@/lib/auth-context";
 import { PostHogProvider } from "./PostHogProvider";
+import { Analytics } from '@vercel/analytics/next';
 import PageViewTracker from "@/components/analytics/PageViewTracker.jsx";
 import OneSignalPushManager from "@/components/OneSignalPushManager.jsx";
 import { absoluteUrl, getSiteUrl } from "@/lib/seo";
@@ -106,6 +107,7 @@ export default function RootLayout({ children }) {
                             <OneSignalPushManager />
                             <Toaster />
                             <PageViewTracker />
+                            <Analytics />
                             {children}
                         </AuthProvider>
                     </StoreProvider>
