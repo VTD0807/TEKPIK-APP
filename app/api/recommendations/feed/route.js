@@ -5,7 +5,7 @@ import { buildProductFeatureVector } from '@/lib/recommendation-features'
 
 export const dynamic = 'force-dynamic'
 
-const LIMIT_PRODUCTS = 120
+const LIMIT_PRODUCTS = 240
 const LIMIT_FEED = 8
 const VECTOR_TTL_MS = 1000 * 60 * 30
 const MAX_VECTOR_FEATURES = 220
@@ -236,8 +236,8 @@ const buildVectorFromInteractions = (interactions, productMap) => {
     return { preferenceMap, categoryWeight, brandWeight, interactedProductIds }
 }
 
-const buildFallbackFeed = (products, categoriesMap) => {
-    const rows = products.slice(0, LIMIT_FEED).map((product) => ({
+const buildFallbackFeed = (products, categoriesMap, limit = LIMIT_FEED) => {
+    const rows = products.slice(0, limit).map((product) => ({
         ...product,
         categories: categoriesMap[product.categoryId]
             ? { name: categoriesMap[product.categoryId].name, slug: categoriesMap[product.categoryId].slug }
@@ -330,7 +330,7 @@ export async function GET(req) {
 
         if (!identityId) {
             return NextResponse.json({
-                ...buildFallbackFeed(products, categoriesMap),
+                ...buildFallbackFeed(products, categoriesMap, limit),
                 products: products.slice(0, limit).map((product) => ({
                     ...product,
                     categories: categoriesMap[product.categoryId]
@@ -372,7 +372,7 @@ export async function GET(req) {
 
             if (!interactions.length) {
                 return NextResponse.json({
-                    ...buildFallbackFeed(products, categoriesMap),
+                    ...buildFallbackFeed(products, categoriesMap, limit),
                     products: products.slice(0, limit).map((product) => ({
                         ...product,
                         categories: categoriesMap[product.categoryId]
@@ -438,8 +438,6 @@ export async function GET(req) {
                 + explorationScore * 0.02
             )
 
-            if (score <= 0.05) return
-
             ranked.push({
                 ...product,
                 _interestScore: Number(score.toFixed(2)),
@@ -453,7 +451,7 @@ export async function GET(req) {
 
         if (!ranked.length) {
             return NextResponse.json({
-                ...buildFallbackFeed(products, categoriesMap),
+                ...buildFallbackFeed(products, categoriesMap, limit),
                 products: products.slice(0, limit).map((product) => ({
                     ...product,
                     categories: categoriesMap[product.categoryId]
@@ -465,6 +463,40 @@ export async function GET(req) {
 
         ranked.sort((a, b) => b._interestScore - a._interestScore)
         const diversified = rerankForDiversity(ranked, limit)
+
+        // If personalization is sparse, backfill with strong catalog picks so each user still gets a full feed.
+        const selectedIds = new Set(diversified.map((item) => item.id))
+        const backfill = products
+            .filter((product) => !selectedIds.has(product.id) && !interactedProductIds.has(product.id))
+            .map((product) => {
+                const aiScore = Number(product.ai_analysis?.score || product.aiScore || 0)
+                const aiQuality = Number.isFinite(aiScore) ? clamp(aiScore, 0, 10) : 0
+                const avgRating = clamp(getAverageRating(product), 0, 5)
+                const ratingQuality = (avgRating / 5) * 10
+                const qualityScore = (aiQuality * 0.62) + (ratingQuality * 0.38)
+                const valueScore = clamp(getDiscountPercent(product) / 10, 0, 9)
+                const recencyScore = clamp(10 - (daysSince(product.createdAt) / 12), 0, 10)
+                const popularityScore = clamp((Math.log10(getReviewCount(product) + 1) / Math.log10(300)) * 10, 0, 10)
+
+                const fallbackScore = (qualityScore * 0.48) + (valueScore * 0.24) + (recencyScore * 0.18) + (popularityScore * 0.10)
+                const categoryId = product.categoryId || product.category_id || null
+                const brand = String(product.brand || '').trim().toLowerCase() || null
+
+                return {
+                    ...product,
+                    _interestScore: Number(fallbackScore.toFixed(2)),
+                    _categoryKey: categoryId || 'none',
+                    _brandKey: brand || 'none',
+                    categories: categoriesMap[categoryId]
+                        ? { name: categoriesMap[categoryId].name, slug: categoriesMap[categoryId].slug }
+                        : null,
+                }
+            })
+            .sort((a, b) => b._interestScore - a._interestScore)
+
+        const finalProducts = diversified.length < limit
+            ? [...diversified, ...backfill.slice(0, limit - diversified.length)]
+            : diversified
 
         const categoryInterests = new Map()
         categoryWeight.forEach((score, categoryId) => {
@@ -486,7 +518,7 @@ export async function GET(req) {
         return NextResponse.json({
             source: 'personalized',
             interestCategories,
-            products: diversified,
+            products: finalProducts,
         })
     } catch (error) {
         console.error('[recommendations-feed]', error)

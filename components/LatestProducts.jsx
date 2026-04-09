@@ -1,60 +1,82 @@
-import React from 'react'
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '@/lib/auth-context'
 import Title from './Title'
 import ProductCard from './ProductCard'
-import { dbAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
-import { getCached } from '@/lib/server-cache'
 
-const LatestProducts = async () => {
+export default function LatestProducts() {
+    const { user, loading } = useAuth()
+    const [products, setProducts] = useState([])
+    const [source, setSource] = useState('fallback')
+    const [feedLoading, setFeedLoading] = useState(true)
     const displayQuantity = 12
-    let products = []
-    let errorMsg = null
 
-    try {
-        if (!dbAdmin) throw new Error('DB not initialized')
+    useEffect(() => {
+        if (loading) return
 
-        const data = await getCached('latest-products:v1', 1000 * 60 * 5, async () => {
-            const querySnap = await dbAdmin.collection('products')
-                .where('isActive', '==', true)
-                .orderBy('createdAt', 'desc')
-                .limit(displayQuantity)
-                .get()
+        const controller = new AbortController()
+        setFeedLoading(true)
 
-            const prodList = []
-            querySnap.forEach(doc => prodList.push(sanitizeFirestoreData({ id: doc.id, ...doc.data() })))
+        const accountParam = user?.uid ? `?accountId=${encodeURIComponent(user.uid)}&limit=${displayQuantity}` : `?limit=${displayQuantity}`
 
-            if (prodList.length === 0) return []
-
-            const catSnap = await dbAdmin.collection('categories').get()
-            const catMap = {}
-            catSnap.forEach(doc => catMap[doc.id] = doc.data())
-
-            return prodList.map(p => ({
-                ...p,
-                categories: catMap[p.categoryId] ? { name: catMap[p.categoryId].name, slug: catMap[p.categoryId].slug } : null
-            }))
+        fetch(`/api/recommendations/feed${accountParam}`, {
+            cache: 'no-store',
+            signal: controller.signal,
         })
-        products = data
-    } catch (e) {
-        console.error('Unexpected error in LatestProducts:', e)
-        errorMsg = e.message
-    }
+            .then((res) => res.json())
+            .then((data) => {
+                const nextProducts = Array.isArray(data?.products) ? data.products.slice(0, displayQuantity) : []
+                setProducts(nextProducts)
+                setSource(data?.source === 'personalized' ? 'personalized' : 'fallback')
+                setFeedLoading(false)
+            })
+            .catch(async () => {
+                try {
+                    const fallback = await fetch(`/api/products?limit=${displayQuantity}&sort=newest`, {
+                        cache: 'no-store',
+                        signal: controller.signal,
+                    }).then((res) => res.json())
+                    setProducts(Array.isArray(fallback?.products) ? fallback.products.slice(0, displayQuantity) : [])
+                } catch {
+                    setProducts([])
+                }
+                setSource('fallback')
+                setFeedLoading(false)
+            })
+
+        return () => controller.abort()
+    }, [user?.uid, loading])
+
+    const description = useMemo(() => {
+        if (!user?.uid) return 'Fresh products and trending picks for you.'
+        if (source === 'personalized') return 'Personalized latest feed based on your interests and behavior.'
+        return 'New products sorted by quality, value, and freshness.'
+    }, [user?.uid, source])
+
+    if (loading) return null
 
     return (
         <div className='px-4 sm:px-6 my-14 sm:my-16 max-w-[1500px] mx-auto'>
-            <Title title='Latest Products' description={`Our newest finds for you.`} href='/shop' />
-            <div className='mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
-                {products && products.length > 0 ? (
-                    products.map((product, index) => (
-                        <ProductCard key={product.id || index} product={product} />
-                    ))
-                ) : (
-                    <div className="w-full text-center text-slate-400 py-10">
-                        {errorMsg ? `Failed to load products: ${errorMsg}` : 'No products found.'}
-                    </div>
-                )}
-            </div>
+            <Title title='Latest Feed' description={description} href='/shop' />
+
+            {feedLoading ? (
+                <div className='mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
+                    {Array.from({ length: displayQuantity }).map((_, index) => (
+                        <div key={index} className='h-64 rounded-xl border border-slate-100 bg-slate-50 animate-pulse' />
+                    ))}
+                </div>
+            ) : (
+                <div className='mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
+                    {products && products.length > 0 ? (
+                        products.map((product, index) => (
+                            <ProductCard key={product.id || index} product={product} />
+                        ))
+                    ) : (
+                        <div className='w-full text-center text-slate-400 py-10'>No products found.</div>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
-
-export default LatestProducts
