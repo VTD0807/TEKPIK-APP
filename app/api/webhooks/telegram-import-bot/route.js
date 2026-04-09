@@ -93,7 +93,7 @@ export async function POST(req) {
 
         // Check if it's a command
         if (text.startsWith('/')) {
-            if (text === '/start' || text === '/help') {
+            if (text === '/start') {
                 await sendTelegramMessage(chatId, `
 👋 <b>TEKPIK Admin Bot</b>
 
@@ -118,7 +118,6 @@ Just send a link and I'll handle the rest! 🚀
                 return NextResponse.json({ ok: true })
             }
 
-        }
             // /help
             if (text === '/help') {
                 await sendTelegramMessage(chatId, `
@@ -238,6 +237,7 @@ Just send a link and I'll handle the rest! 🚀
 
             await sendTelegramMessage(chatId, `❓ Unknown command - type /help`)
             return NextResponse.json({ ok: true })
+        }
 
         // Not a URL - inform user
         if (!url) {
