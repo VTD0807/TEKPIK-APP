@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { dbAdmin } from '@/lib/firebase-admin'
 import { scrapeAmazonProduct } from '@/lib/amazon-scraper'
 import { sendTelegramMessage, sendTelegramPhoto, formatProductReply, logTelegramImport } from '@/lib/telegram-bot-utils'
+import { readTelegramManagerConfig, sendTelegramManualMessage } from '@/lib/telegram-manager'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,7 +105,7 @@ Your private bot for managing TEKPIK products.
 2️⃣ /help → see commands
 3️⃣ /stats → view stats
 
-<b>Commands:</b> /help, /stats, /list, /update, /search
+<b>Commands:</b> /help, /stats, /list, /update, /search, /info
 
 ✨ <b>Reply includes:</b>
 • Product title
@@ -134,6 +135,37 @@ Just send a link and I'll handle the rest! 🚀
                 return NextResponse.json({ ok: true })
             }
 
+            // /info
+            if (text.startsWith('/info')) {
+                const productId = text.replace(/^\/info(?:@\w+)?(?:\s+)?/i, '').trim()
+                if (!productId) {
+                    await sendTelegramMessage(chatId, `Usage: /info PRODUCT_ID`)
+                    return NextResponse.json({ ok: true })
+                }
+
+                const productSnap = await dbAdmin.collection('products').doc(productId).get()
+                if (!productSnap.exists) {
+                    await sendTelegramMessage(chatId, `❌ Product ${productId} not found`)
+                    return NextResponse.json({ ok: true })
+                }
+
+                const product = { id: productSnap.id, ...productSnap.data() }
+                const price = Number(product.price || 0)
+                const originalPrice = Number(product.originalPrice || product.original_price || 0)
+                const discount = Number(product.discount || 0)
+
+                await sendTelegramMessage(chatId, `
+ℹ️ <b>Product Info</b>
+
+<b>${product.title || product.name || 'Untitled Product'}</b>
+
+💰 Price: ₹${price.toLocaleString('en-IN')}
+${originalPrice > 0 ? `📌 Original: ₹${originalPrice.toLocaleString('en-IN')}\n` : ''}${discount > 0 ? `🏷️ Discount: ${discount}%\n` : ''}🔗 ID: <code>${product.id}</code>
+${product.asin ? `🆔 ASIN: <code>${product.asin}</code>\n` : ''}📍 <a href="https://tekpik.in/products/${product.id}">View on TEKPIK</a>
+                `)
+                return NextResponse.json({ ok: true })
+            }
+
             // /stats
             if (text === '/stats') {
                 const snap = await dbAdmin.collection('telegram_imports').get()
@@ -156,11 +188,13 @@ Just send a link and I'll handle the rest! 🚀
                 const limit = Number(text.split(' ')[1]) || 10
                 const snap = await dbAdmin.collection('telegram_imports').orderBy('createdAt', 'desc').limit(limit).get()
                 let list = ''
-                snap.forEach((doc, i) => {
+                let index = 0
+                snap.forEach((doc) => {
+                    index += 1
                     const d = doc.data()
                     const icon = d.status === 'success' ? '✅' : '❌'
                     const title = (d.message || '').replace('Added: ', '').substring(0, 35)
-                    list += `${i + 1}. ${icon} ${title}\n`
+                    list += `${index}. ${icon} ${title}\n`
                 })
                 await sendTelegramMessage(chatId, `📋 <b>Last ${Math.min(limit, snap.size)}</b>\n\n${list || 'No imports'}`)
                 return NextResponse.json({ ok: true })
@@ -168,9 +202,9 @@ Just send a link and I'll handle the rest! 🚀
 
             // /search
             if (text.startsWith('/search')) {
-                const query = text.replace('/search ', '').trim().toLowerCase()
+                const query = text.replace(/^\/search(?:@\w+)?(?:\s+)?/i, '').trim().toLowerCase()
                 if (!query) {
-                    await sendTelegramMessage(chatId, `Usage: /search keyword`)
+                    await sendTelegramMessage(chatId, `Usage: /search KEYWORD`)
                     return NextResponse.json({ ok: true })
                 }
                 const snap = await dbAdmin.collection('products').limit(100).get()
@@ -190,7 +224,7 @@ Just send a link and I'll handle the rest! 🚀
 
             // /update - Update existing product
             if (text.startsWith('/update')) {
-                const asn = text.replace('/update ', '').trim().toUpperCase()
+                const asn = text.replace(/^\/update(?:@\w+)?(?:\s+)?/i, '').trim().toUpperCase()
                 if (!asn) {
                     await sendTelegramMessage(chatId, `Usage: /update ASIN`)
                     return NextResponse.json({ ok: true })
@@ -331,6 +365,41 @@ Send an Amazon product link:
 
             // Save to Firestore
             await dbAdmin.collection('products').doc(productId).set(productData)
+
+            // Publish new product into the configured Telegram channel
+            try {
+                const telegramManagerConfig = await readTelegramManagerConfig(dbAdmin)
+                if (telegramManagerConfig.enabled && telegramManagerConfig.publishNewProducts) {
+                    const channelResult = await sendTelegramManualMessage(telegramManagerConfig, {
+                        templateKey: 'catalog',
+                        product: {
+                            ...productData,
+                            productUrl: `https://tekpik.in/products/${productId}`,
+                        },
+                        includeImage: true,
+                    })
+
+                    await dbAdmin.collection('telegram_channel_messages').add({
+                        type: 'auto_import',
+                        status: 'success',
+                        message: 'Published imported product to Telegram channel.',
+                        preview: String(channelResult?.message || '').slice(0, 500),
+                        templateKey: 'catalog',
+                        productId,
+                        imageSent: Boolean(channelResult?.usedImage),
+                        createdAt: new Date(),
+                    })
+                }
+            } catch (channelErr) {
+                await dbAdmin.collection('telegram_channel_messages').add({
+                    type: 'auto_import',
+                    status: 'failed',
+                    message: channelErr.message || 'Failed to publish imported product to Telegram channel.',
+                    productId,
+                    createdAt: new Date(),
+                }).catch(() => {})
+                console.warn('Failed to publish imported product to Telegram channel:', channelErr)
+            }
 
             // Notify admins of new product
             try {
