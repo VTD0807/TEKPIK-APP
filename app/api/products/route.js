@@ -76,8 +76,9 @@ export async function GET(req) {
             products = CACHED_CATALOG
         } else {
             let query = prodDb.collection('products').where('isActive', '==', true)
-            // Note: We no longer filter 'isFeatured' at the DB level so we can cache the whole catalog
-            query = query.orderBy('createdAt', 'desc')
+            // Note: We no longer filter 'isFeatured' at the DB level so we can cache the catalog
+            // We apply a hard limit to prevent Vercel 10-second Serverless Timeouts and memory exhaustion.
+            query = query.orderBy('createdAt', 'desc').limit(400)
 
             const snapshot = await query.get()
             

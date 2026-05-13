@@ -2,13 +2,13 @@
  * PUT/DELETE /api/admin/mail/templates/[id]
  */
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbWorkspace } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 
 export const dynamic = 'force-dynamic'
 
 export async function PUT(req, { params }) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
@@ -25,18 +25,26 @@ export async function PUT(req, { params }) {
         updates.variables = [...new Set([...updates.html.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]))]
     }
 
-    await dbAdmin.collection('mail_templates').doc(id).set(updates, { merge: true })
-    return NextResponse.json({ success: true })
+    try {
+        await dbWorkspace.collection('mail_templates').doc(id).set(updates, { merge: true })
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }
 
 export async function DELETE(req, { params }) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
     if (!hasAdminAccess(ctx, 'notifications')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
-    await dbAdmin.collection('mail_templates').doc(id).delete()
-    return NextResponse.json({ success: true })
+    try {
+        await dbWorkspace.collection('mail_templates').doc(id).delete()
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }

@@ -3,38 +3,41 @@
  * Manage reusable email templates stored in Firestore.
  */
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbWorkspace } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
     if (!hasAdminAccess(ctx, 'notifications')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const snap = await dbAdmin.collection('mail_templates').orderBy('createdAt', 'desc').get()
-    const templates = []
-    snap.forEach(doc => {
-        const d = doc.data() || {}
-        templates.push({
-            id: doc.id,
-            name: d.name || '',
-            subject: d.subject || '',
-            html: d.html || '',
-            variables: d.variables || [],
-            createdAt: d.createdAt?.toDate?.()?.toISOString() || null,
-            updatedAt: d.updatedAt?.toDate?.()?.toISOString() || null,
+    try {
+        const snap = await dbWorkspace.collection('mail_templates').orderBy('createdAt', 'desc').get()
+        const templates = []
+        snap.forEach(doc => {
+            const d = doc.data() || {}
+            templates.push({
+                id: doc.id,
+                name: d.name || '',
+                subject: d.subject || '',
+                html: d.html || '',
+                variables: d.variables || [],
+                createdAt: d.createdAt?.toDate?.()?.toISOString() || null,
+                updatedAt: d.updatedAt?.toDate?.()?.toISOString() || null,
+            })
         })
-    })
-
-    return NextResponse.json({ templates })
+        return NextResponse.json({ templates })
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
@@ -53,7 +56,8 @@ export async function POST(req) {
     const variables = [...new Set([...html.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]))]
 
     const now = new Date()
-    const ref = await dbAdmin.collection('mail_templates').add({
+    try {
+        const ref = await dbWorkspace.collection('mail_templates').add({
         name,
         subject,
         html,
@@ -63,5 +67,8 @@ export async function POST(req) {
         updatedAt: now,
     })
 
-    return NextResponse.json({ success: true, id: ref.id, variables })
+        return NextResponse.json({ success: true, id: ref.id, variables })
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 }

@@ -41,13 +41,16 @@ export function middleware(request) {
     }
 
     // ── Maintenance Mode Check ────────────────────────────────────────────────
-    if (process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true') {
+    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1')
+    
+    if (!isLocalhost && process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true') {
         const isMaintenanceRoute = pathname === '/maintenance'
         const isApiRoute = pathname.startsWith('/api')
         const isNextInternal = pathname.startsWith('/_next')
+        const isStaticAsset = pathname.endsWith('.webmanifest') || pathname.endsWith('.json') || pathname.endsWith('.png') || pathname.endsWith('.ico') || pathname.endsWith('.txt')
 
         // If it's a public facing route and not already on the maintenance page
-        if (!isProtectedRoute && !isAuthRoute && !isMaintenanceRoute && !isApiRoute && !isNextInternal) {
+        if (!isProtectedRoute && !isAuthRoute && !isMaintenanceRoute && !isApiRoute && !isNextInternal && !isStaticAsset) {
             let isAdmin = false
             if (token) {
                 try {

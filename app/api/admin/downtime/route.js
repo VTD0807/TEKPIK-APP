@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbWorkspace } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
     
     // We don't require admin access for GET so the middleware/layout can read it fast
     // Actually, we should allow public access so the layout can read it, or we can use a server component.
     // Let's make it public, but only return the necessary flags.
     try {
-        const snap = await dbAdmin.collection('settings').doc('downtime').get()
+        const snap = await dbWorkspace.collection('settings').doc('downtime').get()
         const data = snap.exists ? snap.data() : {
             maintenanceMode: false,
             blockedRoutes: [],
@@ -26,7 +26,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
     
     const ctx = await getAccessContext(req)
     if (!hasAdminAccess(ctx, 'admin')) {
@@ -35,7 +35,7 @@ export async function POST(req) {
 
     try {
         const body = await req.json()
-        await dbAdmin.collection('settings').doc('downtime').set({
+        await dbWorkspace.collection('settings').doc('downtime').set({
             maintenanceMode: Boolean(body.maintenanceMode),
             blockedRoutes: Array.isArray(body.blockedRoutes) ? body.blockedRoutes : [],
             blockBuyNow: Boolean(body.blockBuyNow),
