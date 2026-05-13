@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
+import { getProductionDb, sanitizeFirestoreData } from '@/lib/firebase-admin'
 import { calculateContentReliability } from '@/lib/search-intelligence'
 
 export const dynamic = 'force-dynamic'
@@ -47,17 +47,34 @@ const getVelocity = (product = {}) => {
     return (freshBoost * 0.7) + (recentBoost * 0.3)
 }
 
+// ── IN-MEMORY CACHE ──────────────────────────────────────────────────────────
+let CACHED_TRENDING = null
+let CACHED_TIME = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ ok: false, products: [], model: {} })
+    const prodDb = await getProductionDb()
+    if (!prodDb) return NextResponse.json({ ok: false, products: [], model: {} })
 
     try {
         const url = new URL(req.url)
         const limit = getLimit(url.searchParams.get('limit'))
 
+        if (CACHED_TRENDING && (Date.now() - CACHED_TIME < CACHE_TTL_MS)) {
+            return NextResponse.json({
+                ok: true,
+                model: {
+                    type: 'trending-hybrid-v1-cached',
+                    signals: ['popularity', 'velocity', 'quality', 'reliability', 'discount'],
+                },
+                products: CACHED_TRENDING.slice(0, limit),
+            })
+        }
+
         const [productsSnap, reviewAggSnap, wishlistSnap] = await Promise.all([
-            dbAdmin.collection('products').where('isActive', '==', true).limit(400).get(),
-            dbAdmin.collection('reviews').limit(1500).get(),
-            dbAdmin.collection('wishlists').limit(1500).get(),
+            prodDb.collection('products').where('isActive', '==', true).limit(400).get(),
+            prodDb.collection('reviews').limit(1500).get(),
+            prodDb.collection('wishlists').limit(1500).get(),
         ])
 
         const reviewCounts = new Map()
@@ -107,6 +124,9 @@ export async function GET(req) {
         })
 
         candidates.sort((a, b) => b._trendingScore - a._trendingScore)
+        
+        CACHED_TRENDING = candidates
+        CACHED_TIME = Date.now()
 
         return NextResponse.json({
             ok: true,
