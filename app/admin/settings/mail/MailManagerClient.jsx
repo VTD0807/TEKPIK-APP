@@ -7,7 +7,7 @@ import {
     CheckCircleFill, ArrowRepeat, ChevronDown, ChevronUp,
 } from 'react-bootstrap-icons'
 
-const TABS = ['Compose', 'Templates', 'Audience', 'Logs']
+const TABS = ['Compose', 'Templates', 'Audience', 'Server', 'Logs']
 const fmtDate = v => v ? new Date(v).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 const fmtNum = n => Number.isFinite(Number(n)) ? Number(n).toLocaleString('en-IN') : '—'
 
@@ -39,6 +39,7 @@ export default function MailManagerClient() {
             {tab === 'Compose' && <ComposeTab preset={composePreset} clearPreset={() => setComposePreset(null)} />}
             {tab === 'Templates' && <TemplatesTab />}
             {tab === 'Audience' && <AudienceTab onCompose={composeForSegment} />}
+            {tab === 'Server' && <ServerTab />}
             {tab === 'Logs' && <LogsTab />}
         </div>
     )
@@ -513,6 +514,125 @@ function AudienceTab({ onCompose }) {
                         ))}
                     </div>
                 )}
+            </div>
+        </div>
+    )
+}
+
+// ─── Server Settings Tab ──────────────────────────────────────────────────────
+function ServerTab() {
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [form, setForm] = useState({
+        useCustomServer: false,
+        primaryApiKey: '',
+        secondaryApiKey: '',
+        secondaryDomain: 'truvgo.me',
+        senderEmail: 'hello@tekpik.in',
+        fromName: 'TEKPIK',
+    })
+
+    const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+    const load = useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await fetch('/api/admin/mail/settings')
+            const data = await res.json()
+            if (data.settings) {
+                setForm(p => ({ ...p, ...data.settings }))
+            }
+        } catch { /* ignore */ }
+        setLoading(false)
+    }, [])
+
+    useEffect(() => { load() }, [load])
+
+    const handleSave = async () => {
+        setSaving(true)
+        const tid = toast.loading('Saving server settings...')
+        try {
+            const res = await fetch('/api/admin/mail/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form)
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || 'Failed')
+            toast.success('Server settings saved', { id: tid })
+            if (data.settings) setForm(p => ({ ...p, ...data.settings }))
+        } catch (err) {
+            toast.error(err.message, { id: tid })
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    if (loading) return <p className="py-8 text-center text-sm text-slate-400">Loading settings...</p>
+
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-3xl">
+            <div className="mb-6 border-b border-slate-100 pb-4 flex items-center justify-between">
+                <div>
+                    <h2 className="text-base font-semibold text-slate-900">Custom Mail Server</h2>
+                    <p className="mt-1 text-sm text-slate-500">Override the default environment variables and use custom API keys for email sending.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input type="checkbox" className="sr-only peer" checked={form.useCustomServer} onChange={e => set('useCustomServer', e.target.checked)} />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                </label>
+            </div>
+
+            <div className={`space-y-5 ${!form.useCustomServer ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className="grid grid-cols-2 gap-4">
+                    <label className="block space-y-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Sender Name</span>
+                        <input value={form.fromName} onChange={e => set('fromName', e.target.value)}
+                            placeholder="TEKPIK"
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                    </label>
+                    <label className="block space-y-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Sender Email</span>
+                        <input value={form.senderEmail} onChange={e => set('senderEmail', e.target.value)}
+                            placeholder="hello@tekpik.in"
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                    </label>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                    <h3 className="text-sm font-medium text-slate-900 mb-4">Primary Provider (Resend)</h3>
+                    <label className="block space-y-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Resend API Key</span>
+                        <input value={form.primaryApiKey} onChange={e => set('primaryApiKey', e.target.value)}
+                            type="password" placeholder="re_..."
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 font-mono" />
+                    </label>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                    <h3 className="text-sm font-medium text-slate-900 mb-4">Secondary Provider (Failover)</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <label className="block space-y-1.5 col-span-2">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Failover API Key</span>
+                            <input value={form.secondaryApiKey} onChange={e => set('secondaryApiKey', e.target.value)}
+                                type="password" placeholder="re_..."
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 font-mono" />
+                        </label>
+                        <label className="block space-y-1.5 col-span-2">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Failover Domain</span>
+                            <input value={form.secondaryDomain} onChange={e => set('secondaryDomain', e.target.value)}
+                                placeholder="truvgo.me"
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                        </label>
+                    </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                    <button onClick={handleSave} disabled={saving}
+                        className="inline-flex items-center gap-2 rounded-xl bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-black/90 disabled:opacity-60 transition">
+                        {saving ? 'Saving...' : 'Save Settings'}
+                    </button>
+                </div>
             </div>
         </div>
     )
