@@ -7,7 +7,7 @@
  * Each segment doc: { id, name, description, userCount, emails[], updatedAt }
  */
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbAdmin, dbWorkspace, dbUsers } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 
 export const dynamic = 'force-dynamic'
@@ -16,8 +16,8 @@ const normalize = (s = '') => String(s).toLowerCase().trim()
 
 // ── Analyse + persist ────────────────────────────────────────────────────────
 async function analyseAndPersist() {
-    // Load all users
-    const usersSnap = await dbAdmin.collection('users').get()
+    // Load all users from DB-3
+    const usersSnap = await dbUsers.collection('users').get()
     const users = new Map()
     usersSnap.forEach(doc => {
         const d = doc.data() || {}
@@ -31,8 +31,8 @@ async function analyseAndPersist() {
     const vectorMap = new Map()
     for (let i = 0; i < allUserIds.length; i += 100) {
         const chunk = allUserIds.slice(i, i + 100)
-        const refs = chunk.map(id => dbAdmin.collection('analytics_user_interest_vectors').doc(id))
-        const docs = await dbAdmin.getAll(...refs)
+        const refs = chunk.map(id => dbUsers.collection('analytics_user_interest_vectors').doc(id))
+        const docs = await dbUsers.getAll(...refs)
         docs.forEach(doc => {
             if (!doc.exists) return
             const d = doc.data() || {}
@@ -180,22 +180,22 @@ async function analyseAndPersist() {
         ...brandSegments,
     ]
 
-    // ── Persist to Firestore ──────────────────────────────────────────────
-    const batch = dbAdmin.batch()
+    // ── Persist to Firestore (DB-4 Workspace) ─────────────────────────────
+    const batch = dbWorkspace.batch()
     const now = new Date()
 
     // Delete old saved segments
-    const oldSnap = await dbAdmin.collection('mail_audience_segments').get()
+    const oldSnap = await dbWorkspace.collection('mail_audience_segments').get()
     oldSnap.forEach(doc => batch.delete(doc.ref))
 
     // Write new segments
     for (const seg of segments) {
-        const ref = dbAdmin.collection('mail_audience_segments').doc(seg.id)
+        const ref = dbWorkspace.collection('mail_audience_segments').doc(seg.id)
         batch.set(ref, { ...seg, updatedAt: now })
     }
 
     // Save metadata
-    const metaRef = dbAdmin.collection('mail_audience_segments').doc('__meta__')
+    const metaRef = dbWorkspace.collection('mail_audience_segments').doc('__meta__')
     batch.set(metaRef, { lastAnalysedAt: now, totalUsers: users.size, segmentCount: segments.length })
 
     await batch.commit()
@@ -205,7 +205,7 @@ async function analyseAndPersist() {
 
 // ── Load cached ──────────────────────────────────────────────────────────────
 async function loadCached(includeEmails) {
-    const snap = await dbAdmin.collection('mail_audience_segments').get()
+    const snap = await dbWorkspace.collection('mail_audience_segments').get()
     if (snap.empty) return null // never analysed — trigger fresh
 
     const segments = []
@@ -230,7 +230,7 @@ async function loadCached(includeEmails) {
 }
 
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbAdmin || !dbWorkspace || !dbUsers) return NextResponse.json({ error: 'Databases not initialized' }, { status: 500 })
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
     if (!hasAdminAccess(ctx, 'notifications')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -266,7 +266,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!dbAdmin || !dbWorkspace || !dbUsers) return NextResponse.json({ error: 'Databases not initialized' }, { status: 500 })
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
     if (!hasAdminAccess(ctx, 'notifications')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
