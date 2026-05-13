@@ -3,13 +3,14 @@
  * Manage reusable email templates stored in Firestore.
  */
 import { NextResponse } from 'next/server'
-import { dbWorkspace } from '@/lib/firebase-admin'
+import { dbWorkspace, firebaseAdminStatus } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
     if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!firebaseAdminStatus.multiDbEnabled) return NextResponse.json({ error: 'Multi-Tier Database Architecture is missing credentials. Please add FIREBASE_WORKSPACE_SERVICE_ACCOUNT to your Vercel Environment Variables.' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
@@ -38,6 +39,7 @@ export async function GET(req) {
 
 export async function POST(req) {
     if (!dbWorkspace) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    if (!firebaseAdminStatus.multiDbEnabled) return NextResponse.json({ error: 'Multi-Tier Database Architecture is missing credentials. Please add FIREBASE_WORKSPACE_SERVICE_ACCOUNT to your Vercel Environment Variables.' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })

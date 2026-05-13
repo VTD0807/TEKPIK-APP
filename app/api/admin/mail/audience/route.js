@@ -7,7 +7,7 @@
  * Each segment doc: { id, name, description, userCount, emails[], updatedAt }
  */
 import { NextResponse } from 'next/server'
-import { dbAdmin, dbWorkspace, dbUsers } from '@/lib/firebase-admin'
+import { dbAdmin, dbWorkspace, dbUsers, firebaseAdminStatus } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 
 export const dynamic = 'force-dynamic'
@@ -231,6 +231,7 @@ async function loadCached(includeEmails) {
 
 export async function GET(req) {
     if (!dbAdmin || !dbWorkspace || !dbUsers) return NextResponse.json({ error: 'Databases not initialized' }, { status: 500 })
+    if (!firebaseAdminStatus.multiDbEnabled) return NextResponse.json({ error: 'Multi-Tier Database Architecture is missing credentials. Please add FIREBASE_WORKSPACE_SERVICE_ACCOUNT and FIREBASE_USERS_SERVICE_ACCOUNT to your Vercel Environment Variables.' }, { status: 500 })
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
     if (!hasAdminAccess(ctx, 'notifications')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -267,6 +268,7 @@ export async function GET(req) {
 
 export async function POST(req) {
     if (!dbAdmin || !dbWorkspace || !dbUsers) return NextResponse.json({ error: 'Databases not initialized' }, { status: 500 })
+    if (!firebaseAdminStatus.multiDbEnabled) return NextResponse.json({ error: 'Multi-Tier Database Architecture is missing credentials. Please add FIREBASE_WORKSPACE_SERVICE_ACCOUNT and FIREBASE_USERS_SERVICE_ACCOUNT to your Vercel Environment Variables.' }, { status: 500 })
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
     if (!hasAdminAccess(ctx, 'notifications')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
