@@ -21,6 +21,7 @@ import toast from 'react-hot-toast'
 import { usePostHog } from 'posthog-js/react'
 import { getDeviceId } from '@/lib/device'
 import { formatPrice } from '@/lib/currency'
+import { rankProductsWithHybridModel } from '@/lib/search-intelligence'
 
 const MOBILE_NAV = [
     { href: '/', label: 'Home', icon: House },
@@ -34,10 +35,6 @@ const normalizeSearchText = (value = '') => String(value)
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-
-const tokenizeSearch = (value = '') => normalizeSearchText(value)
-    .split(' ')
-    .filter(token => token.length > 1)
 
 const Navbar = () => {
     const router = useRouter()
@@ -94,58 +91,18 @@ const Navbar = () => {
 
         const query = normalizeSearchText(normalizedSearch)
         if (!query) return []
-        const queryTokens = tokenizeSearch(query)
 
-        const indexedProducts = baseProducts.slice(0, 120).map(product => {
-            const searchableText = [
-                product.title,
-                product.name,
-                product.brand,
-                product.description,
-                product.categories?.name,
-                product.category,
-                product.metaKeywords,
-                ...(Array.isArray(product.tags) ? product.tags : []),
-            ]
-                .filter(Boolean)
-                .join(' ')
-            const searchable = normalizeSearchText(searchableText)
-
-            const title = normalizeSearchText(product.title || product.name || '')
-            const brand = normalizeSearchText(product.brand || '')
-            const category = normalizeSearchText(product.categories?.name || product.category || '')
-            const tagBlob = normalizeSearchText(Array.isArray(product.tags) ? product.tags.join(' ') : '')
-
-            return { product, searchable, title, brand, category, tagBlob }
+        const ranked = rankProductsWithHybridModel(baseProducts.slice(0, 140), {
+            query,
+            limit: 8,
+            minScore: 0.1,
+            preferReliability: true,
         })
 
-        return indexedProducts
-            .map(entry => {
-                let score = 0
-                const exactTitle = entry.title === query
-                const titleStarts = entry.title.startsWith(query)
-                const titleIncludes = entry.title.includes(query)
-                const searchableIncludes = entry.searchable.includes(query)
-
-                if (exactTitle) score += 80
-                if (titleStarts) score += 50
-                if (titleIncludes) score += 32
-                if (entry.brand && (entry.brand.includes(query) || queryTokens.some(token => entry.brand.includes(token)))) score += 16
-                if (entry.category && (entry.category.includes(query) || queryTokens.some(token => entry.category.includes(token)))) score += 14
-                if (entry.tagBlob && (entry.tagBlob.includes(query) || queryTokens.some(token => entry.tagBlob.includes(token)))) score += 12
-                if (searchableIncludes) score += 8
-
-                if (queryTokens.length > 1) {
-                    const matchedTokens = queryTokens.filter(token => entry.searchable.includes(token))
-                    score += matchedTokens.length * 10
-                    if (matchedTokens.length === queryTokens.length) score += 18
-                }
-
-                return score > 0 ? { product: entry.product, score } : null
-            })
-            .filter(Boolean)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 8)
+        return ranked.items.map((item) => ({
+            product: item.product,
+            score: item.score,
+        }))
     }, [products, normalizedSearch, searchOpen])
 
     useEffect(() => {

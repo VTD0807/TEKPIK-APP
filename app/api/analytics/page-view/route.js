@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbUsers, getProductionDb } from '@/lib/firebase-admin'
 import admin from 'firebase-admin'
 import {
     applyLearningEvent,
@@ -9,6 +9,7 @@ import {
     loadPreferenceVector,
     savePreferenceVector,
 } from '@/lib/recommendation-learning'
+import { buildNetworkFingerprint, upsertIdentityGraph } from '@/lib/identity-graph'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,7 +98,8 @@ const getGeoFromRequest = (req) => {
 }
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ ok: false, reason: 'db_unavailable' }, { status: 200 })
+    if (!dbUsers) return NextResponse.json({ ok: false, reason: 'db_unavailable' }, { status: 200 })
+    const prodDb = await getProductionDb()
 
     try {
         const body = await req.json().catch(() => ({}))
@@ -108,6 +110,15 @@ export async function POST(req) {
         const ipAddress = getIpAddress(req)
         const geo = getGeoFromRequest(req)
         const deviceInfo = parseDeviceInfo(body?.userAgent || req.headers.get('user-agent') || '')
+        const networkFingerprint = buildNetworkFingerprint({
+            ipAddress,
+            userAgent: body?.userAgent || req.headers.get('user-agent') || '',
+            language: body?.language,
+            timezone: body?.timezone,
+            platform: body?.platform,
+            country: geo.country,
+            region: geo.region,
+        })
         const screen = body?.screen || {}
 
         if (!pagePath || (!accountId && !deviceId)) {
@@ -127,15 +138,71 @@ export async function POST(req) {
         const aliasKeys = buildUserPreferenceKeys({ accountId, deviceId }).filter((key) => key !== primaryKey)
 
         const now = admin.firestore.FieldValue.serverTimestamp()
-        const pageRef = dbAdmin.collection('analytics_page_unique_visitors').doc(pageDocId)
-        const siteRef = dbAdmin.collection('analytics_site_unique_visitors').doc(siteDocId)
+        const fingerprint = String(body?.fingerprint || '').trim()
+
+        await upsertIdentityGraph({
+            dbAdmin: dbUsers,
+            accountId,
+            deviceId,
+            networkFingerprint,
+            now: new Date(),
+        })
+
+        // ── Device registry — 1 device = 1 doc ──────────────────────────
+        if (deviceId) {
+            const devRef = dbUsers.collection('analytics_devices').doc(deviceId)
+            const devUpdate = {
+                deviceId,
+                lastSeenAt: new Date(),
+                lastPath: pagePath,
+                lastIp: ipAddress,
+                lastCountry: geo.country,
+                lastRegion: geo.region,
+                lastCity: geo.city,
+                deviceType: deviceInfo.deviceType,
+                phoneModel: deviceInfo.phoneModel,
+                browser: deviceInfo.browser,
+                os: deviceInfo.os,
+                screenWidth: screen?.width || null,
+                screenHeight: screen?.height || null,
+                dpr: screen?.devicePixelRatio || null,
+                language: body?.language || null,
+                timezone: body?.timezone || null,
+                platform: body?.platform || null,
+                pageViews: admin.firestore.FieldValue.increment(1),
+                pagesVisited: admin.firestore.FieldValue.arrayUnion(pagePath),
+            }
+            if (fingerprint) {
+                devUpdate.fingerprints = admin.firestore.FieldValue.arrayUnion(fingerprint)
+            }
+            if (networkFingerprint) {
+                devUpdate.networkFingerprints = admin.firestore.FieldValue.arrayUnion(networkFingerprint)
+            }
+            if (accountId) {
+                devUpdate.accountIds = admin.firestore.FieldValue.arrayUnion(accountId)
+                devUpdate.lastAccountId = accountId
+            }
+            if (productId) {
+                devUpdate.productsViewed = admin.firestore.FieldValue.arrayUnion(productId)
+            }
+            // Try create first (new device) — sets firstSeenAt; if exists, merge-update
+            try {
+                await devRef.create({ ...devUpdate, firstSeenAt: admin.firestore.FieldValue.serverTimestamp() })
+            } catch (err) {
+                if (isAlreadyExistsError(err)) {
+                    await devRef.set(devUpdate, { merge: true })
+                }
+            }
+        }
+        const pageRef = dbUsers.collection('analytics_page_unique_visitors').doc(pageDocId)
+        const siteRef = dbUsers.collection('analytics_site_unique_visitors').doc(siteDocId)
         const productUniqueRef = productDocId
-            ? dbAdmin.collection('analytics_product_unique_visitors').doc(productDocId)
+            ? dbUsers.collection('analytics_product_unique_visitors').doc(productDocId)
             : null
         const productCountRef = productId
-            ? dbAdmin.collection('analytics_product_view_counts').doc(productId)
+            ? dbUsers.collection('analytics_product_view_counts').doc(productId)
             : null
-        const productRef = productId ? dbAdmin.collection('products').doc(productId) : null
+        const productRef = (productId && prodDb) ? prodDb.collection('products').doc(productId) : null
 
         await Promise.all([
             pageRef.create({ pagePath, identityType, identityId, createdAt: now }).catch((err) => {
@@ -157,6 +224,7 @@ export async function POST(req) {
                 lastKnownPlatform: body?.platform || null,
                 lastKnownLanguage: body?.language || null,
                 lastKnownTimezone: body?.timezone || null,
+                lastKnownNetworkFingerprint: networkFingerprint,
                 lastKnownDeviceType: deviceInfo.deviceType,
                 lastKnownPhoneModel: deviceInfo.phoneModel,
                 lastKnownBrowser: deviceInfo.browser,
@@ -166,13 +234,17 @@ export async function POST(req) {
                 lastKnownDevicePixelRatio: screen?.devicePixelRatio || null,
             }
 
+            if (networkFingerprint) {
+                userUpdate.networkFingerprints = admin.firestore.FieldValue.arrayUnion(networkFingerprint)
+            }
+
             if (deviceId) {
                 userUpdate.deviceId = deviceId
                 userUpdate.lastDeviceId = deviceId
                 userUpdate.deviceIds = admin.firestore.FieldValue.arrayUnion(deviceId)
             }
 
-            await dbAdmin.collection('users').doc(accountId).set(userUpdate, { merge: true })
+            await dbUsers.collection('users').doc(accountId).set(userUpdate, { merge: true })
         }
 
         if (productUniqueRef && productCountRef) {
@@ -191,6 +263,7 @@ export async function POST(req) {
                 platform: body?.platform || null,
                 language: body?.language || null,
                 timezone: body?.timezone || null,
+                networkFingerprint,
                 deviceType: deviceInfo.deviceType,
                 phoneModel: deviceInfo.phoneModel,
                 browser: deviceInfo.browser,
@@ -215,7 +288,7 @@ export async function POST(req) {
                 if (primaryKey && productRef) {
                     const productSnap = await productRef.get()
                     if (productSnap.exists) {
-                        const current = await loadPreferenceVector({ dbAdmin, keys: [primaryKey, ...aliasKeys] })
+                        const current = await loadPreferenceVector({ dbAdmin: dbUsers, keys: [primaryKey, ...aliasKeys] })
                         const nextVector = current.exists ? current.vector : createEmptyPreferenceVector()
                         const eventVector = applyLearningEvent({
                             vector: nextVector,
@@ -225,7 +298,7 @@ export async function POST(req) {
                         })
 
                         await savePreferenceVector({
-                            dbAdmin,
+                            dbAdmin: dbUsers,
                             primaryKey,
                             aliasKeys,
                             vector: eventVector,

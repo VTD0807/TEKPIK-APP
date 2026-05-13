@@ -83,7 +83,11 @@ const Footer = () => {
                 </div>
                 <div className="py-4 text-xs text-slate-400 space-y-1">
                     <p>As an Amazon Associate we earn from qualifying purchases. <Link href="/disclosure" className="underline hover:text-slate-600">Full disclosure →</Link></p>
-                    <p>Copyright 2026 © TEKPIK All Rights Reserved. &nbsp;|&nbsp; Originally developed by <a href="https://www.youtube.com/@GreatStackDev" target="_blank" rel="noopener noreferrer" className="hover:underline">GreatStack</a>.</p>
+                    <p>
+                        Copyright 2026 © TEKPIK All Rights Reserved. &nbsp;|&nbsp; 
+                        Designed, developed, maintained, and owned by <a href="https://oqens.me" target="_blank" rel="noopener noreferrer" className="hover:underline text-slate-500 font-medium">OQENS</a>. 
+                        &nbsp;|&nbsp; Developer: <a href="https://github.com/varshith-dev" target="_blank" rel="noopener noreferrer" className="hover:underline text-slate-500 font-medium">varshith-dev</a>.
+                    </p>
                 </div>
             </div>
         </footer>

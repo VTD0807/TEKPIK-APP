@@ -1,19 +1,28 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { getProductionDb, timestampToJSON } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
+let CACHED_CATEGORIES = null
+let CACHED_TIME = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 export async function GET() {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const prodDb = await getProductionDb()
+    if (!prodDb) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
-        const catSnap = await dbAdmin.collection('categories').orderBy('name').get()
+        if (CACHED_CATEGORIES && (Date.now() - CACHED_TIME < CACHE_TTL_MS)) {
+            return NextResponse.json(CACHED_CATEGORIES)
+        }
+
+        const catSnap = await prodDb.collection('categories').orderBy('name').get()
         let categories = []
         catSnap.forEach(doc => {
             categories.push({ id: doc.id, ...doc.data() })
         })
 
-        const prodSnap = await dbAdmin.collection('products').get()
+        const prodSnap = await prodDb.collection('products').get()
         const countMap = {}
         prodSnap.forEach(doc => {
             let p = doc.data()
@@ -26,6 +35,9 @@ export async function GET() {
             products: countMap[c.id] || 0
         }))
 
+        CACHED_CATEGORIES = categories
+        CACHED_TIME = Date.now()
+
         return NextResponse.json(categories)
     } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 500 })
@@ -33,7 +45,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const prodDb = await getProductionDb()
+    if (!prodDb) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
         const body = await req.json()
@@ -45,7 +58,7 @@ export async function POST(req) {
         }
 
         const normalizedName = name.toLowerCase()
-        const allSnap = await dbAdmin.collection('categories').get()
+        const allSnap = await prodDb.collection('categories').get()
         const duplicate = allSnap.docs.some(doc => {
             const cat = doc.data()
             return (cat?.name || '').trim().toLowerCase() === normalizedName || (cat?.slug || '').trim().toLowerCase() === slug
@@ -63,8 +76,12 @@ export async function POST(req) {
             createdAt: new Date(),
         }
 
-        const docRef = await dbAdmin.collection('categories').add(newCat)
+        const docRef = await prodDb.collection('categories').add(newCat)
         const docSnap = await docRef.get()
+
+        // Invalidate cache
+        CACHED_CATEGORIES = null
+        CACHED_TIME = 0
 
         return NextResponse.json({ id: docSnap.id, ...docSnap.data(), createdAt: timestampToJSON(docSnap.data().createdAt) }, { status: 201 })
     } catch (err) {

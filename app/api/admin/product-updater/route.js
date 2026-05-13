@@ -3,16 +3,21 @@ import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
 import { scrapeAmazonProduct } from '@/lib/amazon-scraper'
 import { notifyProductUpdate } from '@/lib/product-notification'
+import { sendMail } from '@/lib/mailer'
+import { staleProductsEmailHtml, productUpdatedEmailHtml } from '@/lib/mail-templates'
+import { autoCategories } from '@/lib/auto-categorise'
 
 export const dynamic = 'force-dynamic'
 
 const DEFAULT_UPDATER = {
     enabled: false,
     frequencyMinutes: 360,
-    maxPerRun: 4,
-    delayMs: 500,
+    maxPerRun: 20,
+    delayMs: 300,
+    parallelBatch: true,
     batches: [
-        { name: 'Batch 1', size: 4, delayMs: 500 },
+        { name: 'Batch 1', size: 10, delayMs: 300 },
+        { name: 'Batch 2', size: 10, delayMs: 300 },
     ],
 }
 
@@ -151,6 +156,7 @@ const buildUpdatePayload = (existingProduct, scraped) => {
         discount: Number(existingProduct.discount || 0),
         affiliateUrl: existingProduct.affiliateUrl || existingProduct.affiliate_url || '',
         asin: existingProduct.asin || null,
+        brand: existingProduct.brand || '',
         imageUrls: JSON.stringify(Array.isArray(existingProduct.imageUrls)
             ? existingProduct.imageUrls
             : (Array.isArray(existingProduct.image_urls) ? existingProduct.image_urls : [])),
@@ -168,6 +174,7 @@ const buildUpdatePayload = (existingProduct, scraped) => {
         discount: nextDiscount,
         affiliateUrl: stableAffiliateUrl,
         asin: scraped.asin || existingProduct.asin || null,
+        brand: scraped.brand || existingProduct.brand || '',
         imageUrls: JSON.stringify(nextImageUrls),
         amazonSyncSource: scraped.resolvedUrl || scraped.affiliateUrl || stableAffiliateUrl,
         amazonSyncStatus: 'success',
@@ -188,6 +195,7 @@ const buildUpdatePayload = (existingProduct, scraped) => {
             affiliateUrl: nextValues.affiliateUrl,
             affiliate_url: nextValues.affiliateUrl,
             asin: nextValues.asin,
+            brand: nextValues.brand,
             imageUrls: nextImageUrls,
             image_urls: nextImageUrls,
             amazonRatingText: nextValues.amazonRatingText,
@@ -197,6 +205,7 @@ const buildUpdatePayload = (existingProduct, scraped) => {
             amazonSyncedAt: now,
             amazonSyncSource: nextValues.amazonSyncSource,
             amazonSyncStatus: nextValues.amazonSyncStatus,
+            available: true,
         },
         changedFields,
     }
@@ -268,6 +277,39 @@ export async function POST(req) {
         }
 
         const products = await fetchProductsForRefresh()
+
+        // Load categories once for auto-categorisation
+        const catSnap = await dbAdmin.collection('categories').get()
+        const allCategories = []
+        catSnap.forEach((doc) => allCategories.push({ id: doc.id, ...doc.data() }))
+
+        // ── Stale product alert ──────────────────────────────────────────────
+        const STALE_HOURS = 5
+        const staleProducts = products.filter(p => {
+            const raw = p.amazonSyncedAt || p.lastUpdated || p.updatedAt
+            if (!raw) return true
+            const ts = typeof raw?.toDate === 'function' ? raw.toDate().getTime() : new Date(raw).getTime()
+            return Number.isFinite(ts) && (Date.now() - ts) > STALE_HOURS * 60 * 60 * 1000
+        }).map(p => {
+            const raw = p.amazonSyncedAt || p.lastUpdated || p.updatedAt
+            const ts = raw ? (typeof raw?.toDate === 'function' ? raw.toDate().getTime() : new Date(raw).getTime()) : 0
+            return { title: p.title || p.name || '', brand: p.brand || '', hoursAgo: ts ? Math.floor((Date.now() - ts) / 3600000) : '?' }
+        })
+
+        if (staleProducts.length > 0) {
+            // Get admin emails
+            const adminSnap = await dbAdmin.collection('users').where('role', '==', 'ADMIN').limit(10).get()
+            const adminEmails = []
+            adminSnap.forEach(doc => { const e = doc.data()?.email; if (e) adminEmails.push(e) })
+            if (adminEmails.length > 0) {
+                sendMail({
+                    to: adminEmails,
+                    subject: `⚠️ ${staleProducts.length} stale product${staleProducts.length !== 1 ? 's' : ''} need updating`,
+                    html: staleProductsEmailHtml({ products: staleProducts, hoursThreshold: STALE_HOURS }),
+                }).catch(err => console.warn('[product-updater] stale alert email failed:', err.message))
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────
         const effectiveBatches = normalizeBatches(requestBatches ?? config.batches, effectiveDelay)
         const totalTarget = effectiveBatches.reduce((sum, batch) => sum + batch.size, 0)
         const hardLimit = runAll
@@ -324,12 +366,8 @@ export async function POST(req) {
                 delayMs: batch.delayMs,
             }
 
-            for (let index = 0; index < batchItems.length; index += 1) {
-                const product = batchItems[index]
-                summary.processed += 1
-                batchSummary.processed += 1
+            const processProduct = async (product) => {
                 const sourceUrl = product.affiliateUrl || product.affiliate_url || ''
-
                 try {
                     const scraped = await scrapeAmazonProduct(sourceUrl)
                     const scrapedPrice = toNumberOrNull(scraped.price)
@@ -344,6 +382,24 @@ export async function POST(req) {
                         features: buildProductFeatureVector({ id: product.id, ...product, ...updateData }),
                         updatedAt: new Date(),
                     }, { merge: true })
+
+                    // Auto-categorise if product has no category
+                    if (!product.categoryId && allCategories.length > 0) {
+                        const catMatch = await autoCategories(
+                            { ...product, ...updateData },
+                            allCategories,
+                            { minConfidence: 0.3 }
+                        ).catch(() => null)
+                        if (catMatch) {
+                            await dbAdmin.collection('products').doc(product.id).update({
+                                categoryId: catMatch.categoryId,
+                                category_id: catMatch.categoryId,
+                                updatedAt: new Date(),
+                            })
+                            updateData.categoryId = catMatch.categoryId
+                            changedFields.push('categoryId')
+                        }
+                    }
 
                     const logEntry = {
                         runId,
@@ -362,7 +418,45 @@ export async function POST(req) {
                     await writeLog(logEntry)
                     summary.updated += 1
                     batchSummary.updated += 1
+
+                    // Notify wishlisted users about price change
+                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tekpik.in'
+                    if (changedFields.includes('price') || changedFields.includes('discount')) {
+                        // Find users who wishlisted this product
+                        const wishSnap = await dbAdmin.collection('wishlists')
+                            .where('productId', '==', product.id).limit(100).get().catch(() => null)
+                        if (wishSnap && !wishSnap.empty) {
+                            const userIds = []
+                            wishSnap.forEach(doc => { const uid = doc.data()?.userId; if (uid) userIds.push(uid) })
+                            for (const uid of userIds) {
+                                const uSnap = await dbAdmin.collection('users').doc(uid).get().catch(() => null)
+                                const email = uSnap?.data()?.email
+                                if (email) {
+                                    sendMail({
+                                        to: email,
+                                        subject: `Price update on ${updateData.title || product.title}`,
+                                        html: productUpdatedEmailHtml({
+                                            productTitle: updateData.title || product.title || '',
+                                            brand: updateData.brand || product.brand || '',
+                                            price: updateData.price,
+                                            originalPrice: updateData.originalPrice,
+                                            discount: updateData.discount,
+                                            productUrl: `${appUrl}/products/${product.id}`,
+                                            changedFields,
+                                        }),
+                                    }).catch(() => {})
+                                }
+                            }
+                        }
+                    }
                 } catch (error) {
+                    // Mark product unavailable so it's hidden from the storefront
+                    await dbAdmin.collection('products').doc(product.id).update({
+                        amazonSyncStatus: 'failed',
+                        amazonSyncedAt: new Date(),
+                        available: false,
+                    }).catch(() => {})
+
                     summary.failed += 1
                     batchSummary.failed += 1
                     const logEntry = {
@@ -381,10 +475,15 @@ export async function POST(req) {
                     runLogs.push(logEntry)
                     await writeLog(logEntry)
                 }
+                summary.processed += 1
+                batchSummary.processed += 1
+            }
 
-                if (batch.delayMs > 0 && index < batchItems.length - 1) {
-                    await sleep(batch.delayMs)
-                }
+            // Run all items in the batch in parallel for speed
+            await Promise.all(batchItems.map(processProduct))
+
+            if (batch.delayMs > 0 && cursor < candidates.length) {
+                await sleep(batch.delayMs)
             }
 
             summary.batches.push(batchSummary)

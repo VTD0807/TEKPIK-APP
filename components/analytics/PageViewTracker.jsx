@@ -2,12 +2,18 @@
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { getDeviceId } from '@/lib/device'
+import { getDeviceId, getDeviceIdAsync, getDeviceFingerprint } from '@/lib/device'
 
 export default function PageViewTracker() {
     const pathname = usePathname()
     const { user, loading } = useAuth()
     const sentKeysRef = useRef(new Set())
+    const resolvedIdRef = useRef('')
+
+    // Resolve persistent device ID once (async — includes IDB + server recovery)
+    useEffect(() => {
+        getDeviceIdAsync().then(id => { resolvedIdRef.current = id })
+    }, [])
 
     useEffect(() => {
         if (loading || !pathname) return
@@ -16,8 +22,11 @@ export default function PageViewTracker() {
         const cacheKey = `${pathname}::${accountId || 'anon'}`
         if (sentKeysRef.current.has(cacheKey)) return
 
-        const deviceId = getDeviceId()
+        // Use sync fast-path first, fallback to resolved async ID
+        const deviceId = getDeviceId() || resolvedIdRef.current
         if (!deviceId) return
+
+        const fingerprint = getDeviceFingerprint()
 
         const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
         const platform = typeof navigator !== 'undefined' ? (navigator.platform || '') : ''
@@ -40,6 +49,7 @@ export default function PageViewTracker() {
                 pagePath: pathname,
                 deviceId,
                 accountId: accountId || null,
+                fingerprint,
                 userAgent: ua,
                 platform,
                 language,

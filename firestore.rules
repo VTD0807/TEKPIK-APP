@@ -1,86 +1,35 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() {
-      return request.auth != null;
+    
+    // -------------------------------------------------------------------------
+    // IMPORTANT CONTEXT:
+    // Because TEKPIK uses Next.js API Routes with the Firebase Admin SDK for 
+    // almost all operations, the Admin SDK automatically bypasses these rules.
+    // 
+    // These rules ONLY apply to requests made directly from the user's browser
+    // (Client SDK). Our client only accesses the `users/{uid}` collection directly 
+    // via `auth-context.jsx` and `CMSLayout.jsx`.
+    // -------------------------------------------------------------------------
+
+    // 1. Users Collection
+    // Users can only read and update their own profile document.
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId
+                    // Prevent users from granting themselves admin access
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'dashboardAccess']));
+      allow delete: if false; // Only backend can delete users
     }
 
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email in [
-        'varshith.code@gmail.com',
-        'varshithpaladugu07@gmail.com'
-      ];
-    }
-
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
-    }
-
-    match /users/{uid} {
-      allow read: if isAdmin() || isOwner(uid);
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    match /products/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /categories/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /banners/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /reviews/{id} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.userId);
-    }
-
-    match /wishlists/{uid} {
-      allow read, write: if isOwner(uid) || isAdmin();
-    }
-
-    match /stores/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /orders/{id} {
-      allow read, write: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.userId);
-    }
-
-    function isAssignmentOwner() {
-      return isSignedIn() && request.auth.uid == resource.data.employeeId;
-    }
-
-    function isAllowedEmployeeProgressUpdate() {
-      return request.resource.data.diff(resource.data).changedKeys().hasOnly([
-        'status',
-        'progressPercent',
-        'notes',
-        'statusHistory',
-        'updatedAt',
-        'startedAt',
-        'completedAt'
-      ]);
-    }
-
-    match /work_assignments/{id} {
-      allow read: if isAdmin() || isAssignmentOwner();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isAssignmentOwner() && isAllowedEmployeeProgressUpdate());
-    }
-
+    // 2. Default Rule: Deny Everything Else
+    // Any other direct browser requests are blocked. The Next.js backend API
+    // routes will safely handle fetching products, writing analytics, sending 
+    // mail, etc. using the Admin SDK.
     match /{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }

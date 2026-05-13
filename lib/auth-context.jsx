@@ -24,27 +24,10 @@ const AuthContext = createContext({
     signOut: async () => {} 
 })
 
-const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30
-const SESSION_MAX_AGE = 60 * 60 * 24 * 30
-const AUTH_EXPIRY_KEY = 'tekpik_auth_expiry'
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 365 * 10 // 10 years
+const SESSION_MAX_AGE = 60 * 60 * 24 * 365 * 10 // 10 years
 const DEVICE_ID_KEY = 'tekpik_device_id'
 const DEVICE_COOKIE_NAME = 'tekpik_device_id'
-
-const getSessionExpiry = () => {
-    if (typeof window === 'undefined') return 0
-    const value = Number(localStorage.getItem(AUTH_EXPIRY_KEY) || 0)
-    return Number.isFinite(value) ? value : 0
-}
-
-const setSessionExpiry = () => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(AUTH_EXPIRY_KEY, String(Date.now() + SESSION_DURATION_MS))
-}
-
-const clearSessionExpiry = () => {
-    if (typeof window === 'undefined') return
-    localStorage.removeItem(AUTH_EXPIRY_KEY)
-}
 
 const getOrCreateDeviceId = () => {
     if (typeof window === 'undefined') return ''
@@ -140,19 +123,6 @@ export function AuthProvider({ children }) {
 
         const unsub = onIdTokenChanged(auth, async (firebaseUser) => {
             if (!firebaseUser) {
-                clearSessionExpiry()
-                setUser(null)
-                setLoading(false)
-                updateSessionCookie(null).catch(() => {})
-                return
-            }
-
-            const sessionExpiry = getSessionExpiry()
-            if (!sessionExpiry) {
-                setSessionExpiry()
-            } else if (Date.now() > sessionExpiry) {
-                await firebaseSignOut(auth).catch(() => {})
-                clearSessionExpiry()
                 setUser(null)
                 setLoading(false)
                 updateSessionCookie(null).catch(() => {})
@@ -183,14 +153,12 @@ export function AuthProvider({ children }) {
     const signInWithGoogle = async () => {
         await setPersistence(auth, browserLocalPersistence)
         const result = await signInWithPopup(auth, googleProvider)
-        setSessionExpiry()
         return result.user
     }
 
     const signInWithEmail = async (email, password) => {
         await setPersistence(auth, browserLocalPersistence)
         const result = await signInWithEmailAndPassword(auth, email, password)
-        setSessionExpiry()
         return result.user
     }
 
@@ -198,13 +166,11 @@ export function AuthProvider({ children }) {
         await setPersistence(auth, browserLocalPersistence)
         const result = await createUserWithEmailAndPassword(auth, email, password)
         if (name) await updateProfile(result.user, { displayName: name })
-        setSessionExpiry()
         return result.user
     }
 
     const signOut = async () => {
         await firebaseSignOut(auth)
-        clearSessionExpiry()
         await updateSessionCookie(null)
         clearDeviceCookie()
         setUser(null)

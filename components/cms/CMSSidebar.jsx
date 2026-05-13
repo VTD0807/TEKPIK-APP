@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react'
 import { 
     Grid1x2, BoxSeam, Link45deg, Tags, Images,
     Star, Robot, People, Gear,
-    ChevronLeft, XLg, ArrowRepeat, ClockHistory 
+    ChevronLeft, XLg, ArrowRepeat, ClockHistory, EnvelopeFill, ShieldExclamation
 } from 'react-bootstrap-icons'
 
 const navItems = [
@@ -18,9 +18,11 @@ const navItems = [
     { name: 'Reviews', href: '/cms/reviews', icon: Star },
     { name: 'AI Analysis', href: '/cms/ai-analysis', icon: Robot },
     { name: 'Users', href: '/cms/users', icon: People },
+    { name: 'Mail Manager', href: '/admin/mail', icon: EnvelopeFill },
     { name: 'Product Updater', href: '/cms/product-updater', icon: ArrowRepeat },
     { name: 'Updater Logs', href: '/cms/product-updater/logs', icon: ClockHistory },
-    { name: 'Storefront', href: '/cms/storefront', icon: Gear }
+    { name: 'Storefront', href: '/cms/storefront', icon: Gear },
+    { name: 'Downtime Manager', href: '/cms/downtime', icon: ShieldExclamation }
 ]
 
 export default function CMSSidebar({ collapsed, onToggle }) {

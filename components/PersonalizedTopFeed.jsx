@@ -25,7 +25,7 @@ export default function PersonalizedTopFeed() {
         const controller = new AbortController()
         setFeedLoading(true)
 
-        const accountParam = `?accountId=${encodeURIComponent(user.uid)}`
+        const accountParam = `?accountId=${encodeURIComponent(user.uid)}&limit=12`
 
         fetch(`/api/recommendations/feed${accountParam}`, {
             cache: 'no-store',

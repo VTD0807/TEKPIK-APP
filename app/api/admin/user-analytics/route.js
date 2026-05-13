@@ -13,6 +13,17 @@ const toList = (map) => Array.from(map.entries())
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
 
+const uniqueStrings = (values = []) => Array.from(new Set((Array.isArray(values) ? values : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)))
+
+const toDate = (value) => {
+    if (!value) return null
+    if (value?.toDate && typeof value.toDate === 'function') return value.toDate()
+    const dt = new Date(value)
+    return Number.isFinite(dt.getTime()) ? dt : null
+}
+
 const normalizeKnown = (value) => {
     const raw = String(value || '').trim()
     if (!raw) return null
@@ -92,9 +103,12 @@ export async function GET() {
     if (!dbAdmin) return NextResponse.json({ users: [], summary: {} })
 
     try {
-        const [usersSnap, productAnalyticsSnap] = await Promise.all([
+        const [usersSnap, productAnalyticsSnap, identityLinksSnap, productViewCountSnap, productsSnap] = await Promise.all([
             dbAdmin.collection('users').get(),
             dbAdmin.collection('analytics_product_unique_visitors').limit(8000).get(),
+            dbAdmin.collection('analytics_identity_links').limit(8000).get(),
+            dbAdmin.collection('analytics_product_view_counts').limit(1200).get(),
+            dbAdmin.collection('products').where('isActive', '==', true).limit(1200).get(),
         ])
 
         const latestByAccount = new Map()
@@ -117,8 +131,35 @@ export async function GET() {
         const browserCounts = new Map()
         const osCounts = new Map()
         const countryCounts = new Map()
+        const networkCounts = new Map()
         const ipLookupTasks = []
         const ipLookupCache = new Map()
+
+        let identityAccounts = 0
+        let identityDevices = 0
+        const sharedDeviceCollisions = []
+
+        identityLinksSnap.forEach((doc) => {
+            const data = doc.data() || {}
+            if (data.type === 'account') {
+                identityAccounts += 1
+                return
+            }
+            if (data.type !== 'device') return
+
+            identityDevices += 1
+            const accountIds = uniqueStrings(data.accountIds || [])
+            if (accountIds.length > 1) {
+                sharedDeviceCollisions.push({
+                    deviceId: data.deviceId || doc.id.replace('device:', ''),
+                    accountIds,
+                    accountCount: accountIds.length,
+                    updatedAt: data.updatedAt ? timestampToJSON(data.updatedAt) : null,
+                })
+            }
+        })
+
+        sharedDeviceCollisions.sort((a, b) => b.accountCount - a.accountCount)
 
         usersSnap.forEach(doc => {
             const data = doc.data() || {}
@@ -141,6 +182,7 @@ export async function GET() {
                 lastKnownBrowser: data.lastKnownBrowser || analyticsLatest?.browser || uaFallback.browser || null,
                 lastKnownOs: data.lastKnownOs || analyticsLatest?.os || null,
                 lastKnownDeviceType: data.lastKnownDeviceType || null,
+                networkFingerprints: uniqueStrings(data.networkFingerprints || []),
                 lastSeenAt: data.lastSeenAt ? timestampToJSON(data.lastSeenAt) : null,
             }
 
@@ -175,7 +217,45 @@ export async function GET() {
             addKnown(phoneCounts, user.lastKnownPhoneModel)
             addKnown(browserCounts, user.lastKnownBrowser)
             addKnown(osCounts, user.lastKnownOs)
+            uniqueStrings(user.networkFingerprints || []).forEach((networkId) => {
+                networkCounts.set(networkId, (networkCounts.get(networkId) || 0) + 1)
+            })
         })
+
+        const productMeta = new Map()
+        productsSnap.forEach((doc) => {
+            const data = doc.data() || {}
+            productMeta.set(doc.id, {
+                productId: doc.id,
+                title: data.title || data.name || doc.id,
+                image: data.image || data.imageUrl || data.thumbnail || null,
+                updatedAt: data.updatedAt || data.createdAt || null,
+            })
+        })
+
+        const trendingProducts = []
+        productViewCountSnap.forEach((doc) => {
+            const data = doc.data() || {}
+            const productId = String(data.productId || doc.id || '').trim()
+            if (!productId) return
+
+            const uniqueDeviceViews = Number(data.uniqueDeviceViews || 0)
+            const meta = productMeta.get(productId) || { productId, title: productId, image: null, updatedAt: null }
+            const lastUpdate = toDate(data.updatedAt || meta.updatedAt)
+            const ageDays = lastUpdate ? Math.max((Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24), 0) : 365
+            const velocity = Math.max(0, 1 - (ageDays / 14))
+            const score = (Math.log10(uniqueDeviceViews + 1) * 0.74) + (velocity * 0.26)
+
+            trendingProducts.push({
+                productId,
+                title: meta.title,
+                image: meta.image,
+                uniqueDeviceViews,
+                score: Number(score.toFixed(3)),
+            })
+        })
+
+        trendingProducts.sort((a, b) => b.score - a.score)
 
         const summary = {
             totalUsers: users.length,
@@ -188,6 +268,12 @@ export async function GET() {
             topPhones: toList(phoneCounts).slice(0, 10),
             topBrowsers: toList(browserCounts).slice(0, 10),
             topOs: toList(osCounts).slice(0, 10),
+            topNetworks: toList(networkCounts).slice(0, 10),
+            identityAccounts,
+            identityDevices,
+            sharedDeviceCount: sharedDeviceCollisions.length,
+            sharedDeviceCollisions: sharedDeviceCollisions.slice(0, 20),
+            trendingProducts: trendingProducts.slice(0, 12),
         }
 
         return NextResponse.json({ users, summary })

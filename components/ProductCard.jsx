@@ -197,14 +197,20 @@ const ProductCard = ({ product }) => {
         }
         return null
     })()
-    const verifiedHours = lastUpdatedDate
-        ? Math.max(0, Math.round((Date.now() - lastUpdatedDate.getTime()) / (1000 * 60 * 60)))
-        : null
-    const freshnessClass = verifiedHours === null
+    const verifiedAgo = (() => {
+        if (!lastUpdatedDate) return null
+        const diffMs = Math.max(0, Date.now() - lastUpdatedDate.getTime())
+        const totalMinutes = Math.floor(diffMs / (1000 * 60))
+        const hours = Math.floor(totalMinutes / 60)
+        const minutes = totalMinutes % 60
+        if (hours === 0) return { label: `${minutes} min${minutes === 1 ? '' : 's'} ago`, hours: 0 }
+        return { label: `${hours} hr${hours === 1 ? '' : 's'} ${minutes > 0 ? `${minutes} min ` : ''}ago`, hours }
+    })()
+    const freshnessClass = verifiedAgo === null
         ? 'text-slate-400'
-        : verifiedHours > 24
+        : verifiedAgo.hours > 24
             ? 'text-amber-600'
-            : verifiedHours < 6
+            : verifiedAgo.hours < 6
                 ? 'text-emerald-600'
                 : 'text-slate-500'
 
@@ -252,9 +258,9 @@ const ProductCard = ({ product }) => {
                     {showAnchoredMrp && (
                         <p className="text-xs text-slate-400 line-through">{formatPrice(originalPrice, 'INR', 'en-IN')}</p>
                     )}
-                    {verifiedHours !== null && (
+                    {verifiedAgo !== null && (
                         <p className={`text-[11px] mt-0.5 font-medium ${freshnessClass}`}>
-                            Price verified {verifiedHours} hour{verifiedHours === 1 ? '' : 's'} ago
+                            Price verified {verifiedAgo.label}
                         </p>
                     )}
                 </div>

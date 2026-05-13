@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbAdmin, dbWorkspace } from '@/lib/firebase-admin'
 import { scrapeAmazonProduct } from '@/lib/amazon-scraper'
 import { sendTelegramMessage, sendTelegramPhoto, formatProductReply, logTelegramImport } from '@/lib/telegram-bot-utils'
 import { readTelegramManagerConfig, sendTelegramManualMessage } from '@/lib/telegram-manager'
@@ -168,7 +168,7 @@ ${product.asin ? `🆔 ASIN: <code>${product.asin}</code>\n` : ''}📍 <a href="
 
             // /stats
             if (text === '/stats') {
-                const snap = await dbAdmin.collection('telegram_imports').get()
+                const snap = await dbWorkspace.collection('telegram_imports').get()
                 const success = snap.docs.filter(d => d.data().status === 'success').length
                 const failed = snap.docs.filter(d => d.data().status === 'failed').length
                 const rate = snap.size > 0 ? Math.round((success / snap.size) * 100) : 0
@@ -186,7 +186,7 @@ ${product.asin ? `🆔 ASIN: <code>${product.asin}</code>\n` : ''}📍 <a href="
             // /list
             if (text.startsWith('/list')) {
                 const limit = Number(text.split(' ')[1]) || 10
-                const snap = await dbAdmin.collection('telegram_imports').orderBy('createdAt', 'desc').limit(limit).get()
+                const snap = await dbWorkspace.collection('telegram_imports').orderBy('createdAt', 'desc').limit(limit).get()
                 let list = ''
                 let index = 0
                 snap.forEach((doc) => {
@@ -317,7 +317,7 @@ Send an Amazon product link:
                     `❌ <b>Failed to fetch product</b>\n\n${scrapeErr.message}\n\nMake sure it's a valid Amazon product link.`,
                     { reply_to_message_id: message_id }
                 )
-                await logTelegramImport(dbAdmin, {
+                await logTelegramImport(dbWorkspace, {
                     chatId,
                     userId,
                     sourceUrl: url,
@@ -368,7 +368,7 @@ Send an Amazon product link:
 
             // Publish new product into the configured Telegram channel
             try {
-                const telegramManagerConfig = await readTelegramManagerConfig(dbAdmin)
+                const telegramManagerConfig = await readTelegramManagerConfig(dbWorkspace)
                 if (telegramManagerConfig.enabled && telegramManagerConfig.publishNewProducts) {
                     const channelResult = await sendTelegramManualMessage(telegramManagerConfig, {
                         templateKey: 'catalog',
@@ -379,7 +379,7 @@ Send an Amazon product link:
                         includeImage: true,
                     })
 
-                    await dbAdmin.collection('telegram_channel_messages').add({
+                    await dbWorkspace.collection('telegram_channel_messages').add({
                         type: 'auto_import',
                         status: 'success',
                         message: 'Published imported product to Telegram channel.',
@@ -391,7 +391,7 @@ Send an Amazon product link:
                     })
                 }
             } catch (channelErr) {
-                await dbAdmin.collection('telegram_channel_messages').add({
+                await dbWorkspace.collection('telegram_channel_messages').add({
                     type: 'auto_import',
                     status: 'failed',
                     message: channelErr.message || 'Failed to publish imported product to Telegram channel.',
@@ -406,7 +406,7 @@ Send an Amazon product link:
                 const adminsSnap = await dbAdmin.collection('users').where('role', '==', 'ADMIN').get()
                 if (adminsSnap.size > 0) {
                     const adminIds = adminsSnap.docs.map(d => d.id)
-                    await dbAdmin.collection('admin_notifications').add({
+                    await dbWorkspace.collection('admin_notifications').add({
                         title: '📦 New Product Imported',
                         message: `${scraped.title} added via Telegram (@${username})`,
                         attachedProduct: {
@@ -426,7 +426,7 @@ Send an Amazon product link:
             }
 
             // Log successful import
-            await logTelegramImport(dbAdmin, {
+            await logTelegramImport(dbWorkspace, {
                 chatId,
                 userId,
                 productId,
@@ -468,7 +468,7 @@ Send an Amazon product link:
                 { reply_to_message_id: message_id }
             )
 
-            await logTelegramImport(dbAdmin, {
+            await logTelegramImport(dbWorkspace, {
                 chatId,
                 userId,
                 sourceUrl: url,

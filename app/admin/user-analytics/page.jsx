@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Loading from '@/components/Loading'
-import { ArrowRight, GeoAlt, Phone, BrowserChrome, Globe2, People, Shield } from 'react-bootstrap-icons'
+import { ArrowRight, GeoAlt, Phone, BrowserChrome, Globe2, People, Shield, Diagram3, ClockHistory, LightningCharge, ExclamationTriangle } from 'react-bootstrap-icons'
 
 const Card = ({ label, value, sub }) => (
     <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
@@ -17,14 +17,20 @@ export default function UserAnalyticsPage() {
     const [users, setUsers] = useState([])
     const [summary, setSummary] = useState({})
     const [backfilling, setBackfilling] = useState(false)
+    const [selectedUserId, setSelectedUserId] = useState('')
+    const [activityLoading, setActivityLoading] = useState(false)
+    const [activity, setActivity] = useState([])
+    const [activitySummary, setActivitySummary] = useState({})
 
     const loadData = () => {
         setLoading(true)
         fetch('/api/admin/user-analytics', { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
-                setUsers(Array.isArray(data?.users) ? data.users : [])
+                const nextUsers = Array.isArray(data?.users) ? data.users : []
+                setUsers(nextUsers)
                 setSummary(data?.summary || {})
+                if (!selectedUserId && nextUsers.length > 0) setSelectedUserId(nextUsers[0].id)
                 setLoading(false)
             })
             .catch(() => setLoading(false))
@@ -33,6 +39,35 @@ export default function UserAnalyticsPage() {
     useEffect(() => {
         loadData()
     }, [])
+
+    useEffect(() => {
+        if (!selectedUserId) {
+            setActivity([])
+            setActivitySummary({})
+            return
+        }
+
+        const controller = new AbortController()
+        setActivityLoading(true)
+
+        fetch(`/api/analytics/user-activity?accountId=${encodeURIComponent(selectedUserId)}&limit=30`, {
+            cache: 'no-store',
+            signal: controller.signal,
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                setActivity(Array.isArray(data?.activities) ? data.activities : [])
+                setActivitySummary(data?.summary || {})
+                setActivityLoading(false)
+            })
+            .catch(() => {
+                setActivity([])
+                setActivitySummary({})
+                setActivityLoading(false)
+            })
+
+        return () => controller.abort()
+    }, [selectedUserId])
 
     const runBackfill = async () => {
         setBackfilling(true)
@@ -47,6 +82,8 @@ export default function UserAnalyticsPage() {
     }
 
     const latestUsers = useMemo(() => [...users].sort((a, b) => new Date(b.lastSeenAt || b.createdAt || 0) - new Date(a.lastSeenAt || a.createdAt || 0)), [users])
+    const collisionRows = useMemo(() => Array.isArray(summary.sharedDeviceCollisions) ? summary.sharedDeviceCollisions : [], [summary.sharedDeviceCollisions])
+    const trendingRows = useMemo(() => Array.isArray(summary.trendingProducts) ? summary.trendingProducts : [], [summary.trendingProducts])
 
     if (loading) return <Loading />
 
@@ -71,6 +108,13 @@ export default function UserAnalyticsPage() {
                 <Card label="Users With Location" value={summary.usersWithLocation || 0} sub="IP-based geo captured" />
                 <Card label="Users With Device Info" value={summary.usersWithDeviceInfo || 0} sub="Phone/browser/os parsed" />
                 <Card label="Top Country" value={summary.topCountries?.[0]?.name || '—'} sub={summary.topCountries?.[0]?.count ? `${summary.topCountries[0].count} users` : 'No data'} />
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card label="Identity Accounts" value={summary.identityAccounts || 0} sub="Accounts in identity graph" />
+                <Card label="Identity Devices" value={summary.identityDevices || 0} sub="Devices linked across sessions" />
+                <Card label="Shared Device Collisions" value={summary.sharedDeviceCount || 0} sub="Devices used by multiple accounts" />
+                <Card label="Top Network Fingerprint" value={summary.topNetworks?.[0]?.name || '—'} sub={summary.topNetworks?.[0]?.count ? `${summary.topNetworks[0].count} users` : 'No data'} />
             </div>
 
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
@@ -117,6 +161,130 @@ export default function UserAnalyticsPage() {
                 </div>
             </div>
 
+            <div className="grid lg:grid-cols-[1fr_1fr] gap-6 items-start">
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-800">Unified User Timeline</h2>
+                            <p className="text-sm text-slate-500">Merged activity from linked devices and networks for one account.</p>
+                        </div>
+                        <ClockHistory size={18} className="text-slate-400" />
+                    </div>
+
+                    <select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-slate-400"
+                    >
+                        {latestUsers.map((user) => (
+                            <option key={user.id} value={user.id}>{user.name} ({user.email || user.id})</option>
+                        ))}
+                    </select>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400">Linked Devices</p>
+                            <p className="text-lg font-semibold text-slate-800">{activitySummary.linkedDevices || 0}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400">Linked Networks</p>
+                            <p className="text-lg font-semibold text-slate-800">{activitySummary.linkedNetworks || 0}</p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 max-h-[380px] overflow-auto">
+                        {activityLoading ? (
+                            <div className="p-4 text-sm text-slate-400">Loading timeline...</div>
+                        ) : activity.length > 0 ? (
+                            <ul className="divide-y divide-slate-100">
+                                {activity.map((item) => (
+                                    <li key={item.id} className="px-4 py-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-slate-700 truncate">{item.eventType}</p>
+                                                <p className="text-xs text-slate-500 truncate">{item.label || 'Activity event'}</p>
+                                                <p className="text-[11px] text-slate-400 mt-1">{item.deviceId ? `Device: ${item.deviceId}` : 'Device: —'}</p>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <p className="text-xs text-slate-500">{item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'}</p>
+                                                <p className="text-[11px] text-slate-400">score {Number(item.score || 0).toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="p-4 text-sm text-slate-400">No timeline data for selected user.</div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-800">Shared Device Collision Review</h2>
+                            <p className="text-sm text-slate-500">Detects devices used by multiple accounts so behavior does not merge incorrectly.</p>
+                        </div>
+                        <Diagram3 size={18} className="text-slate-400" />
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 max-h-[440px] overflow-auto">
+                        {collisionRows.length > 0 ? (
+                            <ul className="divide-y divide-slate-100">
+                                {collisionRows.map((row) => (
+                                    <li key={row.deviceId} className="p-4 space-y-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-semibold text-slate-700 truncate">{row.deviceId}</p>
+                                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 inline-flex items-center gap-1">
+                                                <ExclamationTriangle size={11} /> {row.accountCount} accounts
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {(row.accountIds || []).map((accountId) => (
+                                                <button
+                                                    key={`${row.deviceId}-${accountId}`}
+                                                    onClick={() => setSelectedUserId(accountId)}
+                                                    className="text-[11px] px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                                                >
+                                                    {accountId}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="p-4 text-sm text-slate-400">No shared-device collisions found.</div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-800">Trending Products Intelligence</h2>
+                        <p className="text-sm text-slate-500">Velocity-weighted ranking from unique view growth and recency.</p>
+                    </div>
+                    <LightningCharge size={18} className="text-slate-400" />
+                </div>
+
+                <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    {trendingRows.length > 0 ? trendingRows.map((item) => (
+                        <div key={item.productId} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-sm font-semibold text-slate-800 min-h-[2.4rem]">{item.title}</p>
+                            <p className="text-xs text-slate-500 mt-1 truncate">{item.productId}</p>
+                            <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                                <span>views {item.uniqueDeviceViews || 0}</span>
+                                <span>score {Number(item.score || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    )) : (
+                        <p className="text-sm text-slate-400">No trending data yet.</p>
+                    )}
+                </div>
+            </div>
+
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between gap-3">
                     <div>
@@ -150,9 +318,17 @@ export default function UserAnalyticsPage() {
                                     <td className="px-4 py-3 text-slate-600">{user.lastKnownPhoneModel || '—'}</td>
                                     <td className="px-4 py-3 text-slate-600">{user.lastKnownBrowser || '—'}</td>
                                     <td className="px-4 py-3">
-                                        <Link href={`/admin/profile/${user.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-slate-800 hover:underline">
-                                            View <ArrowRight size={14} />
-                                        </Link>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => setSelectedUserId(user.id)}
+                                                className="text-xs px-2 py-1 border border-slate-300 rounded-md bg-white hover:bg-slate-50 text-slate-700"
+                                            >
+                                                Timeline
+                                            </button>
+                                            <Link href={`/admin/profile/${user.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-slate-800 hover:underline">
+                                                View <ArrowRight size={14} />
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                             )) : (

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { dbAdmin, authAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
 import { getCached } from '@/lib/server-cache'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
+import { calculateContentReliability } from '@/lib/search-intelligence'
 
 export const dynamic = 'force-dynamic'
 
@@ -416,6 +417,7 @@ export async function GET(req) {
             const avgRating = clamp(getAverageRating(product), 0, 5)
             const ratingQuality = (avgRating / 5) * 10
             const qualityScore = (aiQuality * 0.62) + (ratingQuality * 0.38)
+            const reliabilityScore = calculateContentReliability(product) * 10
 
             const discountPercent = getDiscountPercent(product)
             const valueScore = clamp(discountPercent / 10, 0, 9)
@@ -431,7 +433,8 @@ export async function GET(req) {
             const score = (
                 normalizedContentScore * 0.46
                 + affinityScore * 0.18
-                + qualityScore * 0.14
+                + qualityScore * 0.1
+                + reliabilityScore * 0.08
                 + valueScore * 0.09
                 + popularityScore * 0.06
                 + recencyScore * 0.05
@@ -441,6 +444,7 @@ export async function GET(req) {
             ranked.push({
                 ...product,
                 _interestScore: Number(score.toFixed(2)),
+                _reliabilityScore: Number(reliabilityScore.toFixed(2)),
                 _categoryKey: categoryId || 'none',
                 _brandKey: brand || 'none',
                 categories: categoriesMap[categoryId]
@@ -474,17 +478,19 @@ export async function GET(req) {
                 const avgRating = clamp(getAverageRating(product), 0, 5)
                 const ratingQuality = (avgRating / 5) * 10
                 const qualityScore = (aiQuality * 0.62) + (ratingQuality * 0.38)
+                const reliabilityScore = calculateContentReliability(product) * 10
                 const valueScore = clamp(getDiscountPercent(product) / 10, 0, 9)
                 const recencyScore = clamp(10 - (daysSince(product.createdAt) / 12), 0, 10)
                 const popularityScore = clamp((Math.log10(getReviewCount(product) + 1) / Math.log10(300)) * 10, 0, 10)
 
-                const fallbackScore = (qualityScore * 0.48) + (valueScore * 0.24) + (recencyScore * 0.18) + (popularityScore * 0.10)
+                const fallbackScore = (qualityScore * 0.35) + (reliabilityScore * 0.25) + (valueScore * 0.2) + (recencyScore * 0.12) + (popularityScore * 0.08)
                 const categoryId = product.categoryId || product.category_id || null
                 const brand = String(product.brand || '').trim().toLowerCase() || null
 
                 return {
                     ...product,
                     _interestScore: Number(fallbackScore.toFixed(2)),
+                    _reliabilityScore: Number(reliabilityScore.toFixed(2)),
                     _categoryKey: categoryId || 'none',
                     _brandKey: brand || 'none',
                     categories: categoriesMap[categoryId]

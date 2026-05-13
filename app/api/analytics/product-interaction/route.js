@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin } from '@/lib/firebase-admin'
+import admin from 'firebase-admin'
 import {
     applyLearningEvent,
     applyQueryLearning,
@@ -9,6 +10,7 @@ import {
     loadPreferenceVector,
     savePreferenceVector,
 } from '@/lib/recommendation-learning'
+import { buildNetworkFingerprint, upsertIdentityGraph } from '@/lib/identity-graph'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,10 +95,25 @@ export async function POST(req) {
         const geo = getGeoFromRequest(req)
         const deviceInfo = parseDeviceInfo(body?.userAgent || req.headers.get('user-agent') || '')
         const now = new Date()
-        const productSnap = await dbAdmin.collection('products').doc(productId).get()
-        const product = productSnap.exists ? { id: productSnap.id, ...productSnap.data() } : null
         const primaryKey = getPrimaryPreferenceKey({ accountId, deviceId })
         const aliasKeys = buildUserPreferenceKeys({ accountId, deviceId }).filter((key) => key !== primaryKey)
+        const networkFingerprint = buildNetworkFingerprint({
+            ipAddress,
+            userAgent: body?.userAgent || req.headers.get('user-agent') || '',
+            language: body?.language,
+            timezone: body?.timezone,
+            platform: body?.platform,
+            country: geo.country,
+            region: geo.region,
+        })
+
+        await upsertIdentityGraph({
+            dbAdmin,
+            accountId,
+            deviceId,
+            networkFingerprint,
+            now,
+        })
 
         await dbAdmin.collection('analytics_product_interactions').add({
             eventType,
@@ -114,6 +131,7 @@ export async function POST(req) {
             platform: body?.platform || null,
             language: body?.language || null,
             timezone: body?.timezone || null,
+            networkFingerprint,
             phoneModel: deviceInfo.phoneModel,
             browser: deviceInfo.browser,
             os: deviceInfo.os,
@@ -167,10 +185,13 @@ export async function POST(req) {
                 lastKnownPlatform: body?.platform || null,
                 lastKnownLanguage: body?.language || null,
                 lastKnownTimezone: body?.timezone || null,
+                lastKnownNetworkFingerprint: networkFingerprint,
                 lastKnownPhoneModel: deviceInfo.phoneModel,
                 lastKnownBrowser: deviceInfo.browser,
                 lastKnownOs: deviceInfo.os,
             }
+
+            if (networkFingerprint) userUpdate.networkFingerprints = admin.firestore.FieldValue.arrayUnion(networkFingerprint)
 
             await dbAdmin.collection('users').doc(accountId).set(userUpdate, { merge: true })
         }

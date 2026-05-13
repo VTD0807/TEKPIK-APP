@@ -11,6 +11,10 @@ import { doc, getDoc } from "firebase/firestore"
 import Link from "next/link"
 import { isAdminEmail } from "@/lib/admin"
 
+export const isConsole = () =>
+    typeof window !== 'undefined' &&
+    /^console\./i.test(window.location.hostname)
+
 export default function AdminLayout({ children }) {
     const { user, loading: authLoading } = useAuth()
     const [status, setStatus] = useState('checking')

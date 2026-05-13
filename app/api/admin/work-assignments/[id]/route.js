@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
+import { sendMail } from '@/lib/mailer'
+import { workCompletedEmailHtml } from '@/lib/mail-templates'
 import {
     clampProgress,
     normalizePriority,
@@ -141,10 +143,30 @@ export async function PUT(req, { params }) {
 
         await assignmentRef.set(updates, { merge: true })
         const updatedSnap = await assignmentRef.get()
+        const updatedData = updatedSnap.data() || {}
+
+        // Notify admin when assignment is completed
+        if (nextStatus === 'COMPLETED' && normalizeStatus(existing.status) !== 'COMPLETED') {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tekpik.in'
+            const adminEmail = existing.assignedByEmail || ctx.user?.email
+            if (adminEmail) {
+                sendMail({
+                    to: adminEmail,
+                    subject: `✅ Assignment Completed: ${existing.title}`,
+                    html: workCompletedEmailHtml({
+                        employeeName: existing.employeeName || 'Employee',
+                        title: existing.title || 'Assignment',
+                        completedAt: updates.completedAt,
+                        progressPercent: updates.progressPercent ?? 100,
+                        assignmentUrl: `${appUrl}/admin/work-assignments/${assignmentId}`,
+                    }),
+                }).catch(err => console.warn('[work-assignments/id] completion email failed:', err.message))
+            }
+        }
 
         return NextResponse.json({
             success: true,
-            assignment: serializeWorkAssignment(updatedSnap.id, updatedSnap.data() || {}, timestampToJSON),
+            assignment: serializeWorkAssignment(updatedSnap.id, updatedData, timestampToJSON),
         })
     } catch (error) {
         console.error('[admin-work-assignments:id:put]', error)

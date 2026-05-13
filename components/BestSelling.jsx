@@ -1,7 +1,6 @@
 import React from 'react'
 import Title from './Title'
 import ProductCard from './ProductCard'
-import { dbAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
 import { getCached } from '@/lib/server-cache'
 
 const BestSelling = async () => {
@@ -10,28 +9,18 @@ const BestSelling = async () => {
     let errorMsg = null
 
     try {
-        if (!dbAdmin) throw new Error('DB not initialized')
-
         const data = await getCached('best-selling:v1', 1000 * 60 * 5, async () => {
-            const querySnap = await dbAdmin.collection('products')
-                .where('isActive', '==', true)
-                .where('isFeatured', '==', true)
-                .limit(displayQuantity)
-                .get()
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.tekpik.in'}/api/trending-products?limit=${displayQuantity}`, {
+                    cache: 'no-store',
+                })
+                const payload = await response.json().catch(() => ({}))
+                if (Array.isArray(payload?.products)) return payload.products
+            } catch {
+                return []
+            }
 
-            const prodList = []
-            querySnap.forEach(doc => prodList.push(sanitizeFirestoreData({ id: doc.id, ...doc.data() })))
-
-            if (prodList.length === 0) return []
-
-            const catSnap = await dbAdmin.collection('categories').get()
-            const catMap = {}
-            catSnap.forEach(doc => catMap[doc.id] = doc.data())
-
-            return prodList.map(p => ({
-                ...p,
-                categories: catMap[p.categoryId] ? { name: catMap[p.categoryId].name, slug: catMap[p.categoryId].slug } : null
-            }))
+            return []
         })
         products = data
     } catch (e) {
@@ -41,7 +30,7 @@ const BestSelling = async () => {
 
     return (
         <div className='px-4 sm:px-6 my-14 sm:my-20 max-w-[1500px] mx-auto'>
-            <Title title='Best Selling' description={`Our most popular picks.`} href='/shop' />
+            <Title title='Trending Products' description={`What's moving fastest right now.`} href='/shop' />
             <div className='mt-8 sm:mt-12 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
                 {products && products.length > 0 ? (
                     products.map((product, index) => (

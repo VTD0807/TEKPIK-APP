@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
+import { sendMail } from '@/lib/mailer'
+import { workAssignedEmailHtml } from '@/lib/mail-templates'
 import {
     AUTO_TRACK_METRIC_OPTIONS,
     WORK_ASSIGNMENT_KIND_OPTIONS,
@@ -302,6 +304,26 @@ export async function POST(req) {
 
         const assignmentRef = await dbAdmin.collection('work_assignments').add(payload)
         const createdSnap = await assignmentRef.get()
+
+        // Send assignment notification email to employee
+        if (payload.employeeEmail) {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tekpik.in'
+            sendMail({
+                to: payload.employeeEmail,
+                subject: `New Assignment: ${payload.title}`,
+                html: workAssignedEmailHtml({
+                    employeeName: payload.employeeName,
+                    assignedByName: payload.assignedByName,
+                    title: payload.title,
+                    description: payload.description,
+                    priority: payload.priority,
+                    dueDate: payload.dueDate,
+                    module: payload.module,
+                    workType: payload.workType,
+                    assignmentUrl: `${appUrl}/admin/work-assignments/${assignmentRef.id}`,
+                }),
+            }).catch(err => console.warn('[work-assignments] email failed:', err.message))
+        }
 
         return NextResponse.json({
             success: true,
