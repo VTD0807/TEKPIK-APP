@@ -35,7 +35,15 @@ export async function GET(req) {
 
     const snap = await dbWorkspace.collection('settings').doc('mail_settings').get()
     const data = snap.exists ? snap.data() : {}
-    return NextResponse.json({ settings: { ...DEFAULTS, ...data } })
+    
+    const envStatus = {
+        primaryApiKey: process.env.RESEND_API_KEY ? '•••••••••••••••• (from .env)' : '',
+        secondaryApiKey: process.env.RESEND_SECONDARY_API_KEY ? '•••••••••••••••• (from .env)' : '',
+        secondaryDomain: process.env.RESEND_SECONDARY_DOMAIN || 'truvgo.me',
+        senderEmail: process.env.MAIL_FROM || 'hello@tekpik.in'
+    }
+
+    return NextResponse.json({ settings: { ...DEFAULTS, ...data }, envStatus })
 }
 
 export async function PUT(req) {

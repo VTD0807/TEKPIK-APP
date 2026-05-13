@@ -523,6 +523,7 @@ function AudienceTab({ onCompose }) {
 function ServerTab() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [envStatus, setEnvStatus] = useState(null)
     const [form, setForm] = useState({
         useCustomServer: false,
         primaryApiKey: '',
@@ -539,9 +540,8 @@ function ServerTab() {
         try {
             const res = await fetch('/api/admin/mail/settings')
             const data = await res.json()
-            if (data.settings) {
-                setForm(p => ({ ...p, ...data.settings }))
-            }
+            if (data.settings) setForm(p => ({ ...p, ...data.settings }))
+            if (data.envStatus) setEnvStatus(data.envStatus)
         } catch { /* ignore */ }
         setLoading(false)
     }, [])
@@ -583,19 +583,21 @@ function ServerTab() {
                 </label>
             </div>
 
-            <div className={`space-y-5 ${!form.useCustomServer ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`space-y-5 ${!form.useCustomServer ? 'opacity-70' : ''}`}>
                 <div className="grid grid-cols-2 gap-4">
                     <label className="block space-y-1.5">
                         <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Sender Name</span>
-                        <input value={form.fromName} onChange={e => set('fromName', e.target.value)}
-                            placeholder="TEKPIK"
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                        <input value={!form.useCustomServer ? 'TEKPIK' : form.fromName} 
+                            onChange={e => set('fromName', e.target.value)}
+                            disabled={!form.useCustomServer}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 disabled:bg-slate-50 disabled:text-slate-500" />
                     </label>
                     <label className="block space-y-1.5">
                         <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Sender Email</span>
-                        <input value={form.senderEmail} onChange={e => set('senderEmail', e.target.value)}
-                            placeholder="hello@tekpik.in"
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                        <input value={!form.useCustomServer ? envStatus?.senderEmail : form.senderEmail} 
+                            onChange={e => set('senderEmail', e.target.value)}
+                            disabled={!form.useCustomServer}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 disabled:bg-slate-50 disabled:text-slate-500" />
                     </label>
                 </div>
 
@@ -603,9 +605,11 @@ function ServerTab() {
                     <h3 className="text-sm font-medium text-slate-900 mb-4">Primary Provider (Resend)</h3>
                     <label className="block space-y-1.5">
                         <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Resend API Key</span>
-                        <input value={form.primaryApiKey} onChange={e => set('primaryApiKey', e.target.value)}
-                            type="password" placeholder="re_..."
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 font-mono" />
+                        <input value={!form.useCustomServer ? envStatus?.primaryApiKey : form.primaryApiKey} 
+                            onChange={e => set('primaryApiKey', e.target.value)}
+                            disabled={!form.useCustomServer}
+                            type={!form.useCustomServer ? "text" : "password"} placeholder="re_..."
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 font-mono disabled:bg-slate-50 disabled:text-slate-500" />
                     </label>
                 </div>
 
@@ -614,21 +618,25 @@ function ServerTab() {
                     <div className="grid grid-cols-2 gap-4">
                         <label className="block space-y-1.5 col-span-2">
                             <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Failover API Key</span>
-                            <input value={form.secondaryApiKey} onChange={e => set('secondaryApiKey', e.target.value)}
-                                type="password" placeholder="re_..."
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 font-mono" />
+                            <input value={!form.useCustomServer ? envStatus?.secondaryApiKey : form.secondaryApiKey} 
+                                onChange={e => set('secondaryApiKey', e.target.value)}
+                                disabled={!form.useCustomServer}
+                                type={!form.useCustomServer ? "text" : "password"} placeholder="re_..."
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 font-mono disabled:bg-slate-50 disabled:text-slate-500" />
                         </label>
                         <label className="block space-y-1.5 col-span-2">
                             <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Failover Domain</span>
-                            <input value={form.secondaryDomain} onChange={e => set('secondaryDomain', e.target.value)}
+                            <input value={!form.useCustomServer ? envStatus?.secondaryDomain : form.secondaryDomain} 
+                                onChange={e => set('secondaryDomain', e.target.value)}
+                                disabled={!form.useCustomServer}
                                 placeholder="truvgo.me"
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 disabled:bg-slate-50 disabled:text-slate-500" />
                         </label>
                     </div>
                 </div>
 
                 <div className="pt-4 flex justify-end">
-                    <button onClick={handleSave} disabled={saving}
+                    <button onClick={handleSave} disabled={saving || !form.useCustomServer}
                         className="inline-flex items-center gap-2 rounded-xl bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-black/90 disabled:opacity-60 transition">
                         {saving ? 'Saving...' : 'Save Settings'}
                     </button>
