@@ -25,10 +25,10 @@ const Footer = () => {
             title: "INFO",
             links: [
                 { text: "Affiliate Disclosure", path: '/disclosure', icon: null },
-                { text: "Privacy Policy", path: '/help', icon: null },
-                { text: "Help & Terms", path: '/help', icon: null },
+                { text: "Privacy Policy", path: '/privacy', icon: null },
+                { text: "Help & Terms", path: '/terms', icon: null },
                 { text: "About", path: '/about', icon: null },
-                { text: "Contact", path: '/help', icon: null },
+                { text: "Contact", path: '/contact', icon: null },
             ]
         },
         {
@@ -36,7 +36,6 @@ const Footer = () => {
             links: [
                 { text: "support@tekpik.app", path: 'mailto:support@tekpik.app', icon: MailIcon },
                 { text: "@tekpik_official", path: 'https://twitter.com', icon: PhoneIcon },
-                { text: "Worldwide Delivery", path: '/', icon: MapPinIcon }
             ]
         }
     ];
