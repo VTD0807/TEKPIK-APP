@@ -322,6 +322,7 @@ function TemplatesTab() {
     const [templates, setTemplates] = useState([])
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
+    const [seeding, setSeeding] = useState(false)
     const [form, setForm] = useState({ name: '', subject: '', html: '' })
     const [expanded, setExpanded] = useState(null)
     const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -360,6 +361,23 @@ function TemplatesTab() {
         }
     }
 
+    const handleSeed = async () => {
+        if (!confirm('This will load 15 professional HTML templates. Continue?')) return
+        setSeeding(true)
+        const tid = toast.loading('Seeding templates...')
+        try {
+            const res = await fetch('/api/admin/mail/seed-templates', { method: 'POST' })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || 'Failed to seed')
+            toast.success(`Seeded ${data.added} templates (skipped ${data.skipped})`, { id: tid })
+            load()
+        } catch (err) {
+            toast.error(err.message, { id: tid })
+        } finally {
+            setSeeding(false)
+        }
+    }
+
     return (
         <div className="grid gap-6 xl:grid-cols-2">
             {/* Create form */}
@@ -394,45 +412,56 @@ function TemplatesTab() {
             </div>
 
             {/* List */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="border-b border-slate-100 px-5 py-3 flex items-center justify-between">
-                    <h2 className="text-base font-semibold text-slate-900">Saved Templates</h2>
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col max-h-[800px]">
+                <div className="border-b border-slate-100 px-5 py-3 flex items-center justify-between bg-slate-50">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-base font-semibold text-slate-900">Saved Templates</h2>
+                        <button onClick={handleSeed} disabled={seeding}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition shadow-sm">
+                            <Stars size={10} className="text-amber-500" />
+                            Seed Defaults
+                        </button>
+                    </div>
                     <button onClick={load} className="text-slate-400 hover:text-slate-600 transition"><ArrowRepeat size={15} /></button>
                 </div>
-                {loading ? (
-                    <p className="px-5 py-8 text-center text-sm text-slate-400">Loading...</p>
-                ) : !templates.length ? (
-                    <p className="px-5 py-8 text-center text-sm text-slate-400">No templates yet.</p>
-                ) : (
-                    <div className="divide-y divide-slate-100">
-                        {templates.map(t => (
-                            <div key={t.id} className="px-5 py-3">
-                                <button onClick={() => setExpanded(expanded === t.id ? null : t.id)}
-                                    className="w-full flex items-center justify-between text-left">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-800">{t.name}</p>
-                                        <p className="text-xs text-slate-400">{t.subject} · {fmtDate(t.createdAt)}</p>
-                                    </div>
-                                    {expanded === t.id ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
-                                </button>
-                                {expanded === t.id && (
-                                    <div className="mt-3 space-y-2">
-                                        {t.variables?.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {t.variables.map(v => (
-                                                    <span key={v} className="rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[11px] px-2 py-0.5 font-mono">{`{{${v}}}`}</span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs font-mono text-slate-600 overflow-auto max-h-48 whitespace-pre-wrap">
-                                            {t.html}
+                <div className="overflow-y-auto flex-1">
+                    {loading ? (
+                        <p className="px-5 py-8 text-center text-sm text-slate-400">Loading...</p>
+                    ) : !templates.length ? (
+                        <div className="px-5 py-12 text-center space-y-3 flex flex-col items-center justify-center">
+                            <p className="text-sm text-slate-400">No templates yet.</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-slate-100">
+                            {templates.map(t => (
+                                <div key={t.id} className="px-5 py-3">
+                                    <button onClick={() => setExpanded(expanded === t.id ? null : t.id)}
+                                        className="w-full flex items-center justify-between text-left group">
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-800 group-hover:text-blue-600 transition-colors">{t.name}</p>
+                                            <p className="text-xs text-slate-400">{t.subject} · {fmtDate(t.createdAt)}</p>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                                        {expanded === t.id ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+                                    </button>
+                                    {expanded === t.id && (
+                                        <div className="mt-3 space-y-2">
+                                            {t.variables?.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {t.variables.map(v => (
+                                                        <span key={v} className="rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[11px] px-2 py-0.5 font-mono">{`{{${v}}}`}</span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs font-mono text-slate-600 overflow-auto max-h-48 whitespace-pre-wrap">
+                                                {t.html}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     )
