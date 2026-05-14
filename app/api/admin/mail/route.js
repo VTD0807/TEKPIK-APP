@@ -54,14 +54,15 @@ async function sendPersonalised(users, { subject, templateHtml, sharedHtml, glob
                 name: user.name || user.displayName || 'there',
                 first_name: (user.name || user.displayName || 'there').split(' ')[0],
                 email: user.email,
-                subject,
                 ctaLabel: ctaLabel || '',
                 ctaUrl: ctaUrl || '',
             }
+            const renderedSubject = renderTemplate(subject, perUserVars)
+            perUserVars.subject = renderedSubject // in case body uses {{subject}}
             const renderedBody = renderTemplate(templateHtml, perUserVars)
-            const finalHtml = broadcastEmailHtml({ subject, bodyHtml: renderedBody, ctaLabel, ctaUrl })
+            const finalHtml = broadcastEmailHtml({ subject: renderedSubject, bodyHtml: renderedBody, ctaLabel, ctaUrl })
             try {
-                await sendMail({ to: user.email, subject, html: finalHtml })
+                await sendMail({ to: user.email, subject: renderedSubject, html: finalHtml })
                 results.push({ ok: true, count: 1 })
             } catch (err) {
                 results.push({ ok: false, count: 1, error: err.message })

@@ -164,9 +164,9 @@ export default async function ProductPage({ params }) {
             : verifiedHours < 6
                 ? 'text-emerald-600'
                 : 'text-slate-500'
-    const isUnavailable = product.inStock === false || product.isActive === false
+    const isUnavailable = product.inStock === false || product.isActive === false || product.available === false
     const disableBuying = blockBuyNow || isUnavailable
-    const unavailableText = product.isActive === false ? 'No longer available' : 'Out of Stock'
+    const unavailableText = product.isActive === false || product.available === false ? 'No longer available' : 'Out of Stock'
 
     const schemaData = {
         '@context': 'https://schema.org',
