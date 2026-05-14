@@ -8,7 +8,7 @@ import ProductImageGallery from '@/components/ProductImageGallery'
 import ProductPriceTrend from '@/components/ProductPriceTrend'
 import ProductDescription from '@/components/ProductDescription'
 import ProductCard from '@/components/ProductCard'
-import { getProductDetail, getCatalog } from '@/lib/db-queries'
+import { getProductDetail, getCatalog, getDowntimeSettings } from '@/lib/db-queries'
 import { sanitizeDescriptionHtml, descriptionToPlainText } from '@/lib/description-html'
 import { absoluteUrl } from '@/lib/seo'
 import { formatPrice } from '@/lib/currency'
@@ -128,6 +128,13 @@ export default async function ProductPage({ params }) {
         console.warn('Price history series load error:', error.message)
     }
 
+    // Fetch downtime settings for blockBuyNow
+    let blockBuyNow = false
+    try {
+        const downtimeSettings = await getDowntimeSettings()
+        blockBuyNow = Boolean(downtimeSettings?.blockBuyNow)
+    } catch { }
+
     const images = product.imageUrls || []
     const rating = product.reviews?.length
         ? (product.reviews.reduce((s, r) => s + r.rating, 0) / product.reviews.length).toFixed(1)
@@ -157,6 +164,10 @@ export default async function ProductPage({ params }) {
             : verifiedHours < 6
                 ? 'text-emerald-600'
                 : 'text-slate-500'
+    const isUnavailable = product.inStock === false || product.isActive === false
+    const disableBuying = blockBuyNow || isUnavailable
+    const unavailableText = product.isActive === false ? 'No longer available' : 'Out of Stock'
+
     const schemaData = {
         '@context': 'https://schema.org',
         '@type': 'Product',
@@ -171,7 +182,7 @@ export default async function ProductPage({ params }) {
             '@type': 'Offer',
             priceCurrency: 'INR',
             price: Number.isFinite(numericPrice) ? numericPrice.toFixed(2) : undefined,
-            availability: 'https://schema.org/InStock',
+            availability: isUnavailable ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
             url: productUrl,
         },
         aggregateRating: rating
@@ -251,15 +262,25 @@ export default async function ProductPage({ params }) {
                     <p className="text-xs text-slate-400">Price may vary. Check current price on Amazon.</p>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
-                        <a
-                            href={product.affiliate_url || product.affiliateUrl || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer nofollow sponsored"
-                            className="hidden sm:flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
-                        >
-                            <BoxArrowUpRight size={16} />
-                            Buy on Amazon →
-                        </a>
+                        {disableBuying ? (
+                            <span
+                                className="hidden sm:flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-gray-100 text-gray-500 text-base font-semibold rounded-md border border-gray-200 cursor-not-allowed select-none"
+                                title={isUnavailable ? 'This product is no longer available on Amazon' : 'Purchasing is temporarily disabled'}
+                            >
+                                <BoxArrowUpRight size={16} />
+                                {blockBuyNow ? 'Currently Unavailable' : unavailableText}
+                            </span>
+                        ) : (
+                            <a
+                                href={product.affiliate_url || product.affiliateUrl || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer nofollow sponsored"
+                                className="hidden sm:flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
+                            >
+                                <BoxArrowUpRight size={16} />
+                                Buy on Amazon →
+                            </a>
+                        )}
                         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                             <WishlistButton productId={product.id} className="w-auto min-w-[96px] justify-center px-3 py-2 text-xs sm:text-sm" />
                             <ShareButton title={product.title} className="w-auto min-w-[96px] justify-center px-3 py-2 text-xs sm:text-sm" />
@@ -276,15 +297,24 @@ export default async function ProductPage({ params }) {
             </div>
 
             <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+10px)] shadow-[0_-10px_30px_rgba(15,23,42,0.12)]">
-                <a
-                    href={product.affiliate_url || product.affiliateUrl || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow sponsored"
-                    className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
-                >
-                    <BoxArrowUpRight size={16} />
-                    Buy on Amazon →
-                </a>
+                {disableBuying ? (
+                    <span
+                        className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-gray-100 text-gray-500 text-base font-semibold rounded-md border border-gray-200 cursor-not-allowed select-none"
+                    >
+                        <BoxArrowUpRight size={16} />
+                        {blockBuyNow ? 'Currently Unavailable' : unavailableText}
+                    </span>
+                ) : (
+                    <a
+                        href={product.affiliate_url || product.affiliateUrl || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow sponsored"
+                        className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
+                    >
+                        <BoxArrowUpRight size={16} />
+                        Buy on Amazon →
+                    </a>
+                )}
             </div>
 
             {/* AI Analysis */}

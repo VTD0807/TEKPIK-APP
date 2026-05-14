@@ -275,14 +275,20 @@ const ProductCard = ({ product }) => {
             <div className="flex items-center gap-1.5 mt-auto pt-3 border-t border-slate-100">
                 <button
                     onClick={() => {
-                        handleAmazonClick()
-                        trackInteraction('amazon_click')
+                        if (product.inStock !== false && product.isActive !== false) {
+                            handleAmazonClick()
+                            trackInteraction('amazon_click')
+                        }
                         router.push(`/products/${product.id}`)
                     }}
-                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs bg-[#00A8A8] hover:bg-[#008888] transition text-white font-semibold py-2 sm:py-2 rounded-full"
+                    className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs transition text-white font-semibold py-2 sm:py-2 rounded-full ${
+                        product.inStock === false || product.isActive === false 
+                        ? 'bg-slate-300 hover:bg-slate-400' 
+                        : 'bg-[#00A8A8] hover:bg-[#008888]'
+                    }`}
                 >
                     <BoxArrowUpRight size={11} />
-                    View Deal
+                    {product.isActive === false ? 'Unavailable' : product.inStock === false ? 'Out of Stock' : 'View Deal'}
                 </button>
                 <button
                     onClick={() => {
