@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { getAdminDb, dbUsers, dbWorkspace, timestampToJSON } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
+
+// Use dbWorkspace for notification campaigns, dbUsers for user lookups, getAdminDb for products
+const getNotificationDb = () => dbWorkspace || dbUsers
 
 const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY || ''
 const ONESIGNAL_APP_ID = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''
@@ -72,10 +75,11 @@ const sendOneSignalPush = async (config = {}) => {
 }
 
 export async function GET() {
-    if (!dbAdmin) return NextResponse.json({ campaigns: [] })
+    const db = getNotificationDb()
+    if (!db) return NextResponse.json({ campaigns: [] })
 
     try {
-        const snap = await dbAdmin.collection('admin_notifications').orderBy('createdAt', 'desc').limit(50).get()
+        const snap = await db.collection('admin_notifications').orderBy('createdAt', 'desc').limit(50).get()
         const campaigns = []
         snap.forEach((doc) => {
             const data = doc.data() || {}
@@ -94,7 +98,9 @@ export async function GET() {
 }
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const db = getNotificationDb()
+    const productDb = await getAdminDb()
+    if (!db || !dbUsers) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
         const body = await req.json()
@@ -123,8 +129,8 @@ export async function POST(req) {
         }
 
         let attachedProduct = null
-        if (attachedProductId) {
-            const productSnap = await dbAdmin.collection('products').doc(attachedProductId).get()
+        if (attachedProductId && productDb) {
+            const productSnap = await productDb.collection('products').doc(attachedProductId).get()
             if (!productSnap.exists) {
                 return NextResponse.json({ error: 'Attached product not found.' }, { status: 404 })
             }
@@ -139,11 +145,11 @@ export async function POST(req) {
 
         let usersSnap
         if (targetType === 'all') {
-            usersSnap = await dbAdmin.collection('users').get()
+            usersSnap = await dbUsers.collection('users').get()
         } else if (targetType === 'role') {
-            usersSnap = await dbAdmin.collection('users').where('role', '==', role).get()
+            usersSnap = await dbUsers.collection('users').where('role', '==', role).get()
         } else {
-            usersSnap = await dbAdmin.collection('users').where('__name__', '==', userId).get()
+            usersSnap = await dbUsers.collection('users').where('__name__', '==', userId).get()
         }
 
         const recipients = []
@@ -156,7 +162,7 @@ export async function POST(req) {
             })
         })
 
-        const campaignRef = dbAdmin.collection('admin_notifications').doc()
+        const campaignRef = db.collection('admin_notifications').doc()
         const createdAt = new Date()
 
         const campaignPayload = {
@@ -208,9 +214,9 @@ export async function POST(req) {
 
         const batches = chunkArray(recipients, 400)
         for (const group of batches) {
-            const batch = dbAdmin.batch()
+            const batch = db.batch()
             group.forEach((recipient) => {
-                const ref = dbAdmin.collection('user_notifications').doc()
+                const ref = db.collection('user_notifications').doc()
                 batch.set(ref, {
                     userId: recipient.userId,
                     title,

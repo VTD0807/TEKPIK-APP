@@ -193,7 +193,7 @@ const Navbar = () => {
                                 </form>
 
                                 {searchOpen && (
-                                    <div className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                                    <div className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg animate-[fadeIn_150ms_ease-out]">
                                         <SuggestionDropdown
                                             products={products}
                                             suggestions={suggestions}
@@ -287,8 +287,8 @@ const Navbar = () => {
                 </div>
             </nav>
 
-            <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-2 pb-[calc(env(safe-area-inset-bottom)+6px)] pt-2">
-                <div className="grid grid-cols-5 gap-1">
+            <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-3 pb-[calc(env(safe-area-inset-bottom)+6px)] pt-2">
+                <div className="grid grid-cols-4 gap-1.5">
                     {MOBILE_NAV.map(item => {
                         const active = item.href === '/' ? pathname === '/' : pathname?.startsWith(item.href)
                         const Icon = item.icon
@@ -298,7 +298,7 @@ const Navbar = () => {
                                 href={item.href}
                                 className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2.5 text-[10px] font-semibold tracking-wide transition ${active ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}
                             >
-                                <Icon size={14} />
+                                <Icon size={15} />
                                 <span>{item.label}</span>
                             </Link>
                         )

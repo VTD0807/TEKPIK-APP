@@ -1,32 +1,17 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { getProductReviews, invalidateReviewCaches } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
-
     const { searchParams } = new URL(req.url)
     const productId = searchParams.get('productId')
     if (!productId) return NextResponse.json({ error: 'productId required' }, { status: 400 })
 
     try {
-        const snapshot = await dbAdmin.collection('reviews')
-            .where('productId', '==', productId)
-            .where('isApproved', '==', true)
-            .orderBy('createdAt', 'desc')
-            .get()
-
-        let reviews = []
-        snapshot.forEach(doc => {
-            let data = doc.data()
-            reviews.push({
-                id: doc.id,
-                ...data,
-                createdAt: timestampToJSON(data.createdAt),
-            })
-        })
-
+        // Use centralized cached query
+        const reviews = await getProductReviews(productId)
         return NextResponse.json({ reviews })
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
@@ -76,6 +61,9 @@ export async function POST(req) {
         const docSnap = await docRef.get()
 
         const reviewData = { id: docSnap.id, ...docSnap.data() }
+
+        // ── WRITE-THROUGH: invalidate cached reviews & product detail ──
+        invalidateReviewCaches(productId)
 
         return NextResponse.json({ success: true, review: reviewData }, { status: 201 })
     } catch (error) {

@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getProductionDb, dbUsers, timestampToJSON } from '@/lib/firebase-admin'
+import { dbUsers } from '@/lib/firebase-admin'
+import { getCatalog } from '@/lib/db-queries'
 import { rankProductsWithHybridModel, normalizeSearchText, tokenizeSearch } from '@/lib/search-intelligence'
+import { getCachedSWR } from '@/lib/server-cache'
 
 export const dynamic = 'force-dynamic'
-
-// ── IN-MEMORY CACHE ──────────────────────────────────────────────────────────
-let CACHED_CATALOG = null
-let CACHED_TIME = 0
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes cache
 
 const getRatingOf = (product = {}) => {
     const summary = Number(product.reviewSummary?.averageRating)
@@ -52,9 +49,6 @@ const sortProducts = (products = [], sort = 'newest') => {
 }
 
 export async function GET(req) {
-    const prodDb = await getProductionDb()
-    if (!prodDb) return NextResponse.json({ error: 'Production DB not initialized' }, { status: 500 })
-
     const { searchParams } = new URL(req.url)
     const category = searchParams.get('category')
     const search = normalizeSearchText(searchParams.get('search') || '')
@@ -69,41 +63,14 @@ export async function GET(req) {
     const identityId = accountId || deviceId
 
     try {
-        let products = []
-
-        // ── CACHE OR FETCH ───────────────────────────────────────────────────
-        if (CACHED_CATALOG && (Date.now() - CACHED_TIME < CACHE_TTL_MS)) {
-            products = CACHED_CATALOG
-        } else {
-            let query = prodDb.collection('products').where('isActive', '==', true)
-            // Note: We no longer filter 'isFeatured' at the DB level so we can cache the catalog
-            // We apply a hard limit to prevent Vercel 10-second Serverless Timeouts and memory exhaustion.
-            query = query.orderBy('createdAt', 'desc').limit(400)
-
-            const snapshot = await query.get()
-            
-            const categoriesSnap = await prodDb.collection('categories').get()
-            const categoriesMap = {}
-            categoriesSnap.forEach(doc => { categoriesMap[doc.id] = doc.data() })
-
-            snapshot.forEach(doc => {
-                const data = doc.data()
-                const categoryData = categoriesMap[data.categoryId]
-                products.push({
-                    id: doc.id,
-                    ...data,
-                    createdAt: timestampToJSON(data.createdAt),
-                    updatedAt: timestampToJSON(data.updatedAt),
-                    categories: categoryData || null,
-                })
-            })
-
-            CACHED_CATALOG = products
-            CACHED_TIME = Date.now()
+        // ── USE CENTRALIZED CACHED CATALOG ────────────────────────────────
+        const { products: catalogProducts } = await getCatalog()
+        if (!catalogProducts.length) {
+            return NextResponse.json({ products: [], total: 0, page, pages: 0, model: { type: 'empty' } })
         }
 
-        // ── FILTERING (In-Memory) ────────────────────────────────────────────
-        let filteredProducts = products
+        // ── FILTERING (In-Memory) ────────────────────────────────────────
+        let filteredProducts = catalogProducts
 
         if (featured === 'true') {
             filteredProducts = filteredProducts.filter(p => p.isFeatured === true)
@@ -137,9 +104,16 @@ export async function GET(req) {
         if ((search && search.length >= 2) || sort === 'relevance') {
             let userVector = null
             if (identityId && dbUsers) {
-                // Identity vector read is 1 read per user request, acceptable.
-                const vectorSnap = await dbUsers.collection('analytics_user_interest_vectors').doc(identityId).get()
-                if (vectorSnap.exists) userVector = vectorSnap.data() || null
+                // Cache user vectors per identity for 2 minutes
+                userVector = await getCachedSWR(
+                    `db:user-vector:${identityId}`,
+                    2 * 60 * 1000,
+                    60 * 1000,
+                    async () => {
+                        const vectorSnap = await dbUsers.collection('analytics_user_interest_vectors').doc(identityId).get()
+                        return vectorSnap.exists ? vectorSnap.data() || null : null
+                    }
+                )
             }
 
             const ranked = rankProductsWithHybridModel(filteredProducts, {

@@ -1,42 +1,18 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, authAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { dbAdmin, authAdmin, timestampToJSON, getAdminDb } from '@/lib/firebase-admin'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
 import { buildProductIdentity, findExistingProductByIdentity, getIdentityCollectionName } from '@/lib/product-identity'
+import { getAdminCatalog, invalidateProductCaches } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const db = await getAdminDb()
+    if (!db) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
-        const snapshot = await dbAdmin.collection('products').orderBy('createdAt', 'desc').get()
-        let products = []
-
-        // Categories mapping
-        const categoriesSnap = await dbAdmin.collection('categories').get()
-        const categoriesMap = {}
-        categoriesSnap.forEach(doc => { categoriesMap[doc.id] = doc.data() })
-
-        // AI analysis mapping
-        const aiSnap = await dbAdmin.collection('ai_analysis').get()
-        const aiMap = {}
-        aiSnap.forEach(doc => { aiMap[doc.data().productId] = doc.data() })
-
-        snapshot.forEach(doc => {
-            let data = doc.data()
-            let cat = categoriesMap[data.categoryId]
-            let ai = aiMap[doc.id]
-
-            products.push({
-                id: doc.id,
-                ...data,
-                createdAt: timestampToJSON(data.createdAt),
-                updatedAt: timestampToJSON(data.updatedAt),
-                categories: cat ? { name: cat.name, slug: cat.slug } : null,
-                ai_analysis: ai ? { score: ai.score, generatedAt: timestampToJSON(ai.generatedAt) } : null
-            })
-        })
-
+        // ── USE CENTRALIZED CACHED QUERY ──────────────────────────────────
+        const { products } = await getAdminCatalog()
         return NextResponse.json({ products })
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
@@ -144,6 +120,9 @@ export async function POST(req) {
             features: buildProductFeatureVector({ id: docRef.id, ...newProduct }),
             updatedAt: now,
         }, { merge: true })
+
+        // ── WRITE-THROUGH: invalidate product caches ──────────────────────
+        invalidateProductCaches(docRef.id)
         
         const createdProduct = {
             id: docSnap.id,

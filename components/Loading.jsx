@@ -3,9 +3,11 @@
 const Loading = () => {
 
     return (
-        <div className='flex flex-col items-center justify-center h-screen gap-3'>
-            <div className='w-11 h-11 rounded-full border-4 border-slate-300 border-t-slate-700 animate-spin'></div>
-            <p className='text-sm text-slate-500'>Loading...</p>
+        <div className='flex flex-col items-center justify-center h-screen gap-4'>
+            <div className="relative">
+                <div className='w-12 h-12 rounded-full border-[3px] border-slate-200 border-t-slate-700 animate-spin'></div>
+            </div>
+            <p className='text-sm text-slate-400 font-medium'>Loading...</p>
         </div>
     )
 }

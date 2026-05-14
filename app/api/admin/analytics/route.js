@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, firebaseAdminStatus } from '@/lib/firebase-admin'
+import { getAdminDb, getAnalyticsDb, firebaseAdminStatus } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-    if (!dbAdmin) {
+    const db = await getAdminDb()
+    const analyticsDb = getAnalyticsDb()
+    
+    if (!db) {
         return NextResponse.json({
             totalProducts: 0,
             pendingReviews: 0,
@@ -20,13 +23,15 @@ export async function GET() {
     }
 
     try {
+        // Product/content counts from production DB (with failover)
+        // Analytics counts from analytics DB (dbUsers — isolated quota)
         const [productsSnap, reviewsSnap, wishlistsSnap, aiSnap, uniqueVisitorsSnap, uniquePageVisitorsSnap] = await Promise.all([
-            dbAdmin.collection('products').where('isActive', '==', true).count().get(),
-            dbAdmin.collection('reviews').where('isApproved', '==', false).count().get(),
-            dbAdmin.collection('wishlists').count().get(),
-            dbAdmin.collection('ai_analysis').count().get(),
-            dbAdmin.collection('analytics_site_unique_visitors').count().get(),
-            dbAdmin.collection('analytics_page_unique_visitors').count().get(),
+            db.collection('products').where('isActive', '==', true).count().get(),
+            db.collection('reviews').where('isApproved', '==', false).count().get(),
+            db.collection('wishlists').count().get(),
+            db.collection('ai_analysis').count().get(),
+            analyticsDb ? analyticsDb.collection('analytics_site_unique_visitors').count().get().catch(() => ({ data: () => ({ count: 0 }) })) : Promise.resolve({ data: () => ({ count: 0 }) }),
+            analyticsDb ? analyticsDb.collection('analytics_page_unique_visitors').count().get().catch(() => ({ data: () => ({ count: 0 }) })) : Promise.resolve({ data: () => ({ count: 0 }) }),
         ])
 
         const totalProducts = productsSnap.data().count || 0

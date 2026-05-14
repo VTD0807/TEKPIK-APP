@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { dbAdmin, authAdmin } from '@/lib/firebase-admin'
+import { invalidateWishlistCaches } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,20 +43,26 @@ export async function GET(req) {
             }
         })
 
-        // Cleanup duplicate entries in background
+        // Cleanup duplicate entries in background (fire-and-forget)
         if (duplicateDocs.length > 0) {
+            const batch = dbAdmin.batch()
             duplicateDocs.forEach(docId => {
-                dbAdmin.collection('wishlists').doc(docId).delete().catch(err => 
-                    console.error(`Failed to delete duplicate wishlist doc: ${docId}`, err)
-                )
+                batch.delete(dbAdmin.collection('wishlists').doc(docId))
             })
+            batch.commit().catch(err => 
+                console.error('Failed to cleanup duplicate wishlist docs', err)
+            )
         }
 
         let wishlistMap = []
         if (productIds.length > 0) {
-            const pSnap = await dbAdmin.collection('products').where('__name__', 'in', productIds.slice(0, 30)).get()
+            // ── BATCHED READ: use getAll instead of 'in' query (more efficient) ──
+            const refs = productIds.slice(0, 30).map(id => dbAdmin.collection('products').doc(id))
+            const docs = await dbAdmin.getAll(...refs)
             const pMap = {}
-            pSnap.forEach(doc => { pMap[doc.id] = { id: doc.id, ...doc.data() } })
+            docs.forEach(doc => {
+                if (doc.exists) pMap[doc.id] = { id: doc.id, ...doc.data() }
+            })
             productIds.forEach(id => {
                 if (pMap[id]) wishlistMap.push(pMap[id])
             })
@@ -90,14 +97,23 @@ export async function POST(req) {
         }
 
         if (!snap.empty) {
-            // Delete ALL matching entries (handles multiple duplicates)
-            const deletePromises = snap.docs.map(doc => 
-                dbAdmin.collection('wishlists').doc(doc.id).delete()
-            )
-            await Promise.all(deletePromises)
+            // Delete ALL matching entries using batch (handles multiple duplicates)
+            const batch = dbAdmin.batch()
+            snap.docs.forEach(doc => {
+                batch.delete(dbAdmin.collection('wishlists').doc(doc.id))
+            })
+            await batch.commit()
+
+            // ── WRITE-THROUGH: invalidate wishlist count cache ──
+            invalidateWishlistCaches()
+
             return NextResponse.json({ saved: false })
         } else {
             await dbAdmin.collection('wishlists').add({ userId: user.uid, productId, addedAt: new Date() })
+
+            // ── WRITE-THROUGH: invalidate wishlist count cache ──
+            invalidateWishlistCaches()
+
             return NextResponse.json({ saved: true })
         }
     } catch (e) {

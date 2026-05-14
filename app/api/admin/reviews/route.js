@@ -1,26 +1,30 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { getAdminDb, timestampToJSON } from '@/lib/firebase-admin'
+import { getAdminCatalog } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const db = await getAdminDb()
+    if (!db) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status') || 'all'
 
     try {
-        let query = dbAdmin.collection('reviews').orderBy('createdAt', 'desc')
+        let query = db.collection('reviews').orderBy('createdAt', 'desc')
         if (status === 'pending') query = query.where('isApproved', '==', false)
         if (status === 'approved') query = query.where('isApproved', '==', true)
 
-        const snapshot = await query.get()
-        let reviews = []
-        
-        // Fetch all products for titles
-        const productSnap = await dbAdmin.collection('products').get()
-        const productsMap = {}
-        productSnap.forEach(doc => { productsMap[doc.id] = doc.data().title })
+        // Use cached catalog for product titles instead of fetching ALL products again
+        const [snapshot, { products }] = await Promise.all([
+            query.get(),
+            getAdminCatalog(),
+        ])
 
+        const productsMap = {}
+        products.forEach(p => { productsMap[p.id] = p.title })
+
+        let reviews = []
         snapshot.forEach(doc => {
             let data = doc.data()
             reviews.push({

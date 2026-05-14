@@ -218,14 +218,14 @@ const ProductCard = ({ product }) => {
         <div className="group relative flex flex-col w-full min-w-0 bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
             {/* Image */}
             <Link href={`/products/${product.id}`} className="block -mx-4 -mt-4 mb-3">
-                <div className="relative bg-white h-32 sm:h-44 w-full flex items-center justify-center overflow-hidden rounded-t-xl">
+                <div className="relative bg-slate-50 h-36 sm:h-48 w-full flex items-center justify-center overflow-hidden rounded-t-xl">
                     <ProductImage
                         src={imgSrc}
                         alt={product.title || product.name}
-                        className="h-[92%] w-[92%] group-hover:scale-105 transition duration-300 object-contain"
+                        className="h-[88%] w-[88%] group-hover:scale-105 transition duration-300 object-contain mix-blend-multiply"
                     />
                     {discount > 0 && (
-                        <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                             -{discount}%
                         </span>
                     )}
@@ -237,17 +237,20 @@ const ProductCard = ({ product }) => {
             <div className="flex justify-between gap-2 text-xs sm:text-sm text-slate-800 mt-2 mb-2">
                 <div className="flex-1 min-w-0">
                     <Link href={`/products/${product.id}`}>
-                        <p className="truncate hover:text-indigo-600 transition">{product.title || product.name}</p>
+                        <p className="truncate hover:text-indigo-600 transition font-medium">{product.title || product.name}</p>
                     </Link>
+                    {product.brand && (
+                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">{product.brand}</p>
+                    )}
                     {typeof todayViews === 'number' && todayViews > 0 && (
                         <p className="text-[11px] text-slate-500 mt-0.5">{todayViews} people viewed today</p>
                     )}
                     {rating > 0 && (
-                        <div className="flex mt-0.5">
+                        <div className="flex items-center mt-1 gap-0.5">
                             {Array(5).fill('').map((_, i) => (
                                 rating >= i + 1
-                                    ? <StarFill key={i} size={12} className="text-emerald-500" />
-                                    : <Star key={i} size={12} className="text-slate-300" />
+                                    ? <StarFill key={i} size={11} className="text-amber-400" />
+                                    : <Star key={i} size={11} className="text-slate-200" />
                             ))}
                             {reviewCount > 0 && <span className="ml-1 text-[11px] text-slate-400">({reviewCount})</span>}
                         </div>
@@ -276,10 +279,10 @@ const ProductCard = ({ product }) => {
                         trackInteraction('amazon_click')
                         router.push(`/products/${product.id}`)
                     }}
-                    className="flex-1 min-w-0 flex items-center justify-center gap-1 text-[10px] sm:text-xs bg-[#00A8A8] hover:bg-[#008888] transition text-white font-semibold py-2 sm:py-1.5 rounded-full"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs bg-[#00A8A8] hover:bg-[#008888] transition text-white font-semibold py-2 sm:py-2 rounded-full"
                 >
-                    <BoxArrowUpRight size={12} />
-                    Check It →
+                    <BoxArrowUpRight size={11} />
+                    View Deal
                 </button>
                 <button
                     onClick={() => {

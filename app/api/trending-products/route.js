@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getProductionDb, sanitizeFirestoreData } from '@/lib/firebase-admin'
+import { sanitizeFirestoreData } from '@/lib/firebase-admin'
 import { calculateContentReliability } from '@/lib/search-intelligence'
+import { getCatalog, getReviewCounts, getWishlistCounts } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,59 +48,29 @@ const getVelocity = (product = {}) => {
     return (freshBoost * 0.7) + (recentBoost * 0.3)
 }
 
-// ── IN-MEMORY CACHE ──────────────────────────────────────────────────────────
-let CACHED_TRENDING = null
-let CACHED_TIME = 0
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
-
 export async function GET(req) {
-    const prodDb = await getProductionDb()
-    if (!prodDb) return NextResponse.json({ ok: false, products: [], model: {} })
-
     try {
         const url = new URL(req.url)
         const limit = getLimit(url.searchParams.get('limit'))
 
-        if (CACHED_TRENDING && (Date.now() - CACHED_TIME < CACHE_TTL_MS)) {
-            return NextResponse.json({
-                ok: true,
-                model: {
-                    type: 'trending-hybrid-v1-cached',
-                    signals: ['popularity', 'velocity', 'quality', 'reliability', 'discount'],
-                },
-                products: CACHED_TRENDING.slice(0, limit),
-            })
-        }
-
-        const [productsSnap, reviewAggSnap, wishlistSnap] = await Promise.all([
-            prodDb.collection('products').where('isActive', '==', true).limit(400).get(),
-            prodDb.collection('reviews').limit(1500).get(),
-            prodDb.collection('wishlists').limit(1500).get(),
+        // ── USE CENTRALIZED CACHES ────────────────────────────────────────
+        // All 3 of these are deduplicated, SWR-cached, and shared across routes.
+        const [{ products: catalogProducts }, reviewCounts, wishlistCounts] = await Promise.all([
+            getCatalog(),
+            getReviewCounts(),
+            getWishlistCounts(),
         ])
 
-        const reviewCounts = new Map()
-        reviewAggSnap.forEach((doc) => {
-            const data = doc.data() || {}
-            const productId = String(data.productId || data.product_id || '').trim()
-            if (!productId) return
-            reviewCounts.set(productId, (reviewCounts.get(productId) || 0) + 1)
-        })
-
-        const wishlistCounts = new Map()
-        wishlistSnap.forEach((doc) => {
-            const data = doc.data() || {}
-            const productId = String(data.productId || data.product_id || '').trim()
-            if (!productId) return
-            wishlistCounts.set(productId, (wishlistCounts.get(productId) || 0) + 1)
-        })
+        if (!catalogProducts.length) {
+            return NextResponse.json({ ok: true, products: [], model: {} })
+        }
 
         const candidates = []
-        productsSnap.forEach((doc) => {
-            const data = sanitizeFirestoreData({ id: doc.id, ...doc.data() })
+        catalogProducts.forEach((data) => {
             const popularity = getPopularity({
                 ...data,
-                reviewCount: reviewCounts.get(doc.id) || data.reviewCount || 0,
-                wishlistCount: wishlistCounts.get(doc.id) || data.wishlistCount || 0,
+                reviewCount: reviewCounts.get(data.id) || data.reviewCount || 0,
+                wishlistCount: wishlistCounts.get(data.id) || data.wishlistCount || 0,
             })
             const reliability = calculateContentReliability(data) * 10
             const velocity = getVelocity(data) * 10
@@ -124,14 +95,11 @@ export async function GET(req) {
         })
 
         candidates.sort((a, b) => b._trendingScore - a._trendingScore)
-        
-        CACHED_TRENDING = candidates
-        CACHED_TIME = Date.now()
 
         return NextResponse.json({
             ok: true,
             model: {
-                type: 'trending-hybrid-v1',
+                type: 'trending-hybrid-v2',
                 signals: ['popularity', 'velocity', 'quality', 'reliability', 'discount'],
             },
             products: candidates.slice(0, limit),

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { getAdminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function PUT(req, { params }) {
     const { id } = await params
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const db = await getAdminDb()
+    if (!db) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
         const body = await req.json()
@@ -16,7 +17,7 @@ export async function PUT(req, { params }) {
             return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 })
         }
 
-        const allSnap = await dbAdmin.collection('categories').get()
+        const allSnap = await db.collection('categories').get()
         const duplicate = allSnap.docs.some(doc => {
             if (doc.id === id) return false
             const cat = doc.data()
@@ -27,14 +28,14 @@ export async function PUT(req, { params }) {
             return NextResponse.json({ error: 'Category with same name or slug already exists' }, { status: 409 })
         }
 
-        await dbAdmin.collection('categories').doc(id).update({
+        await db.collection('categories').doc(id).update({
             name,
             slug,
             icon: body.icon,
             description: body.description
         })
 
-        const docSnap = await dbAdmin.collection('categories').doc(id).get()
+        const docSnap = await db.collection('categories').doc(id).get()
         return NextResponse.json({ id: docSnap.id, ...docSnap.data() })
     } catch (error) {
          return NextResponse.json({ error: error.message }, { status: 500 })
@@ -43,10 +44,11 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
     const { id } = await params
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const db = await getAdminDb()
+    if (!db) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
-        await dbAdmin.collection('categories').doc(id).delete()
+        await db.collection('categories').doc(id).delete()
         return NextResponse.json({ success: true })
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })

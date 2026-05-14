@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, authAdmin, sanitizeFirestoreData } from '@/lib/firebase-admin'
-import { getCached } from '@/lib/server-cache'
+import { dbAdmin, authAdmin } from '@/lib/firebase-admin'
+import { getCatalog, getProductFeatureVectors } from '@/lib/db-queries'
+import { getCachedSWR } from '@/lib/server-cache'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
 import { calculateContentReliability } from '@/lib/search-intelligence'
 
@@ -177,21 +178,29 @@ const objectToMap = (obj) => {
 const getVectorRef = (accountId) => dbAdmin.collection('analytics_user_interest_vectors').doc(accountId)
 
 const getVectorState = async (accountId) => {
-    const snap = await getVectorRef(accountId).get()
-    if (!snap.exists) return { exists: false, isFresh: false, data: null, vector: null }
+    // Cache user vector state for 2 minutes to avoid hammering Firestore
+    return getCachedSWR(
+        `db:rec-vector:${accountId}`,
+        2 * 60 * 1000,
+        60 * 1000,
+        async () => {
+            const snap = await getVectorRef(accountId).get()
+            if (!snap.exists) return { exists: false, isFresh: false, data: null, vector: null }
 
-    const data = snap.data() || {}
-    const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate().getTime() : 0
-    const isFresh = !!updatedAt && (Date.now() - updatedAt) <= VECTOR_TTL_MS
+            const data = snap.data() || {}
+            const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate().getTime() : 0
+            const isFresh = !!updatedAt && (Date.now() - updatedAt) <= VECTOR_TTL_MS
 
-    const vector = {
-        preferenceMap: objectToMap(data.preferenceMap),
-        categoryWeight: objectToMap(data.categoryWeight),
-        brandWeight: objectToMap(data.brandWeight),
-        interactedProductIds: new Set(Array.isArray(data.interactedProductIds) ? data.interactedProductIds : []),
-    }
+            const vector = {
+                preferenceMap: objectToMap(data.preferenceMap),
+                categoryWeight: objectToMap(data.categoryWeight),
+                brandWeight: objectToMap(data.brandWeight),
+                interactedProductIds: new Set(Array.isArray(data.interactedProductIds) ? data.interactedProductIds : []),
+            }
 
-    return { exists: true, isFresh, data, vector }
+            return { exists: true, isFresh, data, vector }
+        }
+    )
 }
 
 const saveVector = async (accountId, vector, interactionCount) => {
@@ -282,51 +291,23 @@ export async function GET(req) {
         const deviceId = String(url.searchParams.get('deviceId') || '').trim()
         const identityId = accountId || deviceId
 
-        const catalog = await getCached('recommendations:catalog:v2', 1000 * 60 * 5, async () => {
-            const [productsSnap, categoriesSnap] = await Promise.all([
-                dbAdmin.collection('products')
-                    .where('isActive', '==', true)
-                    .orderBy('createdAt', 'desc')
-                    .limit(LIMIT_PRODUCTS)
-                    .get(),
-                dbAdmin.collection('categories').get(),
-            ])
+        // ── USE CENTRALIZED CATALOG CACHE ─────────────────────────────────
+        // Shared with /api/products and /api/trending-products.
+        // Single fetch, single cache — zero duplicate reads.
+        const { products: rawProducts, categoriesMap } = await getCatalog()
+        
+        // Hydrate with feature vectors (also cached)
+        const productIds = rawProducts.map(p => p.id)
+        const featureMap = await getProductFeatureVectors(productIds)
 
-            const categoriesMap = {}
-            categoriesSnap.forEach((doc) => {
-                categoriesMap[doc.id] = sanitizeFirestoreData(doc.data())
-            })
+        const hydratedProducts = rawProducts.map(p => ({
+            ...p,
+            _featureVector: Array.isArray(featureMap[p.id])
+                ? featureMap[p.id]
+                : buildProductFeatureVector(p),
+        }))
 
-            const products = []
-            productsSnap.forEach((doc) => {
-                products.push(sanitizeFirestoreData({ id: doc.id, ...doc.data() }))
-            })
-
-            const featureRefs = products.map((p) => dbAdmin.collection('analytics_product_feature_vectors').doc(p.id))
-            const featureMap = {}
-            for (let i = 0; i < featureRefs.length; i += 100) {
-                const chunk = featureRefs.slice(i, i + 100)
-                if (!chunk.length) continue
-                const docs = await dbAdmin.getAll(...chunk)
-                docs.forEach((doc) => {
-                    if (!doc.exists) return
-                    const data = doc.data() || {}
-                    if (Array.isArray(data.features)) featureMap[doc.id] = data.features
-                })
-            }
-
-            const hydratedProducts = products.map((p) => ({
-                ...p,
-                _featureVector: Array.isArray(featureMap[p.id])
-                    ? featureMap[p.id]
-                    : buildProductFeatureVector(p),
-            }))
-
-            return { products: hydratedProducts, categoriesMap }
-        })
-
-        const products = (catalog.products || []).filter((product) => textSearchMatch(product, searchText, searchTokens))
-        const categoriesMap = catalog.categoriesMap || {}
+        const products = hydratedProducts.filter((product) => textSearchMatch(product, searchText, searchTokens))
         const productMap = new Map(products.map((p) => [p.id, p]))
 
         if (!identityId) {

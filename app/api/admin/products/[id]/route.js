@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { dbAdmin, timestampToJSON, getAdminDb } from '@/lib/firebase-admin'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
 import { buildProductIdentity, findExistingProductByIdentity, getIdentityCollectionName } from '@/lib/product-identity'
+import { invalidateProductCaches } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,6 +105,9 @@ export async function PUT(req, { params }) {
             updatedAt: new Date(),
         }, { merge: true })
         
+        // ── WRITE-THROUGH: invalidate product caches ──────────────────────
+        invalidateProductCaches(id)
+
         let product = { id: docSnap.id, ...docSnap.data() }
         product.createdAt = timestampToJSON(product.createdAt)
         product.updatedAt = timestampToJSON(product.updatedAt)
@@ -135,6 +139,10 @@ export async function DELETE(req, { params }) {
             await dbAdmin.collection(getIdentityCollectionName()).doc(identityKey).delete().catch(() => {})
         }
         await dbAdmin.collection('analytics_product_feature_vectors').doc(id).delete().catch(() => {})
+
+        // ── WRITE-THROUGH: invalidate product caches ──────────────────────
+        invalidateProductCaches(id)
+
         return NextResponse.json({ success: true })
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })

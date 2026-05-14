@@ -149,22 +149,26 @@ export default async function ProductPage({ params }) {
 
     const productData = { id: snap.id, ...snap.data() }
 
-    // Fetch categories
-    if (productData.categoryId) {
-        const catSnap = await dbAdmin.collection('categories').doc(productData.categoryId).get()
-        if (catSnap.exists) productData.categories = { name: catSnap.data().name, slug: catSnap.data().slug }
+    // Fetch category, AI analysis, and reviews in PARALLEL (was sequential waterfall)
+    const [catResult, aiResult, revResult] = await Promise.all([
+        productData.categoryId
+            ? dbAdmin.collection('categories').doc(productData.categoryId).get()
+            : Promise.resolve(null),
+        dbAdmin.collection('ai_analysis').where('productId', '==', id).limit(1).get(),
+        dbAdmin.collection('reviews').where('productId', '==', id).where('isApproved', '==', true).get(),
+    ])
+
+    if (catResult?.exists) {
+        productData.categories = { name: catResult.data().name, slug: catResult.data().slug }
     }
 
-    // Fetch AI Analysis
-    const aiSnap = await dbAdmin.collection('ai_analysis').where('productId', '==', id).limit(1).get()
-    if (!aiSnap.empty) productData.ai_analysis = { id: aiSnap.docs[0].id, ...aiSnap.docs[0].data() }
+    if (aiResult && !aiResult.empty) {
+        productData.ai_analysis = { id: aiResult.docs[0].id, ...aiResult.docs[0].data() }
+    }
 
-    // Fetch Reviews
-    const revSnap = await dbAdmin.collection('reviews').where('productId', '==', id).where('isApproved', '==', true).get()
     productData.reviews = []
-    revSnap.forEach(doc => {
+    revResult.forEach(doc => {
         let revData = doc.data()
-        // Convert Firestore timestamps to plain JSON-safe values.
         productData.reviews.push({
             id: doc.id,
             ...revData,
@@ -239,86 +243,24 @@ export default async function ProductPage({ params }) {
 
     let suggestedProducts = []
     try {
-        if (product.categoryId) {
-            const relatedSnap = await dbAdmin.collection('products')
-                .where('isActive', '==', true)
-                .where('categoryId', '==', product.categoryId)
-                .limit(8)
-                .get()
+        // Use the CACHED catalog instead of 3 raw Firestore queries
+        const { getCatalog } = await import('@/lib/db-queries')
+        const { products: catalogProducts } = await getCatalog()
+        
+        const relatedFromCatalog = catalogProducts
+            .filter(p => p.id !== product.id && (!product.categoryId || p.categoryId === product.categoryId))
+            .slice(0, 6)
 
-            const related = relatedSnap.docs
-                .map(doc => sanitizeFirestoreData({ id: doc.id, ...doc.data() }))
+        if (relatedFromCatalog.length > 0) {
+            suggestedProducts = relatedFromCatalog.slice(0, 4)
+        } else {
+            // Fallback: just take newest from catalog
+            suggestedProducts = catalogProducts
                 .filter(p => p.id !== product.id)
-
-            if (related.length > 0) {
-                const ids = related.map(p => p.id).slice(0, 10)
-                const [relatedReviewsSnap, relatedAiSnap] = await Promise.all([
-                    dbAdmin.collection('reviews').where('isApproved', '==', true).where('productId', 'in', ids).get(),
-                    dbAdmin.collection('ai_analysis').where('productId', 'in', ids).get(),
-                ])
-
-                const reviewMap = new Map()
-                relatedReviewsSnap.forEach(doc => {
-                    const data = sanitizeFirestoreData({ id: doc.id, ...doc.data() })
-                    const list = reviewMap.get(data.productId) || []
-                    list.push(data)
-                    reviewMap.set(data.productId, list)
-                })
-
-                const analysisMap = new Map()
-                relatedAiSnap.forEach(doc => {
-                    const data = sanitizeFirestoreData({ id: doc.id, ...doc.data() })
-                    analysisMap.set(data.productId, data)
-                })
-
-                suggestedProducts = related
-                    .map(p => {
-                        const reviews = reviewMap.get(p.id) || []
-                        const analysis = analysisMap.get(p.id) || null
-                        const reviewScore = scoreFromReviews(reviews)
-                        const analysisScore = scoreFromAnalysis(analysis)
-                        const combinedScore = analysisScore
-                            ? Math.round((analysisScore * 0.7) + (reviewScore * 0.3))
-                            : reviewScore
-
-                        const reviewCount = reviews.length
-                        const averageRating = reviewCount
-                            ? reviews.reduce((sum, review) => sum + toNumber(review.rating), 0) / reviewCount
-                            : 0
-
-                        return {
-                            ...p,
-                            reviews,
-                            ai_analysis: analysis,
-                            reviewSummary: reviewCount > 0 ? { count: reviewCount, averageRating } : null,
-                            _score: combinedScore,
-                        }
-                    })
-                    .sort((a, b) => b._score - a._score)
-                    .slice(0, 4)
-            }
+                .slice(0, 4)
         }
     } catch (err) {
         console.warn('Suggested products error:', err.message)
-    }
-
-    if (suggestedProducts.length === 0) {
-        try {
-            const fallbackSnap = await dbAdmin.collection('products')
-                .where('isActive', '==', true)
-                .orderBy('createdAt', 'desc')
-                .limit(6)
-                .get()
-
-            const fallback = fallbackSnap.docs
-                .map(doc => sanitizeFirestoreData({ id: doc.id, ...doc.data() }))
-                .filter(p => p.id !== product.id)
-                .slice(0, 4)
-
-            suggestedProducts = fallback
-        } catch (err) {
-            console.warn('Suggested fallback error:', err.message)
-        }
     }
 
     return (
