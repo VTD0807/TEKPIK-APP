@@ -105,6 +105,11 @@ export async function middleware(request) {
                     return NextResponse.redirect(url)
                 }
             }
+        } else {
+            // If maintenance is OFF but user is stuck on /maintenance page, redirect them to home
+            if (pathname === '/maintenance') {
+                return NextResponse.redirect(new URL('/', request.url))
+            }
         }
     }
 
