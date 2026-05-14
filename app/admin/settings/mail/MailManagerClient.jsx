@@ -130,7 +130,7 @@ function ComposeTab({ preset, clearPreset }) {
         setSending(true)
         const tid = toast.loading('Sending...')
         try {
-            const payload = { ...form }
+            const payload = { ...form, variables: varValues }
             if (sendMode === 'segment') {
                 payload.type = 'segment'
                 payload.audienceId = form.audienceId
@@ -160,6 +160,31 @@ function ComposeTab({ preset, clearPreset }) {
     }
 
     const selectedTemplate = templates.find(t => t.id === form.templateId)
+    const [varValues, setVarValues] = useState({})
+    const [generating, setGenerating] = useState(false)
+    const [sideOpen, setSideOpen] = useState(true)
+
+    const handleGenRandom = async () => {
+        const vars = selectedTemplate?.variables || []
+        if (!vars.length) return toast.error('No variables in selected template')
+        setGenerating(true)
+        const tid = toast.loading('Generating random values...')
+        try {
+            const res = await fetch('/api/admin/mail/generate-random', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ variables: vars }),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || 'Failed')
+            setVarValues(data.values || {})
+            toast.success('Variables populated!', { id: tid })
+        } catch (err) {
+            toast.error(err.message, { id: tid })
+        } finally {
+            setGenerating(false)
+        }
+    }
 
     return (
         <div className="grid gap-6 xl:grid-cols-2">
@@ -263,13 +288,48 @@ function ComposeTab({ preset, clearPreset }) {
                 )}
 
                 {selectedTemplate?.variables?.length > 0 && (
-                    <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 space-y-1.5">
-                        <p className="text-xs font-semibold text-violet-700">Template variables</p>
+                    <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-violet-700">Template variables</p>
+                            <button onClick={() => setSideOpen(p => !p)}
+                                className="text-[11px] text-violet-500 hover:text-violet-700 underline">
+                                {sideOpen ? 'Hide panel' : 'Show panel'}
+                            </button>
+                        </div>
                         <div className="flex flex-wrap gap-1.5">
                             {selectedTemplate.variables.map(v => (
-                                <span key={v} className="rounded-full bg-white border border-violet-200 text-violet-700 text-[11px] px-2 py-0.5 font-mono">{`{{${v}}}`}</span>
+                                <span key={v} onClick={() => setVarValues(p => ({ ...p, [v]: '' }))}
+                                    title="Click to add to values panel"
+                                    className="cursor-pointer rounded-full bg-white border border-violet-200 text-violet-700 text-[11px] px-2 py-0.5 font-mono hover:bg-violet-100 transition">
+                                    {`{{${v}}}`}
+                                    {varValues[v] !== undefined && <span className="ml-1 text-emerald-600">✓</span>}
+                                </span>
                             ))}
                         </div>
+                        {sideOpen && (
+                            <div className="space-y-2 pt-1">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[11px] text-violet-600 font-medium">Fill with real data from server</p>
+                                    <button onClick={handleGenRandom} disabled={generating}
+                                        className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-violet-700 disabled:opacity-60 transition">
+                                        <ArrowRepeat size={10} className={generating ? 'animate-spin' : ''} />
+                                        {generating ? 'Generating…' : 'Generate Random'}
+                                    </button>
+                                </div>
+                                {Object.keys(varValues).length > 0 && (
+                                    <div className="space-y-1.5">
+                                        {selectedTemplate.variables.filter(v => varValues[v] !== undefined).map(v => (
+                                            <div key={v} className="flex items-center gap-2">
+                                                <span className="text-[10px] font-mono text-violet-700 w-28 shrink-0 truncate">{`{{${v}}}`}</span>
+                                                <input value={varValues[v]}
+                                                    onChange={e => setVarValues(p => ({ ...p, [v]: e.target.value }))}
+                                                    className="flex-1 rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs outline-none focus:border-violet-400" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

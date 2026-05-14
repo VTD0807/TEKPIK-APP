@@ -16,7 +16,7 @@
  * }
  */
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbAdmin, dbWorkspace, getProductionDb } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 import { sendMail, sendMailBatch } from '@/lib/mailer'
 import { broadcastEmailHtml, renderTemplate } from '@/lib/mail-templates'
@@ -24,7 +24,8 @@ import { broadcastEmailHtml, renderTemplate } from '@/lib/mail-templates'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const prodDb = await getProductionDb() || dbAdmin
+    if (!prodDb) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
@@ -39,8 +40,10 @@ export async function POST(req) {
         let html = bodyHtml || ''
 
         // If a saved template is referenced, load and render it
+        // Templates are stored in dbWorkspace (not prodDb) — this is where /api/admin/mail/templates writes them
+        const templateDb = dbWorkspace || prodDb
         if (templateId) {
-            const tSnap = await dbAdmin.collection('mail_templates').doc(templateId).get()
+            const tSnap = await templateDb.collection('mail_templates').doc(templateId).get()
             if (!tSnap.exists) return NextResponse.json({ error: 'Template not found' }, { status: 404 })
             const tData = tSnap.data() || {}
             html = renderTemplate(tData.html || '', {
@@ -66,7 +69,7 @@ export async function POST(req) {
                 await sendMailBatch(emails, { subject, html: finalHtml })
             }
 
-            await dbAdmin.collection('mail_logs').add({
+            await prodDb.collection('mail_logs').add({
                 type: 'custom',
                 subject,
                 recipientCount: emails.length,
@@ -83,7 +86,7 @@ export async function POST(req) {
         // ── Segment send ─────────────────────────────────────────────────────
         if (type === 'segment' && audienceId) {
             // Load saved segment from Firestore
-            const segDoc = await dbAdmin.collection('mail_audience_segments').doc(audienceId).get()
+            const segDoc = await prodDb.collection('mail_audience_segments').doc(audienceId).get()
             if (!segDoc.exists) return NextResponse.json({ error: 'Segment not found. Please refresh audience first.' }, { status: 404 })
 
             const segData = segDoc.data() || {}
@@ -93,7 +96,7 @@ export async function POST(req) {
 
             const results = await sendMailBatch(emails, { subject, html: finalHtml })
 
-            await dbAdmin.collection('mail_logs').add({
+            await prodDb.collection('mail_logs').add({
                 type: 'segment',
                 subject,
                 audienceId,
@@ -111,7 +114,7 @@ export async function POST(req) {
 
         // ── Broadcast (all users) ────────────────────────────────────────────
         if (type === 'broadcast') {
-            const usersSnap = await dbAdmin.collection('users').get()
+            const usersSnap = await prodDb.collection('users').get()
             const emails = []
             usersSnap.forEach((doc) => {
                 const email = doc.data()?.email
@@ -122,7 +125,7 @@ export async function POST(req) {
 
             const results = await sendMailBatch(emails, { subject, html: finalHtml })
 
-            await dbAdmin.collection('mail_logs').add({
+            await prodDb.collection('mail_logs').add({
                 type: 'broadcast',
                 subject,
                 recipientCount: emails.length,
@@ -140,7 +143,7 @@ export async function POST(req) {
         if (!to) return NextResponse.json({ error: 'to is required for single send' }, { status: 400 })
         await sendMail({ to, subject, html: finalHtml })
 
-        await dbAdmin.collection('mail_logs').add({
+        await prodDb.collection('mail_logs').add({
             type: 'single',
             subject,
             to,
@@ -158,14 +161,15 @@ export async function POST(req) {
 }
 
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const prodDb = await getProductionDb() || dbAdmin
+    if (!prodDb) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     const ctx = await getAccessContext(req)
     if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
     if (!hasAdminAccess(ctx, 'notifications')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     try {
-        const snap = await dbAdmin.collection('mail_logs')
+        const snap = await prodDb.collection('mail_logs')
             .orderBy('createdAt', 'desc')
             .limit(50)
             .get()
