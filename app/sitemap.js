@@ -1,4 +1,4 @@
-import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { getCatalog } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600
@@ -11,7 +11,9 @@ export default async function sitemap() {
         '/shop',
         '/ask-ai',
         '/about',
-        '/help',
+        '/privacy',
+        '/terms',
+        '/contact',
         '/disclosure',
     ].map((path) => ({
         url: `${siteUrl}${path}`,
@@ -21,30 +23,16 @@ export default async function sitemap() {
         images: path === '' ? [`${siteUrl}/logo-tekpik.png`] : [],
     }))
 
-    if (!dbAdmin) return staticPages
-
     try {
-        const [activeSnap, legacyActiveSnap] = await Promise.all([
-            dbAdmin.collection('products').where('isActive', '==', true).get(),
-            dbAdmin.collection('products').where('is_active', '==', true).get(),
-        ])
+        // Use the cached catalog — zero extra reads, routes through DB router
+        const { products } = await getCatalog()
 
-        const docsById = new Map()
-        activeSnap.forEach((doc) => docsById.set(doc.id, doc))
-        legacyActiveSnap.forEach((doc) => docsById.set(doc.id, doc))
-
-        const productPages = []
-
-        docsById.forEach((doc) => {
-            const data = doc.data() || {}
-            const updatedAt = timestampToJSON(data.updatedAt || data.createdAt) || new Date().toISOString()
-            productPages.push({
-                url: `${siteUrl}/products/${doc.id}`,
-                lastModified: updatedAt,
-                changeFrequency: 'daily',
-                priority: 0.9,
-            })
-        })
+        const productPages = products.map((product) => ({
+            url: `${siteUrl}/products/${product.id}`,
+            lastModified: product.updatedAt || product.createdAt || now.toISOString(),
+            changeFrequency: 'daily',
+            priority: 0.9,
+        }))
 
         return [...staticPages, ...productPages]
     } catch {

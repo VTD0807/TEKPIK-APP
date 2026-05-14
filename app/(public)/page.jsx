@@ -4,7 +4,7 @@ import LatestProducts from "@/components/LatestProducts";
 import BestSelling from "@/components/BestSelling";
 import PersonalizedTopFeed from "@/components/PersonalizedTopFeed";
 import PromoSection from "@/components/PromoSection";
-import { dbAdmin, timestampToJSON } from "@/lib/firebase-admin";
+import { getProductionDb, timestampToJSON } from "@/lib/firebase-admin";
 import { absoluteUrl } from '@/lib/seo'
 import { getCachedSWR } from '@/lib/server-cache'
 import { getCategoriesMap } from '@/lib/db-queries'
@@ -100,47 +100,57 @@ export default async function Home() {
         return value
     }
 
-    if (dbAdmin) {
-        try {
-            // All 3 reads now cached (5-min TTL + 3-min stale) and routed through getProductionDb failover
-            const [bannersData, settingsData, categoriesMap] = await Promise.all([
-                getCachedSWR('homepage:banners:v1', 5 * 60 * 1000, 3 * 60 * 1000, async () => {
-                    const { getProductionDb } = await import('@/lib/firebase-admin')
-                    const db = await getProductionDb() || dbAdmin
-                    try {
-                        const snap = await db.collection('banners').where('isActive', '==', true).orderBy('createdAt', 'desc').get()
-                        const result = []
-                        snap.forEach(doc => result.push(sanitizeValue({ id: doc.id, ...doc.data() })))
-                        return result
-                    } catch {
-                        return []
-                    }
-                }),
-                getCachedSWR('homepage:settings:v1', 5 * 60 * 1000, 3 * 60 * 1000, async () => {
-                    const { getProductionDb } = await import('@/lib/firebase-admin')
-                    const db = await getProductionDb() || dbAdmin
-                    try {
-                        const settingsDoc = await db.collection('settings').doc('general').get()
-                        return settingsDoc.exists ? sanitizeValue(settingsDoc.data()) : {}
-                    } catch {
-                        return {}
-                    }
-                }),
-                getCategoriesMap(),
-            ])
+    try {
+        // All 3 reads cached (5-min TTL + 3-min stale) and routed through getProductionDb failover
+        const [bannersData, settingsData, categoriesMap] = await Promise.all([
+            getCachedSWR('homepage:banners:v1', 5 * 60 * 1000, 3 * 60 * 1000, async () => {
+                const db = await getProductionDb()
+                if (!db) return []
+                try {
+                    // Fetch all banners, filter in-memory to avoid composite index requirement
+                    const snap = await db.collection('banners').get()
+                    const result = []
+                    snap.forEach(doc => {
+                        const data = doc.data()
+                        if (data.isActive === true) {
+                            result.push(sanitizeValue({ id: doc.id, ...data }))
+                        }
+                    })
+                    // Sort by createdAt desc in-memory
+                    result.sort((a, b) => {
+                        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return tb - ta
+                    })
+                    return result
+                } catch {
+                    return []
+                }
+            }),
+            getCachedSWR('homepage:settings:v1', 5 * 60 * 1000, 3 * 60 * 1000, async () => {
+                const db = await getProductionDb()
+                if (!db) return {}
+                try {
+                    const settingsDoc = await db.collection('settings').doc('general').get()
+                    return settingsDoc.exists ? sanitizeValue(settingsDoc.data()) : {}
+                } catch {
+                    return {}
+                }
+            }),
+            getCategoriesMap(),
+        ])
 
-            banners = bannersData
-            settings = settingsData
-            // Extract category names from the centralized map
-            categories = Object.values(categoriesMap)
-                .map(cat => cat?.name || '')
-                .filter(Boolean)
-                .sort()
-                .slice(0, 10)
+        banners = bannersData
+        settings = settingsData
+        // Extract category names from the centralized map
+        categories = Object.values(categoriesMap)
+            .map(cat => cat?.name || '')
+            .filter(Boolean)
+            .sort()
+            .slice(0, 10)
 
-        } catch (error) {
-            console.error('Error fetching data for homepage:', error?.message || error)
-        }
+    } catch (error) {
+        console.error('Error fetching data for homepage:', error?.message || error)
     }
 
     const rawSections = Array.isArray(settings.homepageSections) && settings.homepageSections.length > 0

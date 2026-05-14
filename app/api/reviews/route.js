@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, timestampToJSON } from '@/lib/firebase-admin'
+import { dbAdmin, timestampToJSON, getProductionDb } from '@/lib/firebase-admin'
 import { getProductReviews, invalidateReviewCaches } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +19,8 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const prodDb = await getProductionDb()
+    if (!prodDb) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
         const body = await req.json()
@@ -57,7 +58,7 @@ export async function POST(req) {
             updatedAt: new Date(),
         }
 
-        const docRef = await dbAdmin.collection('reviews').add(newReview)
+        const docRef = await prodDb.collection('reviews').add(newReview)
         const docSnap = await docRef.get()
 
         const reviewData = { id: docSnap.id, ...docSnap.data() }

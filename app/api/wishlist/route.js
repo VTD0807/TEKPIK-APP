@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, authAdmin } from '@/lib/firebase-admin'
+import { dbAdmin, authAdmin, getProductionDb } from '@/lib/firebase-admin'
 import { invalidateWishlistCaches } from '@/lib/db-queries'
 
 export const dynamic = 'force-dynamic'
@@ -56,9 +56,10 @@ export async function GET(req) {
 
         let wishlistMap = []
         if (productIds.length > 0) {
-            // ── BATCHED READ: use getAll instead of 'in' query (more efficient) ──
-            const refs = productIds.slice(0, 30).map(id => dbAdmin.collection('products').doc(id))
-            const docs = await dbAdmin.getAll(...refs)
+            // ── BATCHED READ via DB router (failover-safe) ──
+            const prodDb = await getProductionDb() || dbAdmin
+            const refs = productIds.slice(0, 30).map(id => prodDb.collection('products').doc(id))
+            const docs = await prodDb.getAll(...refs)
             const pMap = {}
             docs.forEach(doc => {
                 if (doc.exists) pMap[doc.id] = { id: doc.id, ...doc.data() }

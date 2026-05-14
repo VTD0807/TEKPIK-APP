@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin, authAdmin } from '@/lib/firebase-admin'
+import { dbAdmin, authAdmin, getProductionDb } from '@/lib/firebase-admin'
 import { getCatalog, getProductFeatureVectors } from '@/lib/db-queries'
 import { getCachedSWR } from '@/lib/server-cache'
 import { buildProductFeatureVector } from '@/lib/recommendation-features'
@@ -175,7 +175,10 @@ const objectToMap = (obj) => {
     return map
 }
 
-const getVectorRef = (accountId) => dbAdmin.collection('analytics_user_interest_vectors').doc(accountId)
+const getVectorRef = async (accountId) => {
+    const db = await getProductionDb() || dbAdmin
+    return db.collection('analytics_user_interest_vectors').doc(accountId)
+}
 
 const getVectorState = async (accountId) => {
     // Cache user vector state for 2 minutes to avoid hammering Firestore
@@ -184,7 +187,8 @@ const getVectorState = async (accountId) => {
         2 * 60 * 1000,
         60 * 1000,
         async () => {
-            const snap = await getVectorRef(accountId).get()
+            const vectorRef = await getVectorRef(accountId)
+            const snap = await vectorRef.get()
             if (!snap.exists) return { exists: false, isFresh: false, data: null, vector: null }
 
             const data = snap.data() || {}
@@ -208,7 +212,8 @@ const saveVector = async (accountId, vector, interactionCount) => {
     const compactCategoryWeight = trimMapTopN(vector.categoryWeight, MAX_VECTOR_CATEGORY)
     const compactBrandWeight = trimMapTopN(vector.brandWeight, MAX_VECTOR_BRANDS)
 
-    await getVectorRef(accountId).set({
+    const vectorRef = await getVectorRef(accountId)
+    await vectorRef.set({
         preferenceMap: mapToObject(compactPreferenceMap),
         categoryWeight: mapToObject(compactCategoryWeight),
         brandWeight: mapToObject(compactBrandWeight),
@@ -280,7 +285,8 @@ async function resolveAccountId(req) {
 }
 
 export async function GET(req) {
-    if (!dbAdmin) return NextResponse.json({ source: 'fallback', products: [], interestCategories: [] })
+    const prodDb = await getProductionDb()
+    if (!prodDb) return NextResponse.json({ source: 'fallback', products: [], interestCategories: [] })
 
     try {
         const url = new URL(req.url)
@@ -327,10 +333,10 @@ export async function GET(req) {
 
         if (!vectorState.isFresh || !vector) {
             const [wishSnap, reviewSnap, viewSnap, pageSnap] = await Promise.all([
-                dbAdmin.collection('wishlists').where('userId', '==', accountId).limit(120).get(),
-                dbAdmin.collection('reviews').where('userId', '==', accountId).limit(120).get(),
-                dbAdmin.collection('analytics_product_unique_visitors').where('accountId', '==', accountId).limit(220).get(),
-                dbAdmin.collection('analytics_page_unique_visitors').where('identityId', '==', accountId).limit(300).get(),
+                prodDb.collection('wishlists').where('userId', '==', accountId).limit(120).get(),
+                prodDb.collection('reviews').where('userId', '==', accountId).limit(120).get(),
+                prodDb.collection('analytics_product_unique_visitors').where('accountId', '==', accountId).limit(220).get(),
+                prodDb.collection('analytics_page_unique_visitors').where('identityId', '==', accountId).limit(300).get(),
             ])
 
             const interactions = []

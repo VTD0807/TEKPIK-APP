@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { dbAdmin, getProductionDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(req, { params }) {
     const { id } = await params
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const prodDb = await getProductionDb()
+    if (!prodDb) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
         const { action, userId } = await req.json()
@@ -14,9 +15,9 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
         }
 
-        const ref = dbAdmin.collection('reviews').doc(id)
+        const ref = prodDb.collection('reviews').doc(id)
 
-        const result = await dbAdmin.runTransaction(async (tx) => {
+        const result = await prodDb.runTransaction(async (tx) => {
             const snap = await tx.get(ref)
             if (!snap.exists) throw new Error('Review not found')
 
@@ -64,13 +65,14 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
     const { id } = await params
-    if (!dbAdmin) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
+    const prodDb = await getProductionDb()
+    if (!prodDb) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 })
 
     try {
         const { userId } = await req.json()
         if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 })
 
-        const ref = dbAdmin.collection('reviews').doc(id)
+        const ref = prodDb.collection('reviews').doc(id)
         const snap = await ref.get()
         if (!snap.exists) return NextResponse.json({ error: 'Review not found' }, { status: 404 })
 
