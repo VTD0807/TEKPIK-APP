@@ -187,192 +187,251 @@ function ComposeTab({ preset, clearPreset }) {
     }
 
     return (
-        <div className="grid gap-6 xl:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                    <EnvelopeFill size={15} className="text-slate-500" />
-                    <h2 className="text-base font-semibold text-slate-900">Compose Email</h2>
-                </div>
-
-                {/* Preset banner */}
-                {preset && sendMode === 'segment' && (
-                    <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-2.5 flex items-center justify-between">
-                        <p className="text-xs text-blue-700"><span className="font-semibold">Targeting:</span> {preset.audienceName} ({fmtNum(preset.userCount)} users)</p>
-                        <button onClick={() => { clearPreset(); set('audienceId', 'all') }} className="text-[11px] text-blue-500 hover:text-blue-700 underline">Clear</button>
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* Main Form Area */}
+            <div className="flex-1 w-full space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <EnvelopeFill size={15} className="text-slate-500" />
+                        <h2 className="text-base font-semibold text-slate-900">Compose Email</h2>
                     </div>
-                )}
 
-                {/* Send Mode Toggle */}
-                <div className="space-y-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Send Mode</span>
-                    <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-                        {MODES.map(m => (
-                            <button key={m} onClick={() => setSendMode(m)}
-                                className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${sendMode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {MODE_LABELS[m]}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                    {/* Preset banner */}
+                    {preset && sendMode === 'segment' && (
+                        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-2.5 flex items-center justify-between">
+                            <p className="text-xs text-blue-700"><span className="font-semibold">Targeting:</span> {preset.audienceName} ({fmtNum(preset.userCount)} users)</p>
+                            <button onClick={() => { clearPreset(); set('audienceId', 'all') }} className="text-[11px] text-blue-500 hover:text-blue-700 underline">Clear</button>
+                        </div>
+                    )}
 
-                {/* Segment selector */}
-                {sendMode === 'segment' && (
-                    <label className="block space-y-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Audience Segment</span>
-                        <select value={form.audienceId} onChange={e => set('audienceId', e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400">
-                            {segments.map(s => (
-                                <option key={s.id} value={s.id}>{s.name} ({fmtNum(s.userCount)} users)</option>
-                            ))}
-                            {!segments.length && <option value="all">All Users</option>}
-                        </select>
-                    </label>
-                )}
-
-                {/* Custom email chips */}
-                {sendMode === 'custom' && (
+                    {/* Send Mode Toggle */}
                     <div className="space-y-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Recipients</span>
-                        <div className="rounded-xl border border-slate-200 px-3 py-2 flex flex-wrap gap-1.5 min-h-[42px] focus-within:border-slate-400 transition">
-                            {customEmails.map(email => (
-                                <span key={email} className="inline-flex items-center gap-1 rounded-full bg-slate-100 pl-2.5 pr-1 py-0.5 text-xs text-slate-700">
-                                    {email}
-                                    <button onClick={() => removeEmail(email)} className="rounded-full hover:bg-slate-200 p-0.5 transition">
-                                        <Trash size={10} />
-                                    </button>
-                                </span>
+                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Send Mode</span>
+                        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+                            {MODES.map(m => (
+                                <button key={m} onClick={() => setSendMode(m)}
+                                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${sendMode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                    {MODE_LABELS[m]}
+                                </button>
                             ))}
-                            <input value={emailInput} onChange={e => setEmailInput(e.target.value)}
-                                onKeyDown={handleEmailKeyDown}
-                                onBlur={() => emailInput && addEmail(emailInput)}
-                                placeholder={customEmails.length ? '' : 'Type email and press Enter...'}
-                                className="flex-1 min-w-[180px] outline-none text-sm bg-transparent py-0.5" />
                         </div>
-                        <p className="text-[11px] text-slate-400">Press Enter or comma to add. Backspace to remove last.</p>
                     </div>
-                )}
 
-                {/* Recipient count */}
-                {recipientCount !== null && (
-                    <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <PeopleFill size={11} /> {fmtNum(recipientCount)} recipient{recipientCount !== 1 ? 's' : ''}
-                    </p>
-                )}
+                    {/* Segment selector */}
+                    {sendMode === 'segment' && (
+                        <label className="block space-y-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Audience Segment</span>
+                            <select value={form.audienceId} onChange={e => set('audienceId', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400">
+                                {segments.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name} ({fmtNum(s.userCount)} users)</option>
+                                ))}
+                                {!segments.length && <option value="all">All Users</option>}
+                            </select>
+                        </label>
+                    )}
 
-                {/* Template picker */}
-                <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Template</span>
-                    <select value={form.templateId} onChange={e => set('templateId', e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400">
-                        <option value="">— Write custom body —</option>
-                        {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                </label>
+                    {/* Custom email chips */}
+                    {sendMode === 'custom' && (
+                        <div className="space-y-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Recipients</span>
+                            <div className="rounded-xl border border-slate-200 px-3 py-2 flex flex-wrap gap-1.5 min-h-[42px] focus-within:border-slate-400 transition">
+                                {customEmails.map(email => (
+                                    <span key={email} className="inline-flex items-center gap-1 rounded-full bg-slate-100 pl-2.5 pr-1 py-0.5 text-xs text-slate-700">
+                                        {email}
+                                        <button onClick={() => removeEmail(email)} className="rounded-full hover:bg-slate-200 p-0.5 transition">
+                                            <Trash size={10} />
+                                        </button>
+                                    </span>
+                                ))}
+                                <input value={emailInput} onChange={e => setEmailInput(e.target.value)}
+                                    onKeyDown={handleEmailKeyDown}
+                                    onBlur={() => emailInput && addEmail(emailInput)}
+                                    placeholder={customEmails.length ? '' : 'Type email and press Enter...'}
+                                    className="flex-1 min-w-[180px] outline-none text-sm bg-transparent py-0.5" />
+                            </div>
+                            <p className="text-[11px] text-slate-400">Press Enter or comma to add. Backspace to remove last.</p>
+                        </div>
+                    )}
 
-                {/* Subject */}
-                <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Subject</span>
-                    <input value={form.subject} onChange={e => set('subject', e.target.value)}
-                        placeholder="Your subject line..."
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
-                </label>
+                    {/* Recipient count */}
+                    {recipientCount !== null && (
+                        <p className="text-xs text-slate-400 flex items-center gap-1">
+                            <PeopleFill size={11} /> {fmtNum(recipientCount)} recipient{recipientCount !== 1 ? 's' : ''}
+                        </p>
+                    )}
 
-                {/* Body */}
-                {!form.templateId && (
-                    <label className="block space-y-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Body (HTML)</span>
-                        <textarea value={form.bodyHtml} onChange={e => set('bodyHtml', e.target.value)}
-                            rows={8} placeholder="<p>Hello {{name}},</p><p>Your message here...</p>"
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-mono outline-none focus:border-slate-400 resize-y" />
-                    </label>
-                )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Template picker */}
+                        <label className="block space-y-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Template</span>
+                            <select value={form.templateId} onChange={e => set('templateId', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400">
+                                <option value="">— Write custom body —</option>
+                                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                        </label>
 
-                {selectedTemplate?.variables?.length > 0 && (
-                    <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-violet-700">Template variables</p>
-                            <button onClick={() => setSideOpen(p => !p)}
-                                className="text-[11px] text-violet-500 hover:text-violet-700 underline">
-                                {sideOpen ? 'Hide panel' : 'Show panel'}
+                        {/* Subject */}
+                        <label className="block space-y-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Subject</span>
+                            <input value={form.subject} onChange={e => set('subject', e.target.value)}
+                                placeholder="Your subject line..."
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                        </label>
+                    </div>
+
+                    {/* Body */}
+                    {!form.templateId && (
+                        <label className="block space-y-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Body (HTML)</span>
+                            <textarea value={form.bodyHtml} onChange={e => set('bodyHtml', e.target.value)}
+                                rows={8} placeholder="<p>Hello {{name}},</p><p>Your message here...</p>"
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-mono outline-none focus:border-slate-400 resize-y" />
+                        </label>
+                    )}
+
+                    {/* CTA */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <label className="block space-y-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">CTA Label</span>
+                            <input value={form.ctaLabel} onChange={e => set('ctaLabel', e.target.value)} placeholder="Shop Now →"
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                        </label>
+                        <label className="block space-y-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">CTA URL</span>
+                            <input value={form.ctaUrl} onChange={e => set('ctaUrl', e.target.value)} placeholder="https://tekpik.in/..."
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
+                        </label>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-4">
+                        <div className="flex items-center gap-3">
+                            <button onClick={handleSend} disabled={sending}
+                                className="inline-flex items-center gap-2 rounded-xl bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-black/90 disabled:opacity-60 transition shadow-lg shadow-black/10">
+                                <SendFill size={13} />
+                                {sending ? 'Sending...' : `Send to ${fmtNum(recipientCount) || 'All'}`}
+                            </button>
+                            <button onClick={() => setPreview(p => !p)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition">
+                                {preview ? <EyeSlash size={13} /> : <Eye size={13} />}
+                                {preview ? 'Hide Preview' : 'Preview'}
                             </button>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                            {selectedTemplate.variables.map(v => (
-                                <span key={v} onClick={() => setVarValues(p => ({ ...p, [v]: '' }))}
-                                    title="Click to add to values panel"
-                                    className="cursor-pointer rounded-full bg-white border border-violet-200 text-violet-700 text-[11px] px-2 py-0.5 font-mono hover:bg-violet-100 transition">
-                                    {`{{${v}}}`}
-                                    {varValues[v] !== undefined && <span className="ml-1 text-emerald-600">✓</span>}
-                                </span>
-                            ))}
-                        </div>
-                        {sideOpen && (
-                            <div className="space-y-2 pt-1">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[11px] text-violet-600 font-medium">Fill with real data from server</p>
-                                    <button onClick={handleGenRandom} disabled={generating}
-                                        className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-violet-700 disabled:opacity-60 transition">
-                                        <ArrowRepeat size={10} className={generating ? 'animate-spin' : ''} />
-                                        {generating ? 'Generating…' : 'Generate Random'}
-                                    </button>
-                                </div>
-                                {Object.keys(varValues).length > 0 && (
-                                    <div className="space-y-1.5">
-                                        {selectedTemplate.variables.filter(v => varValues[v] !== undefined).map(v => (
-                                            <div key={v} className="flex items-center gap-2">
-                                                <span className="text-[10px] font-mono text-violet-700 w-28 shrink-0 truncate">{`{{${v}}}`}</span>
-                                                <input value={varValues[v]}
-                                                    onChange={e => setVarValues(p => ({ ...p, [v]: e.target.value }))}
-                                                    className="flex-1 rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs outline-none focus:border-violet-400" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                        
+                        {selectedTemplate && (
+                            <div className="flex items-center gap-2">
+                                <CheckCircleFill size={12} className="text-emerald-500" />
+                                <span className="text-xs font-medium text-slate-600">Per-user personalization enabled</span>
                             </div>
                         )}
                     </div>
+                </div>
+
+                {preview && (
+                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="border-b border-slate-100 px-5 py-3 bg-slate-50 flex items-center justify-between">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Preview</p>
+                                <p className="text-sm font-semibold text-slate-800 mt-0.5">{form.subject || '(no subject)'}</p>
+                            </div>
+                            <Stars size={14} className="text-violet-400" />
+                        </div>
+                        <div className="p-6 overflow-auto max-h-[600px] text-sm prose prose-slate max-w-none"
+                            dangerouslySetInnerHTML={{ __html: form.bodyHtml || (selectedTemplate?.html || '<p style="color:#94a3b8">Select a template or write a body to preview.</p>') }} />
+                    </div>
                 )}
-
-                {/* CTA */}
-                <div className="grid grid-cols-2 gap-3">
-                    <label className="block space-y-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">CTA Label</span>
-                        <input value={form.ctaLabel} onChange={e => set('ctaLabel', e.target.value)} placeholder="Shop Now →"
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
-                    </label>
-                    <label className="block space-y-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">CTA URL</span>
-                        <input value={form.ctaUrl} onChange={e => set('ctaUrl', e.target.value)} placeholder="https://tekpik.in/..."
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" />
-                    </label>
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                    <button onClick={handleSend} disabled={sending}
-                        className="inline-flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-black/90 disabled:opacity-60 transition">
-                        <SendFill size={13} />
-                        {sending ? 'Sending...' : `Send to ${fmtNum(recipientCount) || 'All'}`}
-                    </button>
-                    <button onClick={() => setPreview(p => !p)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition">
-                        {preview ? <EyeSlash size={13} /> : <Eye size={13} />}
-                        {preview ? 'Hide Preview' : 'Preview'}
-                    </button>
-                </div>
             </div>
 
-            {preview && (
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="border-b border-slate-100 px-5 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Preview</p>
-                        <p className="text-sm font-medium text-slate-800 mt-0.5">{form.subject || '(no subject)'}</p>
+            {/* Side Tab / Sidebar */}
+            <div className="w-full lg:w-80 shrink-0 sticky top-6 space-y-4">
+                {selectedTemplate?.variables?.length > 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <div className="bg-violet-600 px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-white">
+                                <Stars size={14} />
+                                <h3 className="text-sm font-semibold">Variables</h3>
+                            </div>
+                            <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] font-bold text-white uppercase tracking-wider">
+                                {selectedTemplate.variables.length}
+                            </span>
+                        </div>
+                        
+                        <div className="p-4 space-y-4">
+                            <div className="space-y-2">
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Available Elements</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {selectedTemplate.variables.map(v => (
+                                        <button key={v} onClick={() => setVarValues(p => ({ ...p, [v]: p[v] ?? '' }))}
+                                            className={`rounded-lg border px-2.5 py-1.5 text-xs font-mono transition-all text-left flex items-center justify-between group w-full ${varValues[v] !== undefined ? 'bg-violet-50 border-violet-200 text-violet-700' : 'bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-300'}`}>
+                                            {`{{${v}}}`}
+                                            {varValues[v] !== undefined ? (
+                                                <CheckCircleFill size={10} className="text-emerald-500" />
+                                            ) : (
+                                                <PlusLg size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Server Defaults</p>
+                                    <button onClick={handleGenRandom} disabled={generating}
+                                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-800 disabled:opacity-50 transition shadow-md">
+                                        <ArrowRepeat size={11} className={generating ? 'animate-spin' : ''} />
+                                        {generating ? 'Fetching…' : 'Generate Random'}
+                                    </button>
+                                </div>
+                                
+                                {Object.keys(varValues).length > 0 ? (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-right-2 duration-300">
+                                        {selectedTemplate.variables.filter(v => varValues[v] !== undefined).map(v => (
+                                            <div key={v} className="space-y-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-violet-600 font-mono tracking-tighter">{`{{${v}}}`}</span>
+                                                    <button onClick={() => {
+                                                        const n = { ...varValues }; delete n[v]; setVarValues(n);
+                                                    }} className="text-slate-300 hover:text-red-400 transition">
+                                                        <Trash size={10} />
+                                                    </button>
+                                                </div>
+                                                <input value={varValues[v]}
+                                                    onChange={e => setVarValues(p => ({ ...p, [v]: e.target.value }))}
+                                                    placeholder={`Value for ${v}...`}
+                                                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs outline-none focus:border-violet-400 focus:bg-white transition-all shadow-inner" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                        <p className="text-[11px] text-slate-400">Click a variable or generate random to start populating values.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="bg-slate-50 p-4 border-t border-slate-100">
+                            <div className="flex items-start gap-2">
+                                <PeopleFill size={14} className="text-slate-400 mt-0.5" />
+                                <p className="text-[10px] leading-relaxed text-slate-500">
+                                    <span className="font-bold text-slate-700">Multiple Users:</span> Variables like <code className="bg-slate-200 px-0.5 rounded text-slate-800">name</code> and <code className="bg-slate-200 px-0.5 rounded text-slate-800">email</code> are automatically personalized per-recipient.
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="p-4 overflow-auto max-h-[600px] text-sm"
-                        dangerouslySetInnerHTML={{ __html: form.bodyHtml || (selectedTemplate?.html || '<p style="color:#94a3b8">Select a template or write a body to preview.</p>') }} />
-                </div>
-            )}
+                ) : (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center space-y-2 border-dashed shadow-inner">
+                        <Stars size={24} className="text-slate-300 mx-auto" />
+                        <p className="text-xs font-medium text-slate-500">No variables found</p>
+                        <p className="text-[10px] text-slate-400">Select a template with <code className="bg-slate-200 px-0.5 rounded">{"{{vars}}"}</code> to see them here.</p>
+                    </div>
+                )}
+            </div>
         </div>
     )
+
 }
 
 
