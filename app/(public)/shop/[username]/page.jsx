@@ -1,5 +1,5 @@
 import StoreShopClient from './StoreShopClient'
-import { dbAdmin } from '@/lib/firebase-admin'
+import { getCategoriesMap } from '@/lib/db-queries'
 import { absoluteUrl } from '@/lib/seo'
 
 const STORE_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
@@ -14,16 +14,14 @@ export async function generateMetadata({ params }) {
     const { username } = await params
     let categoryName = humanizeSlug(username)
 
-    if (dbAdmin) {
-        try {
-            const snap = await dbAdmin.collection('categories').where('slug', '==', username).limit(1).get()
-            if (!snap.empty) {
-                const data = snap.docs[0].data() || {}
-                categoryName = String(data.name || categoryName)
-            }
-        } catch (_) {
-            // Keep slug-based fallback.
+    try {
+        const categoriesMap = await getCategoriesMap()
+        const category = Object.values(categoriesMap || {}).find(c => c.slug === username)
+        if (category) {
+            categoryName = String(category.name || categoryName)
         }
+    } catch (_) {
+        // Keep slug-based fallback.
     }
 
     const title = `Best ${categoryName} in India 2026 | ${STORE_NAME}`

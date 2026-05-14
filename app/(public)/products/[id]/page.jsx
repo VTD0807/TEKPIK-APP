@@ -8,7 +8,7 @@ import ProductImageGallery from '@/components/ProductImageGallery'
 import ProductPriceTrend from '@/components/ProductPriceTrend'
 import ProductDescription from '@/components/ProductDescription'
 import ProductCard from '@/components/ProductCard'
-import { dbAdmin, timestampToJSON, sanitizeFirestoreData } from '@/lib/firebase-admin'
+import { getProductDetail, getCatalog } from '@/lib/db-queries'
 import { sanitizeDescriptionHtml, descriptionToPlainText } from '@/lib/description-html'
 import { absoluteUrl } from '@/lib/seo'
 import { formatPrice } from '@/lib/currency'
@@ -46,7 +46,7 @@ const scoreFromAnalysis = (analysis) => {
 }
 
 const scoreFromReviews = (reviews) => {
-    if (!reviews.length) return 0
+    if (!reviews || !reviews.length) return 0
     const count = reviews.length
     const avg = reviews.reduce((sum, review) => sum + toNumber(review.rating), 0) / count
     const ratingScore = (avg / 5) * 100
@@ -59,7 +59,8 @@ export async function generateMetadata({ params }) {
     const storeName = process.env.NEXT_PUBLIC_APP_NAME || 'TEKPIK'
     const fallbackImage = absoluteUrl('/logo-tekpik.png')
     
-    if (!dbAdmin) {
+    const product = await getProductDetail(id)
+    if (!product) {
         const title = `Product - Best Price in India | ${storeName}`
         const description = `Explore products and compare prices in India on ${storeName}.`
         return {
@@ -82,33 +83,8 @@ export async function generateMetadata({ params }) {
         }
     }
 
-    const snap = await dbAdmin.collection('products').doc(id).get()
-    if (!snap.exists) {
-        const title = `Product - Best Price in India | ${storeName}`
-        const description = `Explore products and compare prices in India on ${storeName}.`
-        return {
-            title,
-            description,
-            alternates: { canonical: absoluteUrl(`/products/${id}`) },
-            openGraph: {
-                title,
-                description,
-                url: absoluteUrl(`/products/${id}`),
-                type: 'website',
-                images: [{ url: fallbackImage }],
-            },
-            twitter: {
-                card: 'summary_large_image',
-                title,
-                description,
-                images: [fallbackImage],
-            },
-        }
-    }
-
-    const product = snap.data()
-    const descriptionText = descriptionToPlainText(product.description)
-    const canonicalPath = `/products/${id}`
+    const descriptionText = descriptionToPlainText(product.description || '')
+    const canonicalPath = `/products/${product.id || id}`
     const image = product.imageUrls?.[0] || product.image_urls?.[0] || ''
     const productName = String(product.title || product.name || 'Product').trim()
     const productBrand = String(product.brand || storeName).trim()
@@ -142,42 +118,8 @@ export async function generateMetadata({ params }) {
 export default async function ProductPage({ params }) {
     const { id } = await params
     
-    if (!dbAdmin) notFound()
-
-    const snap = await dbAdmin.collection('products').doc(id).get()
-    if (!snap.exists) notFound()
-
-    const productData = { id: snap.id, ...snap.data() }
-
-    // Fetch category, AI analysis, and reviews in PARALLEL (was sequential waterfall)
-    const [catResult, aiResult, revResult] = await Promise.all([
-        productData.categoryId
-            ? dbAdmin.collection('categories').doc(productData.categoryId).get()
-            : Promise.resolve(null),
-        dbAdmin.collection('ai_analysis').where('productId', '==', id).limit(1).get(),
-        dbAdmin.collection('reviews').where('productId', '==', id).where('isApproved', '==', true).get(),
-    ])
-
-    if (catResult?.exists) {
-        productData.categories = { name: catResult.data().name, slug: catResult.data().slug }
-    }
-
-    if (aiResult && !aiResult.empty) {
-        productData.ai_analysis = { id: aiResult.docs[0].id, ...aiResult.docs[0].data() }
-    }
-
-    productData.reviews = []
-    revResult.forEach(doc => {
-        let revData = doc.data()
-        productData.reviews.push({
-            id: doc.id,
-            ...revData,
-            createdAt: timestampToJSON(revData.createdAt),
-            updatedAt: timestampToJSON(revData.updatedAt),
-        })
-    })
-
-    const product = productData
+    const product = await getProductDetail(id)
+    if (!product) notFound()
     const descriptionHtml = sanitizeDescriptionHtml(product.description)
     let priceHistorySeries = []
     try {
