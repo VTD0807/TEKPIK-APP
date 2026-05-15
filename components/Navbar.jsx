@@ -237,19 +237,21 @@ const Navbar = () => {
                             )}
                         </div>
 
-                        <div className="sm:hidden flex items-center gap-2">
-                            <Link href="/wishlist" className="relative p-2 rounded-full border border-slate-200 bg-slate-50">
-                                <Heart size={18} className="text-slate-700" />
-                                {wishlistCount > 0 && <span className="absolute -top-1 -right-1 text-[8px] text-white bg-red-500 w-4 h-4 rounded-full flex items-center justify-center">{wishlistCount}</span>}
+                        <div className="sm:hidden flex items-center gap-1.5">
+                            <Link href="/wishlist" className="relative p-2 rounded-full bg-slate-50 text-slate-600 active:scale-95 transition-transform">
+                                <Heart size={18} />
+                                {wishlistCount > 0 && <span className="absolute -top-0.5 -right-0.5 text-[9px] font-black text-white bg-[#FF3B30] w-[18px] h-[18px] rounded-full flex items-center justify-center ring-2 ring-white">{wishlistCount}</span>}
                             </Link>
-                            {canSeeDashboard && <Link href="/e/dashboard" className="px-2.5 py-1.5 text-[11px] border border-slate-300 text-slate-700 rounded-full">Dashboard</Link>}
-                            {isAdmin && <Link href="/admin" className="px-2.5 py-1.5 text-[11px] border border-indigo-300 text-indigo-600 rounded-full">Admin</Link>}
+                            
                             {user ? (
-                                <button onClick={handleSignOut} className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-red-500 border border-red-200 rounded-full">
-                                    <BoxArrowRight size={12} /> Out
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    {isAdmin && <Link href="/admin" className="p-2 text-indigo-600 bg-indigo-50 rounded-full active:scale-95 transition-transform"><Person size={18} /></Link>}
+                                    <button onClick={handleSignOut} className="p-2 text-red-500 bg-red-50 rounded-full active:scale-95 transition-transform">
+                                        <BoxArrowRight size={18} />
+                                    </button>
+                                </div>
                             ) : (
-                                <Link href="/login" className="px-3 py-1.5 bg-indigo-500 text-[11px] text-white rounded-full font-medium">Login</Link>
+                                <Link href="/login" className="px-3.5 py-2 bg-black text-xs font-bold text-white rounded-full active:scale-95 transition-transform">Login</Link>
                             )}
                         </div>
                     </div>
@@ -287,8 +289,8 @@ const Navbar = () => {
                 </div>
             </nav>
 
-            <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-3 pb-[calc(env(safe-area-inset-bottom)+6px)] pt-2">
-                <div className="grid grid-cols-4 gap-1.5">
+            <div className="sm:hidden fixed bottom-4 inset-x-4 z-50">
+                <div className="bg-white/85 backdrop-blur-xl border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-[24px] px-2 py-2 flex items-center justify-around relative">
                     {MOBILE_NAV.map(item => {
                         const active = item.href === '/' ? pathname === '/' : pathname?.startsWith(item.href)
                         const Icon = item.icon
@@ -296,10 +298,17 @@ const Navbar = () => {
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2.5 text-[10px] font-semibold tracking-wide transition ${active ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}
+                                className="relative flex flex-col items-center justify-center w-16 py-1 gap-1 transition-transform active:scale-90"
                             >
-                                <Icon size={15} />
-                                <span>{item.label}</span>
+                                <div className={`relative flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-300 ${active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500'}`}>
+                                    <Icon size={18} weight={active ? 'fill' : 'regular'} />
+                                    {active && (
+                                        <span className="absolute -bottom-1.5 w-1 h-1 bg-indigo-600 rounded-full shadow-[0_0_8px_rgba(79,70,229,0.8)]" />
+                                    )}
+                                </div>
+                                <span className={`text-[9px] font-bold tracking-wide transition-colors ${active ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                    {item.label}
+                                </span>
                             </Link>
                         )
                     })}
