@@ -234,37 +234,48 @@ const ProductCard = ({ product }) => {
             </Link>
 
             {/* Info */}
-            <div className="flex justify-between gap-2 text-xs sm:text-sm text-slate-800 mt-2 mb-2">
-                <div className="flex-1 min-w-0">
-                    <Link href={`/products/${product.id}`}>
-                        <p className="truncate hover:text-indigo-600 transition font-medium">{product.title || product.name}</p>
-                    </Link>
-                    {product.brand && (
-                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">{product.brand}</p>
-                    )}
-                    {typeof todayViews === 'number' && todayViews > 0 && (
-                        <p className="text-[11px] text-slate-500 mt-0.5">{todayViews} people viewed today</p>
-                    )}
-                    {rating > 0 && (
-                        <div className="flex items-center mt-1 gap-0.5">
-                            {Array(5).fill('').map((_, i) => (
-                                rating >= i + 1
-                                    ? <StarFill key={i} size={11} className="text-amber-400" />
-                                    : <Star key={i} size={11} className="text-slate-200" />
-                            ))}
-                            {reviewCount > 0 && <span className="ml-1 text-[11px] text-slate-400">({reviewCount})</span>}
-                        </div>
-                    )}
-                </div>
-                <div className="text-right shrink-0">
-                    <p className="font-medium">{formatPrice(currentPrice, 'INR', 'en-IN')}</p>
-                    {showAnchoredMrp && (
-                        <p className="text-xs text-slate-400 line-through">{formatPrice(originalPrice, 'INR', 'en-IN')}</p>
-                    )}
-                    {verifiedAgo !== null && (
-                        <p className={`text-[11px] mt-0.5 font-medium ${freshnessClass}`}>
-                            Price verified {verifiedAgo.label}
+            <div className="flex flex-col mt-2 mb-2">
+                <div className="flex justify-between items-start gap-2 text-slate-800">
+                    <Link href={`/products/${product.id}`} className="flex-1 min-w-0">
+                        <p className="line-clamp-2 hover:text-indigo-600 transition font-medium text-xs sm:text-sm leading-snug break-words">
+                            {product.title || product.name}
                         </p>
+                    </Link>
+                    <div className="text-right shrink-0">
+                        <p className="font-bold text-sm sm:text-base">{formatPrice(currentPrice, 'INR', 'en-IN')}</p>
+                        {showAnchoredMrp && (
+                            <p className="text-[11px] sm:text-xs text-slate-400 line-through">{formatPrice(originalPrice, 'INR', 'en-IN')}</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 flex-1 min-w-0">
+                        {rating > 0 && (
+                            <div className="flex items-center gap-0.5">
+                                {Array(5).fill('').map((_, i) => (
+                                    rating >= i + 1
+                                        ? <StarFill key={i} size={10} className="text-amber-400" />
+                                        : <Star key={i} size={10} className="text-slate-200" />
+                                ))}
+                                {reviewCount > 0 && <span className="ml-1 text-[10px] text-slate-400">({reviewCount})</span>}
+                            </div>
+                        )}
+                        {product.brand && (
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wider truncate">{product.brand}</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
+                    {verifiedAgo !== null ? (
+                        <p className={`text-[10px] font-medium truncate ${freshnessClass}`}>
+                            Verified {verifiedAgo.label}
+                        </p>
+                    ) : <div />}
+                    
+                    {typeof todayViews === 'number' && todayViews > 0 && (
+                        <p className="text-[10px] text-slate-500 truncate">{todayViews} viewed today</p>
                     )}
                 </div>
             </div>
