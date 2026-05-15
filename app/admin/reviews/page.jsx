@@ -1,10 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Loading from '@/components/Loading'
-import { Check, X, PatchCheck, Trash } from 'react-bootstrap-icons'
+import { CheckCircle, XCircle, Star, Clock, PatchCheck, Trash } from 'react-bootstrap-icons'
 import toast from 'react-hot-toast'
 import CMSDataTable from '@/components/cms/CMSDataTable'
-import { CheckCircle, XCircle, Star, Clock, PatchCheck, Trash } from 'react-bootstrap-icons'
 
 export default function AdminReviews() {
     const [reviews, setReviews] = useState([])
