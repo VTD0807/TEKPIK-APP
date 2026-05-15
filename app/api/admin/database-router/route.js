@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { dbWorkspace, firebaseAdminStatus } from '@/lib/firebase-admin'
+import { dbWorkspace, firebaseAdminStatus, invalidateRouterCache } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
+import { invalidateCachePrefix } from '@/lib/server-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +37,11 @@ export async function POST(req) {
             updatedAt: new Date(),
             updatedBy: ctx.email || ctx.uid || 'admin',
         }, { merge: true })
+
+        // Immediately bust the in-memory router cache and all data caches
+        // so the very next request uses the new database
+        invalidateRouterCache()
+        invalidateCachePrefix('db:')
 
         return NextResponse.json({ success: true, activeProductionDb })
     } catch (err) {
