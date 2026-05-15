@@ -45,8 +45,12 @@ const Navbar = () => {
     const menuRef = useRef(null)
     const desktopSearchRef = useRef(null)
     const mobileSearchRef = useRef(null)
-    const wishlistCount = useSelector(state => state.wishlist?.ids?.length ?? 0)
+    const wishlistIds = useSelector(state => state.wishlist?.ids || [])
     const products = useSelector(state => state.product?.list || [])
+    const wishlistCount = useMemo(() => {
+        if (!Array.isArray(products) || products.length === 0) return wishlistIds.length;
+        return products.filter(p => wishlistIds.includes(p.id)).length;
+    }, [products, wishlistIds])
     const posthog = usePostHog()
     const { user, signOut } = useAuth()
     const name = user?.displayName || user?.email?.split('@')[0] || ''
