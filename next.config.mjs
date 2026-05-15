@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 const workspaceRoot = dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('next').NextConfig} */
+// Force build trigger: 2026-05-15T10:18:00
 const nextConfig = {
     images: {
         remotePatterns: [
