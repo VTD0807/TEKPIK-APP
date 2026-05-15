@@ -264,7 +264,7 @@ export default async function ProductPage({ params }) {
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
                         {disableBuying ? (
                             <span
-                                className="hidden sm:flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-gray-100 text-gray-500 text-base font-semibold rounded-md border border-gray-200 cursor-not-allowed select-none"
+                                className="flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-gray-100 text-gray-500 text-base font-semibold rounded-md border border-gray-200 cursor-not-allowed select-none"
                                 title={isUnavailable ? 'This product is no longer available on Amazon' : 'Purchasing is temporarily disabled'}
                             >
                                 <BoxArrowUpRight size={16} />
@@ -275,7 +275,7 @@ export default async function ProductPage({ params }) {
                                 href={product.affiliate_url || product.affiliateUrl || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer nofollow sponsored"
-                                className="hidden sm:flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
+                                className="flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
                             >
                                 <BoxArrowUpRight size={16} />
                                 Buy on Amazon →
@@ -294,27 +294,6 @@ export default async function ProductPage({ params }) {
                     )}
 
                 </div>
-            </div>
-
-            <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+10px)] shadow-[0_-10px_30px_rgba(15,23,42,0.12)]">
-                {disableBuying ? (
-                    <span
-                        className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-gray-100 text-gray-500 text-base font-semibold rounded-md border border-gray-200 cursor-not-allowed select-none"
-                    >
-                        <BoxArrowUpRight size={16} />
-                        {blockBuyNow ? 'Currently Unavailable' : unavailableText}
-                    </span>
-                ) : (
-                    <a
-                        href={product.affiliate_url || product.affiliateUrl || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow sponsored"
-                        className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-amber-400 hover:bg-amber-500 transition text-slate-900 text-base font-semibold rounded-md border border-amber-500"
-                    >
-                        <BoxArrowUpRight size={16} />
-                        Buy on Amazon →
-                    </a>
-                )}
             </div>
 
             {/* AI Analysis */}
