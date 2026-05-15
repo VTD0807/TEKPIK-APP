@@ -24,7 +24,7 @@ export default function CMSReviews() {
             const res = await fetch(`/api/admin/reviews/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ isApproved: action === 'approve' }),
+                body: JSON.stringify({ action }),
             })
             if (!res.ok) throw new Error('Failed')
             toast.success(action === 'approve' ? 'Approved!' : 'Rejected!', { id: toastId })
