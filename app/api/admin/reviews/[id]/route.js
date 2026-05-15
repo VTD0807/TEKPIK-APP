@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getAdminDb } from '@/lib/firebase-admin'
 import { invalidateReviewCaches } from '@/lib/db-queries'
+import { sendMail } from '@/lib/mailer'
+import { reviewModeratedEmailHtml } from '@/lib/mail-templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,14 +22,45 @@ export async function PATCH(req, { params }) {
 
         await db.collection('reviews').doc(id).update(updateData)
         const docSnap = await db.collection('reviews').doc(id).get()
+        const reviewData = docSnap.data()
 
         // Bust review caches on approval/rejection
         if (action === 'approve' || action === 'reject') {
-            const productId = docSnap.data()?.productId
+            const productId = reviewData?.productId
             invalidateReviewCaches(productId)
         }
 
-        return NextResponse.json({ review: { id: docSnap.id, ...docSnap.data() } })
+        // Send email notification asynchronously
+        if (reviewData?.userId) {
+            (async () => {
+                try {
+                    const [userSnap, productSnap] = await Promise.all([
+                        db.collection('users').doc(reviewData.userId).get(),
+                        db.collection('products').doc(reviewData.productId).get()
+                    ])
+                    const userEmail = userSnap.data()?.email
+                    const productTitle = productSnap.data()?.title || 'a product'
+                    
+                    if (userEmail) {
+                        const statusLabel = action === 'approve' ? 'Approved' : action === 'verify' ? 'Verified' : 'Rejected'
+                        await sendMail({
+                            to: userEmail,
+                            subject: `Your review was ${statusLabel}`,
+                            html: reviewModeratedEmailHtml({
+                                productName: productTitle,
+                                productUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://tekpik.in'}/products/${reviewData.productId}`,
+                                status: action === 'approve' ? 'approved' : action === 'verify' ? 'verified' : 'rejected',
+                                reviewText: reviewData.body
+                            })
+                        })
+                    }
+                } catch (err) {
+                    console.error('[Admin] Failed to send review moderation email:', err)
+                }
+            })()
+        }
+
+        return NextResponse.json({ review: { id: docSnap.id, ...reviewData } })
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }

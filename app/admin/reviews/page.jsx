@@ -31,6 +31,17 @@ export default function AdminReviews() {
     const action = async (id, type) => {
         const apiAction = type === 'approved' ? 'approve' : type === 'rejected' ? 'reject' : 'verify';
 
+        // Optimistic UI Update
+        const previousReviews = [...reviews]
+        setReviews(prev => prev.map(r => r.id === id
+            ? { 
+                ...r, 
+                isApproved: type === 'approved' ? true : type === 'rejected' ? false : r.isApproved, 
+                isVerified: type === 'verified' ? true : r.isVerified 
+              }
+            : r
+        ))
+
         try {
             const res = await fetch(`/api/admin/reviews/${id}`, {
                 method: 'PATCH',
@@ -39,29 +50,26 @@ export default function AdminReviews() {
             })
 
             if (!res.ok) throw new Error()
-
             toast.success(`Review ${type}`)
-            setReviews(prev => prev.map(r => r.id === id
-                ? { 
-                    ...r, 
-                    isApproved: type === 'approved' ? true : type === 'rejected' ? false : r.isApproved, 
-                    isVerified: type === 'verified' ? true : r.isVerified 
-                  }
-                : r
-            ))
         } catch {
+            setReviews(previousReviews) // Rollback on failure
             toast.error('Action failed')
         }
     }
 
     const handleDelete = async (id) => {
         if (!confirm('Are you sure you want to delete this review?')) return
+        
+        // Optimistic UI Update
+        const previousReviews = [...reviews]
+        setReviews(prev => prev.filter(r => r.id !== id))
+
         try {
             const res = await fetch(`/api/admin/reviews/${id}`, { method: 'DELETE' })
             if (!res.ok) throw new Error()
             toast.success('Review deleted')
-            setReviews(prev => prev.filter(r => r.id !== id))
         } catch {
+            setReviews(previousReviews) // Rollback on failure
             toast.error('Delete failed')
         }
     }
@@ -92,10 +100,10 @@ export default function AdminReviews() {
                                     <p className="text-xs text-slate-400">{''.repeat(r.rating)}{''.repeat(5 - r.rating)}</p>
                                 </div>
                                 <div className="flex gap-1.5">
-                                    <button onClick={() => action(r.id, 'approved')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Approve"><Check size={15} /></button>
-                                    <button onClick={() => action(r.id, 'verified')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Verify"><PatchCheck size={15} /></button>
-                                    <button onClick={() => action(r.id, 'rejected')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Reject"><X size={15} /></button>
-                                    <button onClick={() => handleDelete(r.id)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition" title="Delete"><Trash size={15} /></button>
+                                    <button onClick={() => action(r.id, 'approved')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Approve"><Check size={18} /></button>
+                                    <button onClick={() => action(r.id, 'verified')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Verify"><PatchCheck size={18} /></button>
+                                    <button onClick={() => action(r.id, 'rejected')} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded transition" title="Reject"><X size={18} /></button>
+                                    <button onClick={() => handleDelete(r.id)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition" title="Delete"><Trash size={18} /></button>
                                 </div>
                             </div>
                             <p className="text-sm text-slate-600">{r.body}</p>
