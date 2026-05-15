@@ -301,7 +301,7 @@ export async function GET(req) {
         // Shared with /api/products and /api/trending-products.
         // Single fetch, single cache — zero duplicate reads.
         const { products: rawProducts, categoriesMap } = await getCatalog()
-        
+
         // Hydrate with feature vectors (also cached)
         const productIds = rawProducts.map(p => p.id)
         const featureMap = await getProductFeatureVectors(productIds)

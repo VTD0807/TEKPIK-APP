@@ -7,7 +7,7 @@
  * Each segment doc: { id, name, description, userCount, emails[], updatedAt }
  */
 import { NextResponse } from 'next/server'
-import { dbAdmin, dbWorkspace, dbUsers, firebaseAdminStatus } from '@/lib/firebase-admin'
+import { dbAdmin, dbWorkspace, dbUsers, firebaseAdminStatus, getProductionDb } from '@/lib/firebase-admin'
 import { getAccessContext, hasAdminAccess } from '@/lib/admin-access'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +16,9 @@ const normalize = (s = '') => String(s).toLowerCase().trim()
 
 // ── Analyse + persist ────────────────────────────────────────────────────────
 async function analyseAndPersist() {
+    // Use production DB router for product/wishlist/category reads
+    const prodDb = await getProductionDb() || dbAdmin
+
     // Load all users from DB-3
     const usersSnap = await dbUsers.collection('users').get()
     const users = new Map()
@@ -46,7 +49,7 @@ async function analyseAndPersist() {
     }
 
     // Load wishlists
-    const wishSnap = await dbAdmin.collection('wishlists').get()
+    const wishSnap = await prodDb.collection('wishlists').get()
     const wishByUser = new Map()
     wishSnap.forEach(doc => {
         const d = doc.data() || {}
@@ -57,12 +60,12 @@ async function analyseAndPersist() {
     })
 
     // Load categories for name lookup
-    const catSnap = await dbAdmin.collection('categories').get()
+    const catSnap = await prodDb.collection('categories').get()
     const catNames = new Map()
     catSnap.forEach(doc => catNames.set(doc.id, doc.data()?.name || doc.id))
 
     // Load products for category lookup from wishlist
-    const prodSnap = await dbAdmin.collection('products').limit(500).get()
+    const prodSnap = await prodDb.collection('products').limit(500).get()
     const prodCatMap = new Map()
     prodSnap.forEach(doc => {
         const d = doc.data() || {}
