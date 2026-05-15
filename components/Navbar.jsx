@@ -8,6 +8,7 @@ import {
     House,
     Grid,
     InfoCircle,
+    GraphUp
 } from 'react-bootstrap-icons'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -375,8 +376,34 @@ function SuggestionDropdown({
                     })}
                 </div>
             ) : (
-                <div className="px-4 py-4 text-sm text-slate-500">
-                    {normalizedSearch ? 'No products found.' : 'Type to search products.'}
+                <div className="py-2">
+                    {normalizedSearch ? (
+                        <div className="px-4 py-3 text-sm text-slate-500">No products found.</div>
+                    ) : (
+                        <div>
+                            <p className="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Trending Searches</p>
+                            {products.slice(0, 3).map((product, i) => {
+                                const term = [product.brand, product.category].filter(Boolean).join(' ') || product.title?.split(' ').slice(0, 3).join(' ') || 'Gadget'
+                                const image = product.imageUrls?.[0] || product.images?.[0] || product.image_urls?.[0]
+                                return (
+                                    <button
+                                        key={product.id || i}
+                                        type="button"
+                                        onClick={() => openSuggestion(product)}
+                                        className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-slate-50 transition"
+                                    >
+                                        <GraphUp size={14} className="text-indigo-400 shrink-0" />
+                                        {image && (
+                                            <div className="h-8 w-8 shrink-0 overflow-hidden flex items-center justify-center bg-slate-50 rounded-md">
+                                                <img src={image} alt={term} className="h-full w-full object-cover mix-blend-multiply" loading="lazy" />
+                                            </div>
+                                        )}
+                                        <span className="text-sm font-medium text-slate-700 truncate">{term}</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
