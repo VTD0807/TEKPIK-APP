@@ -16,7 +16,7 @@ export default function AdminReviews() {
             .then(d => {
                 setReviews((d.reviews || []).map(r => ({
                     ...r,
-                    productName: r.product?.title || 'Unknown',
+                    productName: r.products?.title || 'Unknown',
                 })))
                 setLoading(false)
             })
@@ -29,18 +29,13 @@ export default function AdminReviews() {
         : []
 
     const action = async (id, type) => {
-        const update = type === 'approved' ? { is_approved: true }
-            : type === 'rejected' ? { is_approved: false }
-            : type === 'verified' ? { is_verified: true }
-            : null
-
-        if (!update) return
+        const apiAction = type === 'approved' ? 'approve' : type === 'rejected' ? 'reject' : 'verify';
 
         try {
             const res = await fetch(`/api/admin/reviews/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(update)
+                body: JSON.stringify({ action: apiAction })
             })
 
             if (!res.ok) throw new Error()
