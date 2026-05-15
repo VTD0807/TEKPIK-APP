@@ -215,113 +215,204 @@ const ProductCard = ({ product }) => {
                 : 'text-slate-500'
 
     return (
-        <div className="group relative flex flex-col w-full min-w-0 bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-            {/* Image */}
-            <Link href={`/products/${product.id}`} className="block -mx-4 -mt-4 mb-3">
-                <div className="relative bg-slate-50 h-36 sm:h-48 w-full flex items-center justify-center overflow-hidden rounded-t-xl">
+        <>
+            {/* --- NEW PREMIUM MOBILE LAYOUT (visible only on mobile) --- */}
+            <div className="sm:hidden relative flex flex-col w-full h-full bg-white rounded-[16px] border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.03)] overflow-hidden">
+                {/* Image Section */}
+                <Link href={`/products/${product.id}`} className="relative bg-[#F8FAFC] aspect-square w-full flex items-center justify-center p-4">
                     <ProductImage
                         src={imgSrc}
                         alt={product.title || product.name}
-                        className="h-[88%] w-[88%] group-hover:scale-105 transition duration-300 object-contain mix-blend-multiply"
+                        className="w-full h-full object-contain mix-blend-multiply drop-shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
                     />
+                    {/* Badges Overlay */}
                     {discount > 0 && (
-                        <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <span className="absolute top-2.5 left-2.5 bg-[#FF3B30] text-white text-[10px] font-black px-1.5 py-0.5 rounded-md tracking-wider">
                             -{discount}%
                         </span>
                     )}
                     <ScoreBadge score={aiScore} />
-                </div>
-            </Link>
+                </Link>
 
-            {/* Info */}
-            <div className="flex flex-col mt-2 mb-2">
-                <div className="flex justify-between items-start gap-2 text-slate-800">
-                    <Link href={`/products/${product.id}`} className="flex-1 min-w-0">
-                        <p className="line-clamp-2 hover:text-indigo-600 transition font-medium text-xs sm:text-sm leading-snug break-words">
-                            {product.title || product.name}
-                        </p>
-                    </Link>
-                    <div className="text-right shrink-0">
-                        <p className="font-bold text-sm sm:text-base">{formatPrice(currentPrice, 'INR', 'en-IN')}</p>
-                        {showAnchoredMrp && (
-                            <p className="text-[11px] sm:text-xs text-slate-400 line-through">{formatPrice(originalPrice, 'INR', 'en-IN')}</p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 flex-1 min-w-0">
+                {/* Content Section */}
+                <div className="flex flex-col flex-1 p-3">
+                    {/* Brand & Rating */}
+                    <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400 truncate pr-2">
+                            {product.brand || 'TEKPIK'}
+                        </span>
                         {rating > 0 && (
-                            <div className="flex items-center gap-0.5">
-                                {Array(5).fill('').map((_, i) => (
-                                    rating >= i + 1
-                                        ? <StarFill key={i} size={10} className="text-amber-400" />
-                                        : <Star key={i} size={10} className="text-slate-200" />
-                                ))}
-                                {reviewCount > 0 && <span className="ml-1 text-[10px] text-slate-400">({reviewCount})</span>}
+                            <div className="flex items-center gap-0.5 shrink-0 bg-amber-50 px-1 py-0.5 rounded-md">
+                                <StarFill size={8} className="text-amber-500" />
+                                <span className="text-[9px] font-bold text-amber-700">{rating}</span>
                             </div>
                         )}
-                        {product.brand && (
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wider truncate">{product.brand}</span>
+                    </div>
+
+                    {/* Title */}
+                    <Link href={`/products/${product.id}`} className="mb-2">
+                        <h3 className="text-xs font-bold text-slate-800 line-clamp-2 leading-snug tracking-tight">
+                            {product.title || product.name}
+                        </h3>
+                    </Link>
+
+                    {/* Spacer to push price/actions to bottom */}
+                    <div className="flex-1" />
+
+                    {/* Price Row */}
+                    <div className="flex items-baseline gap-1.5 mb-2.5">
+                        <span className="text-sm font-black text-slate-900 tracking-tight">
+                            {formatPrice(currentPrice, 'INR', 'en-IN')}
+                        </span>
+                        {showAnchoredMrp && (
+                            <span className="text-[10px] font-semibold text-slate-400 line-through">
+                                {formatPrice(originalPrice, 'INR', 'en-IN')}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Action Row */}
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={() => {
+                                if (product.inStock !== false && product.isActive !== false && product.available !== false) {
+                                    handleAmazonClick()
+                                    trackInteraction('amazon_click')
+                                }
+                                router.push(`/products/${product.id}`)
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-1 text-[11px] font-bold py-2 rounded-[10px] transition-all active:scale-95 ${
+                                product.inStock === false || product.isActive === false || product.available === false
+                                ? 'bg-slate-100 text-slate-400' 
+                                : 'bg-black text-white hover:bg-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.12)]'
+                            }`}
+                        >
+                            {product.isActive === false || product.available === false ? 'Unavailable' : product.inStock === false ? 'Out of Stock' : 'View Deal'}
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                dispatch(toggleWishlistItem(product.id))
+                                posthog.capture(isWishlisted ? 'wishlist_remove' : 'wishlist_add', { product_id: product.id, source: 'product_card' })
+                                trackInteraction(isWishlisted ? 'wishlist_remove' : 'wishlist_add')
+                            }}
+                            className={`w-[34px] h-[34px] flex items-center justify-center rounded-[10px] border transition-colors shrink-0 active:scale-95 ${
+                                isWishlisted ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            {isWishlisted ? <HeartFill size={14} className="text-[#FF3B30]" /> : <Heart size={14} className="text-slate-500" />}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- DESKTOP LAYOUT (visible only on sm and up) --- */}
+            <div className="hidden sm:flex group relative flex-col w-full h-full bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                {/* Image */}
+                <Link href={`/products/${product.id}`} className="block -mx-4 -mt-4 mb-3">
+                    <div className="relative bg-slate-50 h-48 w-full flex items-center justify-center overflow-hidden rounded-t-xl">
+                        <ProductImage
+                            src={imgSrc}
+                            alt={product.title || product.name}
+                            className="h-[88%] w-[88%] group-hover:scale-105 transition duration-300 object-contain mix-blend-multiply"
+                        />
+                        {discount > 0 && (
+                            <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                -{discount}%
+                            </span>
+                        )}
+                        <ScoreBadge score={aiScore} />
+                    </div>
+                </Link>
+
+                {/* Info */}
+                <div className="flex flex-col mt-2 mb-2 flex-1">
+                    <div className="flex justify-between items-start gap-2 text-slate-800">
+                        <Link href={`/products/${product.id}`} className="flex-1 min-w-0">
+                            <p className="line-clamp-2 hover:text-indigo-600 transition font-medium text-sm leading-snug break-words">
+                                {product.title || product.name}
+                            </p>
+                        </Link>
+                        <div className="text-right shrink-0">
+                            <p className="font-bold text-base">{formatPrice(currentPrice, 'INR', 'en-IN')}</p>
+                            {showAnchoredMrp && (
+                                <p className="text-xs text-slate-400 line-through">{formatPrice(originalPrice, 'INR', 'en-IN')}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 flex-1 min-w-0">
+                            {rating > 0 && (
+                                <div className="flex items-center gap-0.5">
+                                    {Array(5).fill('').map((_, i) => (
+                                        rating >= i + 1
+                                            ? <StarFill key={i} size={10} className="text-amber-400" />
+                                            : <Star key={i} size={10} className="text-slate-200" />
+                                    ))}
+                                    {reviewCount > 0 && <span className="ml-1 text-[10px] text-slate-400">({reviewCount})</span>}
+                                </div>
+                            )}
+                            {product.brand && (
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider truncate">{product.brand}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
+                        {verifiedAgo !== null ? (
+                            <p className={`text-[10px] font-medium truncate ${freshnessClass}`}>
+                                Verified {verifiedAgo.label}
+                            </p>
+                        ) : <div />}
+                        
+                        {typeof todayViews === 'number' && todayViews > 0 && (
+                            <p className="text-[10px] text-slate-500 truncate">{todayViews} viewed today</p>
                         )}
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
-                    {verifiedAgo !== null ? (
-                        <p className={`text-[10px] font-medium truncate ${freshnessClass}`}>
-                            Verified {verifiedAgo.label}
-                        </p>
-                    ) : <div />}
-                    
-                    {typeof todayViews === 'number' && todayViews > 0 && (
-                        <p className="text-[10px] text-slate-500 truncate">{todayViews} viewed today</p>
-                    )}
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100 shrink-0">
+                    <button
+                        onClick={() => {
+                            if (product.inStock !== false && product.isActive !== false && product.available !== false) {
+                                handleAmazonClick()
+                                trackInteraction('amazon_click')
+                            }
+                            router.push(`/products/${product.id}`)
+                        }}
+                        className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 text-xs transition text-white font-semibold py-2 rounded-full ${
+                            product.inStock === false || product.isActive === false || product.available === false
+                            ? 'bg-slate-300 hover:bg-slate-400' 
+                            : 'bg-[#00A8A8] hover:bg-[#008888]'
+                        }`}
+                    >
+                        <BoxArrowUpRight size={11} />
+                        {product.isActive === false || product.available === false ? 'Unavailable' : product.inStock === false ? 'Out of Stock' : 'View Deal'}
+                    </button>
+                    <button
+                        onClick={() => {
+                            dispatch(toggleWishlistItem(product.id))
+                            posthog.capture(isWishlisted ? 'wishlist_remove' : 'wishlist_add', {
+                                product_id: product.id,
+                                source: 'product_card',
+                            })
+                            trackInteraction(isWishlisted ? 'wishlist_remove' : 'wishlist_add')
+                        }}
+                        className={`p-1.5 rounded-full border transition shrink-0 ${isWishlisted ? 'bg-red-50 border-red-300' : 'bg-white border-slate-300 hover:border-red-300'}`}
+                        aria-label="Toggle wishlist"
+                        title={isWishlisted ? 'Saved to wishlist' : 'Save to wishlist'}
+                    >
+                        {isWishlisted ? (
+                            <HeartFill size={14} className="text-red-500" />
+                        ) : (
+                            <Heart size={14} className="text-slate-600" />
+                        )}
+                    </button>
                 </div>
             </div>
-
-            {/* Description */}
-            
-            {/* Actions */}
-            <div className="flex items-center gap-1.5 mt-auto pt-3 border-t border-slate-100">
-                <button
-                    onClick={() => {
-                        if (product.inStock !== false && product.isActive !== false && product.available !== false) {
-                            handleAmazonClick()
-                            trackInteraction('amazon_click')
-                        }
-                        router.push(`/products/${product.id}`)
-                    }}
-                    className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs transition text-white font-semibold py-2 sm:py-2 rounded-full ${
-                        product.inStock === false || product.isActive === false || product.available === false
-                        ? 'bg-slate-300 hover:bg-slate-400' 
-                        : 'bg-[#00A8A8] hover:bg-[#008888]'
-                    }`}
-                >
-                    <BoxArrowUpRight size={11} />
-                    {product.isActive === false || product.available === false ? 'Unavailable' : product.inStock === false ? 'Out of Stock' : 'View Deal'}
-                </button>
-                <button
-                    onClick={() => {
-                        dispatch(toggleWishlistItem(product.id))
-                        posthog.capture(isWishlisted ? 'wishlist_remove' : 'wishlist_add', {
-                            product_id: product.id,
-                            source: 'product_card',
-                        })
-                        trackInteraction(isWishlisted ? 'wishlist_remove' : 'wishlist_add')
-                    }}
-                    className={`p-1.5 rounded-full border transition shrink-0 ${isWishlisted ? 'bg-red-50 border-red-300' : 'bg-white border-slate-300 hover:border-red-300'}`}
-                    aria-label="Toggle wishlist"
-                    title={isWishlisted ? 'Saved to wishlist' : 'Save to wishlist'}
-                >
-                    {isWishlisted ? (
-                        <HeartFill size={14} className="text-red-500" />
-                    ) : (
-                        <Heart size={14} className="text-slate-600" />
-                    )}
-                </button>
-            </div>
-        </div>
+        </>
     )
 }
 
